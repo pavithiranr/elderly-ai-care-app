@@ -1,0 +1,804 @@
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/app_theme.dart';
+
+/// Weekly AI-generated health trend report for caregivers.
+/// Uses fl_chart for mood and pain bar charts. MD3 layout, ≥16px fonts.
+class ReportsScreen extends StatelessWidget {
+  const ReportsScreen({super.key});
+
+  // TODO: replace all hardcoded chart data with Firestore weekly aggregates
+  static const List<double> _moodData = [4, 5, 3, 4, 4, 5, 4]; // Mon–Sun, scale 1-5
+  static const List<double> _painData = [2, 3, 1, 2, 3, 2, 2]; // Mon–Sun, scale 0-10
+  static const List<String> _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundGray,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(
+          'Weekly Report',
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textDark,
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {}, // TODO: share / export PDF
+            icon: const Icon(Icons.ios_share_rounded, size: 16),
+            label: Text(
+              'Share',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        backgroundColor: AppTheme.surfaceWhite,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+        children: [
+          // ── Page header ────────────────────────────────────────────────
+          Text(
+            'Mar 28 – Apr 3, 2026',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: AppTheme.textLight,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            // TODO: replace with patient name from Firestore
+            "Margaret's Health Trends",
+            style: GoogleFonts.inter(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ── AI narrative ───────────────────────────────────────────────
+          // TODO: replace placeholder with Gemini 2.0 weekly narrative
+          const _AiNarrativeCard(
+            narrative:
+                'This was a generally positive week for Margaret. She completed 6 of 7 daily check-ins and maintained strong medication adherence (89%). Pain levels stayed low throughout the week, averaging 2.1 out of 10. Mood was consistently positive on 5 of 7 days. Recommend maintaining current routine and monitoring the missed Vitamin D3 doses.',
+          ),
+          const SizedBox(height: 20),
+
+          // ── Weekly stats ───────────────────────────────────────────────
+          _SectionHeader(title: 'Weekly Summary'),
+          const SizedBox(height: 10),
+          // TODO: replace hardcoded stats with Firestore weekly aggregates
+          const _WeeklyStatsGrid(),
+          const SizedBox(height: 20),
+
+          // ── Mood trend chart ───────────────────────────────────────────
+          _SectionHeader(title: 'Mood This Week'),
+          const SizedBox(height: 4),
+          Text(
+            'Daily mood score (1 = bad, 5 = great)',
+            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMid),
+          ),
+          const SizedBox(height: 10),
+          _BarChartCard(
+            data: _moodData,
+            dayLabels: _dayLabels,
+            maxY: 5,
+            barColor: AppTheme.accentGreen,
+            gradientColors: [AppTheme.accentGreen, const Color(0xFF4ADE80)],
+            tooltipSuffix: '/5',
+            yAxisLabel: _moodYLabel,
+          ),
+          const SizedBox(height: 20),
+
+          // ── Pain trend chart ───────────────────────────────────────────
+          _SectionHeader(title: 'Pain Levels This Week'),
+          const SizedBox(height: 4),
+          Text(
+            'Daily reported pain (0 = none, 10 = severe)',
+            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMid),
+          ),
+          const SizedBox(height: 10),
+          _BarChartCard(
+            data: _painData,
+            dayLabels: _dayLabels,
+            maxY: 10,
+            barColor: AppTheme.accentOrange,
+            gradientColors: [AppTheme.accentOrange, const Color(0xFFFB923C)],
+            tooltipSuffix: '/10',
+            yAxisLabel: _painYLabel,
+          ),
+          const SizedBox(height: 20),
+
+          // ── Medication adherence ───────────────────────────────────────
+          _SectionHeader(title: 'Medication Adherence'),
+          const SizedBox(height: 10),
+          // TODO: replace with Firestore medication compliance data
+          const _MedicationAdherenceCard(),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  static String _moodYLabel(double value) {
+    return switch (value.toInt()) {
+      1 => '😢',
+      2 => '😟',
+      3 => '😐',
+      4 => '🙂',
+      5 => '😊',
+      _ => '',
+    };
+  }
+
+  static String _painYLabel(double value) {
+    if (value % 2 != 0) return '';
+    return value.toInt().toString();
+  }
+}
+
+// ── AI Narrative Card ─────────────────────────────────────────────────────────
+
+class _AiNarrativeCard extends StatelessWidget {
+  final String narrative;
+  const _AiNarrativeCard({required this.narrative});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1D4ED8), Color(0xFF4338CA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row
+            Row(
+              children: [
+                _GeminiSparkle(),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Apr 3, 2026',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.75),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Narrative
+            Text(
+              narrative,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                color: Colors.white,
+                height: 1.65,
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Footer
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome_rounded,
+                    color: Colors.white, size: 13),
+                const SizedBox(width: 5),
+                Text(
+                  'Generated by Gemini 2.0',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GeminiSparkle extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 14),
+          const SizedBox(width: 5),
+          Text(
+            'Gemini 2.0',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Weekly Stats Grid ─────────────────────────────────────────────────────────
+
+class _WeeklyStatsGrid extends StatelessWidget {
+  const _WeeklyStatsGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _StatTile(
+                icon: Icons.check_circle_rounded,
+                iconColor: AppTheme.accentGreen,
+                iconBg: const Color(0xFFDCFCE7),
+                label: 'Check-ins',
+                value: '6 / 7',
+                trend: '+1 vs last week',
+                trendUp: true,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatTile(
+                icon: Icons.medication_rounded,
+                iconColor: AppTheme.primaryBlue,
+                iconBg: AppTheme.primaryLight,
+                label: 'Med Adherence',
+                value: '89%',
+                trend: '–3% vs last week',
+                trendUp: false,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _StatTile(
+                icon: Icons.healing_rounded,
+                iconColor: AppTheme.accentGreen,
+                iconBg: const Color(0xFFDCFCE7),
+                label: 'Avg Pain',
+                value: '2.1 / 10',
+                trend: '–0.4 vs last week',
+                trendUp: true,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatTile(
+                icon: Icons.emergency_rounded,
+                iconColor: AppTheme.accentGreen,
+                iconBg: const Color(0xFFDCFCE7),
+                label: 'SOS Alerts',
+                value: '0',
+                trend: 'Same as last week',
+                trendUp: true,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String label;
+  final String value;
+  final String trend;
+  final bool trendUp;
+
+  const _StatTile({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.label,
+    required this.value,
+    required this.trend,
+    required this.trendUp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration:
+                    BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(8)),
+                child: Icon(icon, color: iconColor, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppTheme.textMid,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Icon(
+                trendUp ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                size: 13,
+                color: trendUp ? AppTheme.accentGreen : AppTheme.accentOrange,
+              ),
+              const SizedBox(width: 3),
+              Expanded(
+                child: Text(
+                  trend,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: trendUp ? AppTheme.accentGreen : AppTheme.accentOrange,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Bar Chart Card ────────────────────────────────────────────────────────────
+
+class _BarChartCard extends StatefulWidget {
+  final List<double> data;
+  final List<String> dayLabels;
+  final double maxY;
+  final Color barColor;
+  final List<Color> gradientColors;
+  final String tooltipSuffix;
+  final String Function(double) yAxisLabel;
+
+  const _BarChartCard({
+    required this.data,
+    required this.dayLabels,
+    required this.maxY,
+    required this.barColor,
+    required this.gradientColors,
+    required this.tooltipSuffix,
+    required this.yAxisLabel,
+  });
+
+  @override
+  State<_BarChartCard> createState() => _BarChartCardState();
+}
+
+class _BarChartCardState extends State<_BarChartCard> {
+  int _touchedIndex = -1;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: SizedBox(
+        height: 180,
+        child: BarChart(
+          BarChartData(
+            maxY: widget.maxY,
+            minY: 0,
+            barTouchData: BarTouchData(
+              enabled: true,
+              touchCallback: (event, response) {
+                setState(() {
+                  if (event is FlTapUpEvent ||
+                      event is FlPointerExitEvent ||
+                      event is FlLongPressEnd) {
+                    _touchedIndex = -1;
+                  } else if (response?.spot != null) {
+                    _touchedIndex = response!.spot!.touchedBarGroupIndex;
+                  }
+                });
+              },
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipColor: (_) => AppTheme.textDark,
+                tooltipRoundedRadius: 8,
+                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                  return BarTooltipItem(
+                    '${rod.toY.toStringAsFixed(0)}${widget.tooltipSuffix}',
+                    GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  );
+                },
+              ),
+            ),
+            titlesData: FlTitlesData(
+              show: true,
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 28,
+                  getTitlesWidget: (value, meta) {
+                    final i = value.toInt();
+                    if (i < 0 || i >= widget.dayLabels.length) {
+                      return const SizedBox.shrink();
+                    }
+                    final isToday = i == 3; // Thu = today (Apr 3)
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        widget.dayLabels[i],
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight:
+                              isToday ? FontWeight.w700 : FontWeight.w400,
+                          color: isToday
+                              ? AppTheme.primaryBlue
+                              : AppTheme.textMid,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 32,
+                  interval: widget.maxY <= 5 ? 1 : 2,
+                  getTitlesWidget: (value, meta) {
+                    final label = widget.yAxisLabel(value);
+                    if (label.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Text(
+                        label,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppTheme.textLight,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              topTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: widget.maxY <= 5 ? 1 : 2,
+              getDrawingHorizontalLine: (_) => const FlLine(
+                color: AppTheme.divider,
+                strokeWidth: 1,
+                dashArray: [4, 4],
+              ),
+            ),
+            borderData: FlBorderData(show: false),
+            barGroups: widget.data.asMap().entries.map((entry) {
+              final i = entry.key;
+              final value = entry.value;
+              final isTouched = i == _touchedIndex;
+
+              return BarChartGroupData(
+                x: i,
+                barRods: [
+                  BarChartRodData(
+                    toY: value,
+                    width: isTouched ? 22 : 18,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(6),
+                    ),
+                    gradient: LinearGradient(
+                      colors: isTouched
+                          ? [
+                              widget.gradientColors[1],
+                              widget.gradientColors[0],
+                            ]
+                          : [
+                              widget.gradientColors[0].withValues(alpha: 0.7),
+                              widget.gradientColors[1],
+                            ],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                    ),
+                    backDrawRodData: BackgroundBarChartRodData(
+                      show: true,
+                      toY: widget.maxY,
+                      color: AppTheme.backgroundGray,
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Medication Adherence Card ─────────────────────────────────────────────────
+
+class _MedicationAdherenceCard extends StatelessWidget {
+  const _MedicationAdherenceCard();
+
+  // TODO: replace with Firestore weekly medication compliance data
+  static const List<_MedRow> _meds = [
+    _MedRow(name: 'Metformin 500mg',   daysTotal: 7, daysTaken: 7, time: 'Morning'),
+    _MedRow(name: 'Lisinopril 10mg',   daysTotal: 7, daysTaken: 7, time: 'Morning'),
+    _MedRow(name: 'Vitamin D3',        daysTotal: 7, daysTaken: 5, time: 'Afternoon'),
+    _MedRow(name: 'Atorvastatin 20mg', daysTotal: 7, daysTaken: 6, time: 'Evening'),
+  ];
+
+  double get _overallAdherence {
+    final total = _meds.fold(0, (s, m) => s + m.daysTotal);
+    final taken = _meds.fold(0, (s, m) => s + m.daysTaken);
+    return taken / total;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (_overallAdherence * 100).round();
+    final overallColor =
+        pct >= 85 ? AppTheme.accentGreen : AppTheme.accentOrange;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Overall percentage header
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$pct%',
+                style: GoogleFonts.inter(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: overallColor,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'overall this week',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: AppTheme.textMid,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // Overall bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: _overallAdherence,
+              backgroundColor: AppTheme.divider,
+              valueColor: AlwaysStoppedAnimation<Color>(overallColor),
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Per-medication rows
+          const Divider(color: AppTheme.divider, height: 1),
+          const SizedBox(height: 16),
+          ..._meds.map((m) => _MedProgressRow(med: m)),
+        ],
+      ),
+    );
+  }
+}
+
+class _MedProgressRow extends StatelessWidget {
+  final _MedRow med;
+  const _MedProgressRow({required this.med});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = med.daysTaken / med.daysTotal;
+    final color = pct >= 0.85 ? AppTheme.accentGreen : AppTheme.accentOrange;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      med.name,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                    Text(
+                      med.time,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.textMid,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${med.daysTaken}/${med.daysTotal} days',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: pct,
+              backgroundColor: AppTheme.divider,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              minHeight: 7,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Section Header ────────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: GoogleFonts.inter(
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        color: AppTheme.textDark,
+      ),
+    );
+  }
+}
+
+// ── Data classes ──────────────────────────────────────────────────────────────
+
+class _MedRow {
+  final String name;
+  final int daysTotal;
+  final int daysTaken;
+  final String time;
+  const _MedRow({
+    required this.name,
+    required this.daysTotal,
+    required this.daysTaken,
+    required this.time,
+  });
+}

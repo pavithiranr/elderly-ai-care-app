@@ -1,0 +1,31 @@
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+
+/// Configuration for Firebase initialization.
+/// Auto-generated from google-services.json
+class DefaultFirebaseOptions {
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyB4th4Iwep0zVcyi26MBZ3TJRoerjFk--4',
+    appId: '1:631057330468:android:05d5e131929714653a83b1',
+    messagingSenderId: '631057330468',
+    projectId: 'caresync-vertex',
+    storageBucket: 'caresync-vertex.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyB4th4Iwep0zVcyi26MBZ3TJRoerjFk--4',
+    appId: '1:631057330468:ios:YOUR_IOS_APP_ID', // Update with your iOS app ID
+    messagingSenderId: '631057330468',
+    projectId: 'caresync-vertex',
+    storageBucket: 'caresync-vertex.firebasestorage.app',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyB4th4Iwep0zVcyi26MBZ3TJRoerjFk--4',
+    appId: '1:631057330468:web:YOUR_WEB_APP_ID', // Update with your web app ID
+    messagingSenderId: '631057330468',
+    projectId: 'caresync-vertex',
+    storageBucket: 'caresync-vertex.firebasestorage.app',
+  );
+
+  static const FirebaseOptions currentPlatform = android;
+}

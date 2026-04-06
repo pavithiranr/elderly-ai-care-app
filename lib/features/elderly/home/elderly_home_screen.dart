@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/patient_service.dart';
+import '../../../shared/services/user_session_service.dart';
 
 /// Elderly Home Screen.
 /// Design rules: ≥22px font, ≥64px buttons, high contrast, MD3.
@@ -30,7 +32,17 @@ class ElderlyHomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Header ────────────────────────────────────────────────
-              _Header(greeting: _greeting, date: _today),
+              FutureBuilder<PatientProfile?>(
+                future: UserSessionService.instance.getSavedUserId().then(
+                      (userId) => userId != null
+                          ? PatientService.instance.getPatientById(userId)
+                          : null,
+                    ),
+                builder: (context, snapshot) {
+                  final patientName = snapshot.data?.name ?? 'Friend';
+                  return _Header(greeting: _greeting, date: _today, name: patientName);
+                },
+              ),
               const SizedBox(height: 28),
 
               // ── Check-in banner ───────────────────────────────────────
@@ -86,7 +98,7 @@ class ElderlyHomeScreen extends StatelessWidget {
                     label: 'Settings',
                     color: AppTheme.textMid,
                     bg: AppTheme.divider,
-                    onTap: () {}, // TODO: settings screen
+                    onTap: () => context.push(AppConstants.routeElderlySettings),
                   ),
                 ],
               ),
@@ -110,8 +122,13 @@ class ElderlyHomeScreen extends StatelessWidget {
 class _Header extends StatelessWidget {
   final String greeting;
   final String date;
+  final String name;
 
-  const _Header({required this.greeting, required this.date});
+  const _Header({
+    required this.greeting,
+    required this.date,
+    required this.name,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -132,8 +149,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                // TODO: replace 'Margaret' with real name from Firebase Auth
-                'Margaret',
+                name,
                 style: GoogleFonts.inter(
                   fontSize: AppTheme.elderlyTitleFontSize,
                   fontWeight: FontWeight.bold,

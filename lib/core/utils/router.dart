@@ -7,6 +7,7 @@ import '../../features/elderly/checkin/checkin_screen.dart';
 import '../../features/elderly/medication/medication_screen.dart';
 import '../../features/elderly/sos/sos_screen.dart';
 import '../../features/elderly/chat/elderly_chat_screen.dart';
+import '../../features/elderly/settings/settings_screen.dart';
 import '../../features/caregiver/dashboard/caregiver_dashboard_screen.dart';
 import '../../features/caregiver/alerts/alerts_screen.dart';
 import '../../features/caregiver/reports/reports_screen.dart';
@@ -60,6 +61,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppConstants.routeElderlyChat,
       builder: (context, state) => const ElderlyCharScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeElderlySettings,
+      builder: (context, state) => const SettingsScreen(),
     ),
 
     // ── Caregiver routes ─────────────────────────────────────────────────

@@ -10,6 +10,10 @@ package-lock.json
 .buildlog/
 .history
 
+# Environment variables (contains API keys)
+.env
+.env.local
+
 # IDE — IntelliJ / Android Studio
 .idea/
 *.iml

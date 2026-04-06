@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/caregiver_service.dart';
+import '../../../shared/services/patient_service.dart';
 
 /// Caregiver Dashboard — MD3 card-based layout, ≥16px fonts.
 class CaregiverDashboardScreen extends StatelessWidget {
@@ -27,19 +29,52 @@ class CaregiverDashboardScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         children: [
           // ── Greeting ──────────────────────────────────────────────────
-          _GreetingHeader(greeting: _greeting, date: _today),
+          FutureBuilder<CaregiverProfile?>(
+            future: CaregiverService.instance.getCurrentCaregiverProfile(),
+            builder: (context, snapshot) {
+              final profile = snapshot.data;
+              final caregiverName = profile?.name ?? 'Caregiver';
+              final caregiverInitial = profile?.initial ?? '?';
+
+              return _GreetingHeader(
+                greeting: _greeting,
+                date: _today,
+                caregiverName: caregiverName,
+                caregiverInitial: caregiverInitial,
+              );
+            },
+          ),
           const SizedBox(height: 20),
 
           // ── Patient card ───────────────────────────────────────────────
-          // TODO: replace hardcoded data with Firestore patient document
-          const _PatientCard(),
+          // Fetches patient data from Firestore
+          FutureBuilder<List<PatientProfile>>(
+            future: CaregiverService.instance
+                .getCurrentCaregiverProfile()
+                .then((profile) => profile != null
+                    ? PatientService.instance
+                        .getPatientsByCaregiver(profile.id)
+                    : []),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final patients = snapshot.data ?? [];
+              final primaryPatient =
+                  patients.isNotEmpty ? patients.first : null;
+
+              return primaryPatient != null
+                  ? _PatientCard(patient: primaryPatient)
+                  : const _PatientCardPlaceholder();
+            },
+          ),
           const SizedBox(height: 16),
 
           // ── AI Summary ─────────────────────────────────────────────────
-          // TODO: replace placeholder text with Gemini 2.0 generated summary
+          // TODO: replace placeholder text with Gemini 2.0 generated summary (later)
           const _AiSummaryBanner(
             summary:
-                'Margaret had a good morning. She completed her check-in, reported a pain level of 2/10, and took both morning medications on time. No concerns flagged today.',
+                'Patient had a good morning. Completed check-in with good mood report, took medications on time. No alerts to review.',
           ),
           const SizedBox(height: 20),
 
@@ -73,8 +108,68 @@ class CaregiverDashboardScreen extends StatelessWidget {
           // ── Recent activity ────────────────────────────────────────────
           _SectionHeader(title: 'Recent Activity'),
           const SizedBox(height: 10),
-          // TODO: replace hardcoded list with Firestore activity stream
-          ..._recentActivity.map((a) => _ActivityTile(item: a)),
+          // Fetches activity stream from Firestore (real-time updates)
+          FutureBuilder<PatientProfile?>(
+            future: CaregiverService.instance
+                .getCurrentCaregiverProfile()
+                .then((profile) => profile != null
+                    ? PatientService.instance
+                        .getPatientsByCaregiver(profile.id)
+                        .then((patients) =>
+                            patients.isNotEmpty ? patients.first : null)
+                    : null),
+            builder: (context, patientSnapshot) {
+              if (patientSnapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
+                );
+              }
+
+              final patient = patientSnapshot.data;
+              if (patient == null) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: Text(
+                      'No activity data',
+                      style: GoogleFonts.inter(color: AppTheme.textMid),
+                    ),
+                  ),
+                );
+              }
+
+              return StreamBuilder<List<Map<String, dynamic>>>(
+                stream: PatientService.instance.getActivityStream(patient.id),
+                builder: (context, activitySnapshot) {
+                  if (!activitySnapshot.hasData) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final activities = activitySnapshot.data ?? [];
+                  if (activities.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
+                        child: Text(
+                          'No recent activity',
+                          style: GoogleFonts.inter(color: AppTheme.textMid),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: activities
+                        .take(10)
+                        .map((activity) =>
+                            _ActivityTileFromMap(activityData: activity))
+                        .toList(),
+                  );
+                },
+              );
+            },
+          ),
         ],
       ),
     );
@@ -137,44 +232,6 @@ class CaregiverDashboardScreen extends StatelessWidget {
       elevation: 0,
     );
   }
-
-  static const List<_ActivityItem> _recentActivity = [
-    _ActivityItem(
-      icon: Icons.check_circle_rounded,
-      iconColor: AppTheme.accentGreen,
-      title: 'Daily check-in completed',
-      subtitle: 'Mood: Good · Pain: 2/10',
-      time: 'Today, 8:12 AM',
-    ),
-    _ActivityItem(
-      icon: Icons.medication_rounded,
-      iconColor: AppTheme.accentOrange,
-      title: 'Morning medications taken',
-      subtitle: 'Metformin · Lisinopril',
-      time: 'Today, 8:30 AM',
-    ),
-    _ActivityItem(
-      icon: Icons.chat_bubble_rounded,
-      iconColor: AppTheme.primaryBlue,
-      title: 'Chat with AI companion',
-      subtitle: '12-minute session',
-      time: 'Today, 9:05 AM',
-    ),
-    _ActivityItem(
-      icon: Icons.warning_rounded,
-      iconColor: AppTheme.accentOrange,
-      title: 'Missed afternoon medication',
-      subtitle: 'Vitamin D3 — 12:00 PM',
-      time: 'Today, 12:45 PM',
-    ),
-    _ActivityItem(
-      icon: Icons.check_circle_rounded,
-      iconColor: AppTheme.accentGreen,
-      title: 'Daily check-in completed',
-      subtitle: 'Mood: Great · Pain: 1/10',
-      time: 'Yesterday, 8:20 AM',
-    ),
-  ];
 }
 
 // ── Greeting Header ───────────────────────────────────────────────────────────
@@ -182,7 +239,14 @@ class CaregiverDashboardScreen extends StatelessWidget {
 class _GreetingHeader extends StatelessWidget {
   final String greeting;
   final String date;
-  const _GreetingHeader({required this.greeting, required this.date});
+  final String caregiverName;
+  final String caregiverInitial;
+  const _GreetingHeader({
+    required this.greeting,
+    required this.date,
+    required this.caregiverName,
+    required this.caregiverInitial,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -215,8 +279,7 @@ class _GreetingHeader extends StatelessWidget {
                       ),
                     ),
                     TextSpan(
-                      // TODO: replace 'Sarah' with caregiver name from Firebase Auth
-                      text: 'Sarah',
+                      text: caregiverName,
                       style: GoogleFonts.inter(
                         fontSize: 22,
                         color: AppTheme.textDark,
@@ -233,7 +296,7 @@ class _GreetingHeader extends StatelessWidget {
           radius: 22,
           backgroundColor: AppTheme.primaryLight,
           child: Text(
-            'S', // TODO: replace with caregiver initial from Firebase Auth
+            caregiverInitial,
             style: GoogleFonts.inter(
               fontSize: 17,
               fontWeight: FontWeight.bold,
@@ -249,7 +312,8 @@ class _GreetingHeader extends StatelessWidget {
 // ── Patient Card ──────────────────────────────────────────────────────────────
 
 class _PatientCard extends StatelessWidget {
-  const _PatientCard();
+  final PatientProfile patient;
+  const _PatientCard({required this.patient});
 
   @override
   Widget build(BuildContext context) {
@@ -281,7 +345,7 @@ class _PatientCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Margaret Johnson',
+                  patient.name,
                   style: GoogleFonts.inter(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
@@ -290,7 +354,7 @@ class _PatientCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '78 years old  ·  Last seen: 9:05 AM',
+                  '${patient.age} years old  ·  Last seen: ${_formatLastSeen(patient.lastSeen)}',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     color: AppTheme.textMid,
@@ -299,8 +363,70 @@ class _PatientCard extends StatelessWidget {
               ],
             ),
           ),
-          _StatusBadge(label: 'Active', color: AppTheme.accentGreen),
+          _StatusBadge(label: patient.status.capitalize(), color: _statusColor(patient.status)),
         ],
+      ),
+    );
+  }
+
+  String _formatLastSeen(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'Now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return AppTheme.accentGreen;
+      case 'inactive':
+        return AppTheme.accentOrange;
+      default:
+        return AppTheme.textMid;
+    }
+  }
+}
+
+/// Placeholder when no patient data available
+class _PatientCardPlaceholder extends StatelessWidget {
+  const _PatientCardPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.person_off_rounded,
+              color: AppTheme.textLight,
+              size: 40,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No patients assigned',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: AppTheme.textMid,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -372,10 +498,32 @@ class _AiSummaryBanner extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row with Gemini sparkle badge
+            // Header row with badge
             Row(
               children: [
-                const _GeminiSparkle(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 14),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Summary',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const Spacer(),
                 Container(
                   padding:
@@ -428,38 +576,6 @@ class _AiSummaryBanner extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Sparkle badge shown at the top-left of all AI-generated cards.
-class _GeminiSparkle extends StatelessWidget {
-  const _GeminiSparkle();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 14),
-          const SizedBox(width: 5),
-          Text(
-            'Gemini 2.0',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -695,14 +811,68 @@ class _QuickLink extends StatelessWidget {
   }
 }
 
-// ── Activity Tile ─────────────────────────────────────────────────────────────
+// ── Activity Tile (Firestore) ─────────────────────────────────────────────────
 
-class _ActivityTile extends StatelessWidget {
-  final _ActivityItem item;
-  const _ActivityTile({required this.item});
+class _ActivityTileFromMap extends StatelessWidget {
+  final Map<String, dynamic> activityData;
+  const _ActivityTileFromMap({required this.activityData});
+
+  Color _getIconColor(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'medication':
+        return AppTheme.accentOrange;
+      case 'checkin':
+        return AppTheme.accentGreen;
+      case 'alert':
+      case 'warning':
+        return AppTheme.accentRed;
+      case 'chat':
+        return AppTheme.primaryBlue;
+      default:
+        return AppTheme.primaryBlue;
+    }
+  }
+
+  IconData _getIcon(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'medication':
+        return Icons.medication_rounded;
+      case 'checkin':
+        return Icons.check_circle_rounded;
+      case 'alert':
+      case 'warning':
+        return Icons.warning_rounded;
+      case 'chat':
+        return Icons.chat_bubble_rounded;
+      default:
+        return Icons.info_rounded;
+    }
+  }
+
+  String _formatTime(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'Now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final type = activityData['type'] as String?;
+    final title = activityData['title'] as String? ?? 'Activity';
+    final subtitle = activityData['subtitle'] as String? ?? '';
+    final timestamp = (activityData['timestamp'] as dynamic);
+    final DateTime? dateTime = timestamp is DateTime ? timestamp : null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
@@ -717,10 +887,10 @@ class _ActivityTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: item.iconColor.withValues(alpha: 0.1),
+              color: _getIconColor(type).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(item.icon, color: item.iconColor, size: 18),
+            child: Icon(_getIcon(type), color: _getIconColor(type), size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -728,27 +898,29 @@ class _ActivityTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.title,
+                  title,
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textDark,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  item.subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: AppTheme.textMid,
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppTheme.textMid,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
           const SizedBox(width: 8),
           Text(
-            item.time,
+            _formatTime(dateTime),
             style: GoogleFonts.inter(
               fontSize: 12,
               color: AppTheme.textLight,
@@ -759,6 +931,9 @@ class _ActivityTile extends StatelessWidget {
     );
   }
 }
+
+/// Loading state for AI-generated summary
+/// (Removed - not needed)
 
 // ── Section Header ────────────────────────────────────────────────────────────
 
@@ -779,19 +954,10 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ── Data classes ──────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
+// String extension for utility methods
+// ──────────────────────────────────────────────────────────────────────────────
 
-class _ActivityItem {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final String time;
-  const _ActivityItem({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.time,
-  });
+extension StringExtension on String {
+  String capitalize() => isNotEmpty ? '${this[0].toUpperCase()}${substring(1).toLowerCase()}' : '';
 }

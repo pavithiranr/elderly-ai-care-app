@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/patient_service.dart';
+import '../../../shared/services/user_session_service.dart';
 
 /// Daily health check-in for elderly users.
 /// Captures mood, pain level, and an optional note — ready for Gemini AI analysis.
@@ -33,8 +35,28 @@ class _CheckinScreenState extends State<CheckinScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    // TODO: send to Firestore / Gemini AI via backend service
+  void _submit() async {
+    // Save to Firestore
+    try {
+      final patientId = await UserSessionService.instance.getSavedUserId();
+      if (patientId != null) {
+        await PatientService.instance.saveCheckin(
+          patientId,
+          _selectedMood,
+          _painLevel,
+          _noteController.text.isEmpty ? null : _noteController.text,
+        );
+      }
+    } catch (e) {
+      print('Error submitting check-in: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving check-in: $e')),
+        );
+        return;
+      }
+    }
+    
     setState(() => _submitted = true);
   }
 

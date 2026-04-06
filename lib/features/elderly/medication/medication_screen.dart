@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/patient_service.dart';
+import '../../../shared/services/user_session_service.dart';
 
 /// Medication reminder screen — placeholder list ready for Firestore integration.
 class MedicationScreen extends StatelessWidget {
@@ -10,21 +12,25 @@ class MedicationScreen extends StatelessWidget {
   // Placeholder data — replace with Firestore stream
   static const List<_MedItem> _meds = [
     _MedItem(
+        id: 'med_1',
         name: 'Metformin 500mg',
         time: '8:00 AM',
         note: 'Take with food',
         taken: true),
     _MedItem(
+        id: 'med_2',
         name: 'Lisinopril 10mg',
         time: '8:00 AM',
         note: 'Blood pressure',
         taken: true),
     _MedItem(
+        id: 'med_3',
         name: 'Vitamin D3',
         time: '12:00 PM',
         note: 'With lunch',
         taken: false),
     _MedItem(
+        id: 'med_4',
         name: 'Atorvastatin 20mg',
         time: '9:00 PM',
         note: 'Cholesterol — take at night',
@@ -159,9 +165,26 @@ class _MedicationCardState extends State<_MedicationCard> {
             activeColor: AppTheme.accentGreen,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-            onChanged: (v) {
+            onChanged: (v) async {
               setState(() => _taken = v ?? false);
-              // TODO: update Firestore
+              
+              // Log to Firestore
+              try {
+                final patientId = await UserSessionService.instance.getSavedUserId();
+                if (patientId != null) {
+                  await PatientService.instance.logMedicationDose(
+                    patientId,
+                    widget.med.id,
+                  );
+                }
+              } catch (e) {
+                print('Error logging medication: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error saving medication log: $e')),
+                  );
+                }
+              }
             },
           ),
         ],
@@ -171,12 +194,14 @@ class _MedicationCardState extends State<_MedicationCard> {
 }
 
 class _MedItem {
+  final String id;
   final String name;
   final String time;
   final String note;
   final bool taken;
   const _MedItem(
-      {required this.name,
+      {required this.id,
+      required this.name,
       required this.time,
       required this.note,
       required this.taken});

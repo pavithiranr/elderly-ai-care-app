@@ -27,4 +27,14 @@ class UserSessionService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
+
+  Future<void> saveUserId(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.prefUserId, userId);
+  }
+
+  Future<String?> getSavedUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.prefUserId);
+  }
 }

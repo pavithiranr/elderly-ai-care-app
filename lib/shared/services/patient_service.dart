@@ -68,6 +68,21 @@ class PatientHealthData {
   }
 }
 
+/// Model for medication compliance tracking
+class MedicationComplianceData {
+  final String name;
+  final int daysTotal;
+  final int daysTaken;
+  final String time;
+
+  MedicationComplianceData({
+    required this.name,
+    required this.daysTotal,
+    required this.daysTaken,
+    required this.time,
+  });
+}
+
 /// Service to handle patient profile and health data operations
 class PatientService {
   PatientService._();
@@ -176,5 +191,236 @@ class PatientService {
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => doc.data()).toList());
+  }
+
+  /// Get weekly medication compliance data for a patient
+  Future<List<MedicationComplianceData>> getWeeklyMedicationCompliance(
+      String patientId,
+      {int limitDays = 7}) async {
+    try {
+      final since = DateTime.now().subtract(Duration(days: limitDays));
+
+      final snapshot = await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('medications')
+          .get();
+
+      List<MedicationComplianceData> meds = [];
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final medicationName = data['name'] as String? ?? 'Unknown Medication';
+        final dosage = data['dosage'] as String? ?? '';
+        final time = data['time'] as String? ?? 'Morning';
+
+        // Count doses in the past week
+        final logsSnapshot = await _firestore
+            .collection('elderly')
+            .doc(patientId)
+            .collection('medications')
+            .doc(doc.id)
+            .collection('logs')
+            .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+            .get();
+
+        int daysTaken = logsSnapshot.docs
+            .map((d) => (d['timestamp'] as Timestamp).toDate())
+            .fold<Set<String>>({}, (set, date) {
+          set.add('${date.year}-${date.month}-${date.day}');
+          return set;
+        }).length;
+
+        meds.add(MedicationComplianceData(
+          name: '$medicationName $dosage',
+          daysTotal: limitDays,
+          daysTaken: daysTaken,
+          time: time,
+        ));
+      }
+
+      return meds;
+    } catch (e) {
+      print('Error fetching medication compliance: $e');
+      return [];
+    }
+  }
+
+  /// Log a medication dose taken by the patient
+  Future<void> logMedicationDose(String patientId, String medicationId) async {
+    try {
+      await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('medications')
+          .doc(medicationId)
+          .collection('logs')
+          .add({
+            'timestamp': Timestamp.now(),
+            'taken': true,
+          });
+    } catch (e) {
+      print('Error logging medication dose: $e');
+      rethrow;
+    }
+  }
+
+  /// Save a daily health check-in for the patient
+  Future<void> saveCheckin(
+    String patientId,
+    int moodIndex,
+    double painLevel,
+    String? notes,
+  ) async {
+    try {
+      final today = DateTime.now();
+      final docId = '${today.year}-${today.month}-${today.day}';
+
+      await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('checkins')
+          .doc(docId)
+          .set({
+            'moodIndex': moodIndex,
+            'painLevel': painLevel,
+            'notes': notes ?? '',
+            'timestamp': Timestamp.now(),
+          });
+    } catch (e) {
+      print('Error saving check-in: $e');
+      rethrow;
+    }
+  }
+
+  /// Get weekly mood and pain trend data for the past 7 days
+  Future<Map<String, List<double>>> getWeeklyMoodPainTrends(String patientId) async {
+    try {
+      final since = DateTime.now().subtract(const Duration(days: 7));
+      
+      final snapshot = await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('checkins')
+          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+          .orderBy('timestamp')
+          .get();
+
+      // Initialize 7 days of data (0 for missing days)
+      List<double> moodData = List.filled(7, 0);
+      List<double> painData = List.filled(7, 0);
+
+      // Map timestamp to day index (0 = 6 days ago, 6 = today)
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final docTimestamp = (data['timestamp'] as Timestamp).toDate();
+        final daysAgo = DateTime.now().difference(docTimestamp).inDays;
+
+        if (daysAgo >= 0 && daysAgo < 7) {
+          final dayIndex = 6 - daysAgo; // Reverse: 6=today
+          final mood = (data['moodIndex'] as num?)?.toDouble() ?? 0;
+          final pain = (data['painLevel'] as num?)?.toDouble() ?? 0;
+
+          if (dayIndex >= 0 && dayIndex < 7) {
+            moodData[dayIndex] = mood > 0 ? mood : moodData[dayIndex];
+            painData[dayIndex] = pain > 0 ? pain : painData[dayIndex];
+          }
+        }
+      }
+
+      return {
+        'mood': moodData,
+        'pain': painData,
+      };
+    } catch (e) {
+      print('Error fetching mood/pain trends: $e');
+      return {
+        'mood': List.filled(7, 0),
+        'pain': List.filled(7, 0),
+      };
+    }
+  }
+
+  /// Get weekly statistics (check-ins count, med adherence %, avg pain, SOS alerts)
+  Future<Map<String, dynamic>> getWeeklyStats(String patientId) async {
+    try {
+      final since = DateTime.now().subtract(const Duration(days: 7));
+
+      // Count check-ins this week
+      final checkinsSnapshot = await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('checkins')
+          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+          .get();
+      
+      final checkinCount = checkinsSnapshot.docs.length;
+      final checkinCountStr = '$checkinCount / 7';
+
+      // Calculate medication adherence
+      final medsSnapshot = await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('medications')
+          .get();
+
+      double adherencePercent = 0;
+      if (medsSnapshot.docs.isNotEmpty) {
+        int totalDoses = 0;
+        int takenDoses = 0;
+
+        for (final medDoc in medsSnapshot.docs) {
+          final logsSnapshot = await _firestore
+              .collection('elderly')
+              .doc(patientId)
+              .collection('medications')
+              .doc(medDoc.id)
+              .collection('logs')
+              .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+              .get();
+
+          // Assume 1 dose per day per medication for 7 days
+          totalDoses += 7;
+          takenDoses += logsSnapshot.docs.length;
+        }
+
+        adherencePercent = totalDoses > 0 ? (takenDoses / totalDoses * 100).round() / 1 : 0;
+      }
+
+      // Calculate average pain
+      double avgPain = 0;
+      if (checkinsSnapshot.docs.isNotEmpty) {
+        double totalPain = 0;
+        for (final doc in checkinsSnapshot.docs) {
+          totalPain += (doc['painLevel'] as num?)?.toDouble() ?? 0;
+        }
+        avgPain = (totalPain / checkinsSnapshot.docs.length) * 10 / 10; // Round to 1 decimal
+      }
+
+      // Count SOS alerts
+      final sosSnapshot = await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('sos_alerts')
+          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+          .get();
+      
+      final sosCount = sosSnapshot.docs.length;
+
+      return {
+        'checkins': checkinCountStr,
+        'adherence': '${adherencePercent.toStringAsFixed(0)}%',
+        'avgPain': '${avgPain.toStringAsFixed(1)} / 10',
+        'sosAlerts': sosCount.toString(),
+      };
+    } catch (e) {
+      print('Error fetching weekly stats: $e');
+      return {
+        'checkins': '0 / 7',
+        'adherence': '0%',
+        'avgPain': '0 / 10',
+        'sosAlerts': '0',
+      };
+    }
   }
 }

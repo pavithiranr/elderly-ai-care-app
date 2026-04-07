@@ -1,16 +1,116 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/auth_service.dart';
 
-/// Lightweight session service — stores the selected role locally.
-/// Firebase auth will be integrated by the backend team on top of this.
+/// Session service — integrates Firebase Auth with local SharedPreferences storage.
+/// Handles caregiver auth (email/password) and elderly setup (no password).
 class UserSessionService {
   UserSessionService._();
   static final UserSessionService instance = UserSessionService._();
 
+  final AuthService _authService = AuthService.instance;
+
+  // ─── Caregiver Authentication ───────────────────────────────────────
+
+  /// Sign up a new caregiver
+  Future<String> caregiverSignUp({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    try {
+      final uid = await _authService.caregiverSignUp(
+        email: email,
+        password: password,
+        name: name,
+      );
+
+      // Save session locally
+      await saveRole(AppConstants.roleCaregiver);
+      await saveUserId(uid);
+      await setBool(AppConstants.prefOnboardingDone, true);
+
+      return uid;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Sign in an existing caregiver
+  Future<String> caregiverSignIn({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final uid = await _authService.caregiverSignIn(
+        email: email,
+        password: password,
+      );
+
+      // Save session locally
+      await saveRole(AppConstants.roleCaregiver);
+      await saveUserId(uid);
+      await setBool(AppConstants.prefOnboardingDone, true);
+
+      return uid;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // ─── Elderly Setup (No Password) ────────────────────────────────────
+
+  /// Set up a new elderly profile
+  /// Returns binding code to share with caregiver
+  Future<String> elderlySetup({
+    required String name,
+    required String dateOfBirth,
+    required String emergencyContact,
+  }) async {
+    try {
+      final bindingCode = await _authService.elderlySetup(
+        name: name,
+        dateOfBirth: dateOfBirth,
+        emergencyContact: emergencyContact,
+      );
+
+      // Note: For elderly, we don't create a Firebase Auth user
+      // Instead, they will be identified by their elderly UID
+      // which we store locally
+      await saveRole(AppConstants.roleElderly);
+      await setBool(AppConstants.prefOnboardingDone, true);
+
+      return bindingCode;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Link elderly to caregiver using binding code
+  /// Called by caregiver after scanning/entering code
+  Future<void> linkElderlyToCaregiver({
+    required String bindingCode,
+  }) async {
+    try {
+      final caregiverUid = _authService.getCurrentUserUid();
+      if (caregiverUid == null) {
+        throw Exception('No caregiver logged in');
+      }
+
+      await _authService.linkElderlyToCaregiver(
+        bindingCode: bindingCode,
+        caregiverUid: caregiverUid,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // ─── Session Management ────────────────────────────────────────────
+
   Future<void> saveRole(String role) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.prefUserRole, role);
-    await prefs.setBool(AppConstants.prefOnboardingDone, true);
   }
 
   Future<String?> getSavedRole() async {
@@ -23,9 +123,19 @@ class UserSessionService {
     return prefs.getBool(AppConstants.prefOnboardingDone) ?? false;
   }
 
+  /// Clear all session data and logout from Firebase
   Future<void> clearSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    try {
+      // Logout from Firebase Auth
+      await _authService.logout();
+
+      // Clear local storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    } catch (e) {
+      // Log error but don't throw — clearing should succeed even if auth fails
+      print('Error clearing session: $e');
+    }
   }
 
   Future<void> saveUserId(String userId) async {
@@ -36,5 +146,22 @@ class UserSessionService {
   Future<String?> getSavedUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(AppConstants.prefUserId);
+  }
+
+  /// Check if user is currently authenticated in Firebase
+  bool isAuthenticated() {
+    return _authService.isAuthenticated();
+  }
+
+  /// Helper to save boolean preference
+  Future<void> setBool(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+  }
+
+  /// Helper to get boolean preference
+  Future<bool> getBool(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(key) ?? false;
   }
 }

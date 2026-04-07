@@ -132,3 +132,9 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+
+ELDERLY_RELOGIN_FIX.md 
+ELDERLY_RELOGIN_IMPLEMENTATION.md 
+IMPLEMENTATION_GUIDE.md 
+IMPLEMENTATION_STATUS.md 
+SOLUTION_PROPOSAL.md

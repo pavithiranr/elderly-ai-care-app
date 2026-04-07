@@ -8,6 +8,7 @@ class CaregiverProfile {
   final String email;
   final String? phoneNumber;
   final String? profilePhotoUrl;
+  final List<String> linkedElderlyIds;
 
   CaregiverProfile({
     required this.id,
@@ -15,6 +16,7 @@ class CaregiverProfile {
     required this.email,
     this.phoneNumber,
     this.profilePhotoUrl,
+    this.linkedElderlyIds = const [],
   });
 
   String get initial => name.isNotEmpty ? name[0].toUpperCase() : '?';
@@ -27,6 +29,7 @@ class CaregiverProfile {
       email: data['email'] as String? ?? '',
       phoneNumber: data['phoneNumber'] as String?,
       profilePhotoUrl: data['profilePhotoUrl'] as String?,
+      linkedElderlyIds: List<String>.from(data['linkedElderlyIds'] as List<dynamic>? ?? []),
     );
   }
 }
@@ -91,6 +94,70 @@ class CaregiverService {
     } catch (e) {
       print('Error saving caregiver profile: $e');
       rethrow;
+    }
+  }
+
+  /// Update specific caregiver profile fields
+  Future<void> updateCaregiverProfile({
+    required String uid,
+    String? name,
+    String? phoneNumber,
+    String? profilePhotoUrl,
+  }) async {
+    try {
+      final updates = <String, dynamic>{
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (name != null) updates['name'] = name;
+      if (phoneNumber != null) updates['phoneNumber'] = phoneNumber;
+      if (profilePhotoUrl != null) updates['profilePhotoUrl'] = profilePhotoUrl;
+
+      await _firestore.collection('caregivers').doc(uid).update(updates);
+    } catch (e) {
+      print('Error updating caregiver profile: $e');
+      rethrow;
+    }
+  }
+
+  /// Get linked elderly count for a caregiver
+  Future<int> getLinkedElderlyCount(String caregiverId) async {
+    try {
+      final doc = await _firestore.collection('caregivers').doc(caregiverId).get();
+      if (!doc.exists) return 0;
+      final linkedIds = doc['linkedElderlyIds'] as List<dynamic>? ?? [];
+      return linkedIds.length;
+    } catch (e) {
+      print('Error getting linked elderly count: $e');
+      return 0;
+    }
+  }
+
+  /// Unlink an elderly from caregiver
+  /// Removes elderly ID from caregiver's linkedElderlyIds list
+  Future<void> unlinkElderly({
+    required String elderlyId,
+  }) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('No user logged in');
+      }
+
+      // Remove elderly from caregiver's linkedElderlyIds
+      await _firestore.collection('caregivers').doc(currentUser.uid).update({
+        'linkedElderlyIds': FieldValue.arrayRemove([elderlyId])
+      });
+
+      // Remove caregiver link from elderly profile
+      await _firestore.collection('elderly').doc(elderlyId).update({
+        'linkedCaregiver': FieldValue.delete(),
+      });
+
+      print('✅ Unlocked elderly: $elderlyId');
+    } catch (e) {
+      print('❌ Error unlinking elderly: $e');
+      throw Exception('Failed to unlink elderly: $e');
     }
   }
 }

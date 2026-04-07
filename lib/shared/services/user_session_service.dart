@@ -153,6 +153,11 @@ class UserSessionService {
     return _authService.isAuthenticated();
   }
 
+  /// Get current user's UID
+  String? getCurrentUserUid() {
+    return _authService.getCurrentUserUid();
+  }
+
   /// Helper to save boolean preference
   Future<void> setBool(String key, bool value) async {
     final prefs = await SharedPreferences.getInstance();

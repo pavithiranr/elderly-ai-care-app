@@ -12,6 +12,9 @@ import '../../features/elderly/sos/sos_screen.dart';
 import '../../features/elderly/chat/elderly_chat_screen.dart';
 import '../../features/elderly/settings/settings_screen.dart';
 import '../../features/caregiver/dashboard/caregiver_dashboard_screen.dart';
+import '../../features/caregiver/settings/caregiver_settings_screen.dart';
+import '../../features/caregiver/elderly/binding_code_screen.dart';
+import '../../features/caregiver/elderly/linked_elderly_screen.dart';
 import '../../features/caregiver/alerts/alerts_screen.dart';
 import '../../features/caregiver/reports/reports_screen.dart';
 import '../constants/app_constants.dart';
@@ -119,6 +122,18 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppConstants.routeCaregiverDashboard,
       builder: (context, state) => const CaregiverDashboardScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeCaregiverSettings,
+      builder: (context, state) => const CaregiverSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/caregiver/link-elderly',
+      builder: (context, state) => const BindingCodeScreen(),
+    ),
+    GoRoute(
+      path: '/caregiver/linked-elderly',
+      builder: (context, state) => const LinkedElderlyScreen(),
     ),
     GoRoute(
       path: AppConstants.routeCaregiverAlerts,

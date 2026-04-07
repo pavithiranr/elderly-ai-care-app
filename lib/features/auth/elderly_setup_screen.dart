@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
@@ -168,12 +169,14 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
               child: ElevatedButton.icon(
                 onPressed: () {
                   // Copy to clipboard
+                  Clipboard.setData(ClipboardData(text: code));
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Binding code copied to clipboard',
+                        'Binding code copied to clipboard!',
                         style: GoogleFonts.inter(),
                       ),
+                      backgroundColor: AppTheme.accentGreen,
                       duration: const Duration(seconds: 2),
                     ),
                   );

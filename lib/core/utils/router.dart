@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/onboarding/role_selection_screen.dart';
+import '../../features/auth/caregiver_login_screen.dart';
+import '../../features/auth/caregiver_signup_screen.dart';
+import '../../features/auth/elderly_setup_screen.dart';
 import '../../features/elderly/home/elderly_home_screen.dart';
 import '../../features/elderly/checkin/checkin_screen.dart';
 import '../../features/elderly/medication/medication_screen.dart';
@@ -18,17 +21,46 @@ final GoRouter appRouter = GoRouter(
   initialLocation: AppConstants.routeOnboarding,
   redirect: (BuildContext context, GoRouterState state) async {
     final isDone = await UserSessionService.instance.isOnboardingDone();
-    if (!isDone) return null; // show onboarding
-
     final role = await UserSessionService.instance.getSavedRole();
-    final onOnboarding = state.matchedLocation == AppConstants.routeOnboarding ||
-        state.matchedLocation == AppConstants.routeRoleSelect;
+    final isAuthenticated = UserSessionService.instance.isAuthenticated();
 
-    if (isDone && onOnboarding) {
+    // If onboarding not done, show onboarding
+    if (!isDone) {
+      return null; // show onboarding
+    }
+
+    // If onboarding done but no role selected, go to role select
+    if (role == null) {
+      return AppConstants.routeRoleSelect;
+    }
+
+    // If role is caregiver but not authenticated, redirect to login
+    if (role == AppConstants.roleCaregiver && !isAuthenticated) {
+      // Allow if already on auth screens
+      if (state.matchedLocation == AppConstants.routeCaregiverLogin ||
+          state.matchedLocation == AppConstants.routeCaregiverSignup) {
+        return null;
+      }
+      return AppConstants.routeCaregiverLogin;
+    }
+
+    // If role is elderly but hasn't set up profile, redirect to setup
+    if (role == AppConstants.roleElderly) {
+      // If just passed role selection, redirect to setup if needed
+      if (state.matchedLocation == AppConstants.routeRoleSelect) {
+        return AppConstants.routeElderlySetup;
+      }
+    }
+
+    // If on onboarding/role select but onboarding is done, redirect to home
+    if (isDone &&
+        (state.matchedLocation == AppConstants.routeOnboarding ||
+            state.matchedLocation == AppConstants.routeRoleSelect)) {
       return role == AppConstants.roleCaregiver
           ? AppConstants.routeCaregiverDashboard
           : AppConstants.routeElderlyHome;
     }
+
     return null;
   },
   routes: [
@@ -41,7 +73,23 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const RoleSelectionScreen(),
     ),
 
-    // ── Elderly routes ──────────────────────────────────────────────────
+    // ── Caregiver Auth routes ─────────────────────────────────────────
+    GoRoute(
+      path: AppConstants.routeCaregiverLogin,
+      builder: (context, state) => const CaregiverLoginScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeCaregiverSignup,
+      builder: (context, state) => const CaregiverSignupScreen(),
+    ),
+
+    // ── Elderly Auth routes ───────────────────────────────────────────
+    GoRoute(
+      path: AppConstants.routeElderlySetup,
+      builder: (context, state) => const ElderlySetupScreen(),
+    ),
+
+    // ── Elderly routes ────────────────────────────────────────────────
     GoRoute(
       path: AppConstants.routeElderlyHome,
       builder: (context, state) => const ElderlyHomeScreen(),
@@ -67,7 +115,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const SettingsScreen(),
     ),
 
-    // ── Caregiver routes ─────────────────────────────────────────────────
+    // ── Caregiver routes ──────────────────────────────────────────────
     GoRoute(
       path: AppConstants.routeCaregiverDashboard,
       builder: (context, state) => const CaregiverDashboardScreen(),

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 
 /// Configuration for Firebase initialization.
@@ -27,5 +29,10 @@ class DefaultFirebaseOptions {
     storageBucket: 'caresync-vertex.firebasestorage.app',
   );
 
-  static const FirebaseOptions currentPlatform = android;
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) return web;
+    if (Platform.isAndroid) return android;
+    if (Platform.isIOS) return ios;
+    throw UnsupportedError('This platform is not supported');
+  }
 }

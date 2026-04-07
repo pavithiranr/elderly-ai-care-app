@@ -12,6 +12,7 @@ class AppConstants {
   static const String routeElderlyChat = '/elderly/chat';
   static const String routeElderlySettings = '/elderly/settings';
   static const String routeCaregiverDashboard = '/caregiver/dashboard';
+  static const String routeCaregiverSettings = '/caregiver/settings';
   static const String routeCaregiverAlerts = '/caregiver/alerts';
   static const String routeCaregiverReports = '/caregiver/reports';
 

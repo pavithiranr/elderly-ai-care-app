@@ -204,6 +204,13 @@ class CaregiverDashboardScreen extends StatelessWidget {
         ],
       ),
       actions: [
+        // Profile button
+        IconButton(
+          icon: const Icon(Icons.person_rounded, size: 24),
+          onPressed: () => context.push(AppConstants.routeCaregiverSettings),
+          tooltip: 'Profile & Settings',
+        ),
+        const SizedBox(width: 4),
         Stack(
           children: [
             IconButton(

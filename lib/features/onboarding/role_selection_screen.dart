@@ -13,9 +13,9 @@ class RoleSelectionScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     if (role == AppConstants.roleCaregiver) {
-      context.go(AppConstants.routeCaregiverDashboard);
+      context.go(AppConstants.routeCaregiverLogin);
     } else {
-      context.go(AppConstants.routeElderlyHome);
+      context.go(AppConstants.routeElderlySetup);
     }
   }
 

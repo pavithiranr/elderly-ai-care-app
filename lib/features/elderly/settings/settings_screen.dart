@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/user_session_service.dart';
 import '../../../shared/services/caregiver_service.dart';
 
@@ -277,7 +278,7 @@ class SettingsScreen extends StatelessWidget {
             onPressed: () async {
               await UserSessionService.instance.clearSession();
               if (context.mounted) {
-                context.go('/');
+                context.go(AppConstants.routeOnboarding);
               }
             },
             child: const Text('Sign Out'),

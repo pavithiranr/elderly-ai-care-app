@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:caresync_ai/core/constants/app_constants.dart';
-import 'package:caresync_ai/core/theme/app_theme.dart';
-import 'package:caresync_ai/shared/services/user_session_service.dart';
-import 'package:caresync_ai/core/services/auth_service.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/user_session_service.dart';
+import '../../../core/services/auth_service.dart';
 
-class BindingCodeScreen extends StatefulWidget {
-  const BindingCodeScreen({super.key});
+/// Screen for returning elderly users to enter their binding code
+/// and restore their existing profile
+class ElderlyExistingProfileLoginScreen extends StatefulWidget {
+  const ElderlyExistingProfileLoginScreen({super.key});
 
   @override
-  State<BindingCodeScreen> createState() => _BindingCodeScreenState();
+  State<ElderlyExistingProfileLoginScreen> createState() =>
+      _ElderlyExistingProfileLoginScreenState();
 }
 
-class _BindingCodeScreenState extends State<BindingCodeScreen> {
+class _ElderlyExistingProfileLoginScreenState
+    extends State<ElderlyExistingProfileLoginScreen> {
   final _codeControllers = List.generate(6, (_) => TextEditingController());
   bool _isLoading = false;
   String? _errorMessage;
@@ -31,7 +35,7 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
     return _codeControllers.map((c) => c.text).join();
   }
 
-  Future<void> _handleLinkElderly() async {
+  Future<void> _handleRestoreProfile() async {
     final code = _getFullCode();
 
     if (code.length != 6) {
@@ -45,20 +49,22 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
     });
 
     try {
-      final caregiverUid = UserSessionService.instance.getCurrentUserUid();
-      if (caregiverUid == null) {
-        throw Exception('Not logged in');
+      // Verify the code matches a stored elderly profile
+      final elderlyId = await AuthService.instance.verifyElderlySetupCode(code);
+      
+      if (elderlyId == null) {
+        throw Exception('Invalid code. Please check and try again.');
       }
 
-      await AuthService.instance.linkElderlyToCaregiver(
-        bindingCode: code,
-        caregiverUid: caregiverUid,
-      );
+      // Save elderly profile ID locally
+      await UserSessionService.instance.setElderlyProfileId(elderlyId);
+      await UserSessionService.instance.saveRole(AppConstants.roleElderly);
+      await UserSessionService.instance.setBool(AppConstants.prefOnboardingDone, true);
 
       if (!mounted) return;
 
-      // Show success dialog
-      _showSuccessDialog();
+      // Navigate to elderly home
+      context.go(AppConstants.routeElderlyHome);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -68,69 +74,6 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceWhite,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppTheme.accentGreen.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: AppTheme.accentGreen,
-                size: 36,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Linked Successfully!',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDark,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'You can now monitor this elderly\'s health.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: AppTheme.textMid,
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Close binding code screen and refresh list
-                  context.pop();
-                },
-                child: Text(
-                  'Continue',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _focusNextField(int index) {
@@ -149,7 +92,7 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Link Elderly Profile',
+          'Welcome Back!',
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -166,23 +109,23 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
           children: [
             // Header
             Text(
-              'Enter Binding Code',
+              'Restore Your Profile',
               style: GoogleFonts.inter(
-                fontSize: 24,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textDark,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
-              'Ask the elderly to share the 6-digit code\nfrom their setup screen.',
+              'Enter the 6-digit code from your caregiver\nto restore your existing profile.',
               style: GoogleFonts.inter(
-                fontSize: 14,
+                fontSize: 15,
                 color: AppTheme.textMid,
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 40),
 
             // Error message
             if (_errorMessage != null)
@@ -213,6 +156,15 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
             if (_errorMessage != null) const SizedBox(height: 24),
 
             // Code input fields
+            Text(
+              'Enter Setup Code',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textMid,
+              ),
+            ),
+            const SizedBox(height: 14),
             Row(
               children: List.generate(
                 6,
@@ -229,7 +181,8 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
                       textAlign: TextAlign.center,
                       maxLength: 1,
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
+                        FilteringTextInputFormatter.allow(
+                            RegExp(r'[0-9A-Za-z]')),
                         _UpperCaseTextFormatter(),
                       ],
                       style: GoogleFonts.inter(
@@ -245,11 +198,13 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
                         contentPadding: const EdgeInsets.all(20),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: AppTheme.divider, width: 2),
+                          borderSide: const BorderSide(
+                              color: AppTheme.divider, width: 2),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: AppTheme.divider, width: 2),
+                          borderSide: const BorderSide(
+                              color: AppTheme.divider, width: 2),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -260,15 +215,14 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
                         ),
                         disabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: AppTheme.divider, width: 2),
+                          borderSide: const BorderSide(
+                              color: AppTheme.divider, width: 2),
                         ),
                       ),
                       onChanged: (value) {
                         if (value.isEmpty && index > 0) {
-                          // Allow backspace to previous field
                           FocusScope.of(context).previousFocus();
                         } else if (value.isNotEmpty && index < 5) {
-                          // Auto-focus next field
                           _focusNextField(index);
                         }
                         setState(() {});
@@ -278,44 +232,46 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 40),
 
             // Info box
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppTheme.primaryLight,
-                border: Border.all(color: AppTheme.primaryBlue),
-                borderRadius: BorderRadius.circular(12),
+                color: AppTheme.accentGreen.withValues(alpha: 0.1),
+                border: Border.all(
+                    color: AppTheme.accentGreen.withValues(alpha: 0.3)),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 children: [
                   const Icon(
                     Icons.info_rounded,
-                    color: AppTheme.primaryBlue,
+                    color: AppTheme.accentGreen,
                     size: 20,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'The binding code expires after 24 hours.',
+                      'Ask your caregiver for the code\nfrom your initial setup.',
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: AppTheme.primaryBlue,
+                        color: AppTheme.accentGreen,
+                        height: 1.4,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 40),
 
-            // Link button
+            // Restore button
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 54,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _handleLinkElderly,
+                onPressed: _isLoading ? null : _handleRestoreProfile,
                 child: _isLoading
                     ? const SizedBox(
                         height: 24,
@@ -327,12 +283,28 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
                         ),
                       )
                     : Text(
-                        'Link Profile',
+                        'Restore Profile',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Create new profile button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _isLoading ? null : () => context.pop(),
+                child: Text(
+                  'Create New Profile Instead',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],

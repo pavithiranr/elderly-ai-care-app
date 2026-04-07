@@ -21,6 +21,63 @@ class ElderlyHomeScreen extends StatelessWidget {
 
   String get _today => DateFormat('EEEE, MMMM d').format(DateTime.now());
 
+  void _showProfileMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.settings_rounded),
+              title: Text(
+                'Settings',
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppConstants.routeElderlySettings);
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.logout_rounded, color: AppTheme.accentRed),
+              title: Text(
+                'Sign Out',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.accentRed,
+                ),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await UserSessionService.instance.clearSession();
+                if (context.mounted) {
+                  context.go(AppConstants.routeOnboarding);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -40,7 +97,12 @@ class ElderlyHomeScreen extends StatelessWidget {
                     ),
                 builder: (context, snapshot) {
                   final patientName = snapshot.data?.name ?? 'Friend';
-                  return _Header(greeting: _greeting, date: _today, name: patientName);
+                  return _Header(
+                    greeting: _greeting,
+                    date: _today,
+                    name: patientName,
+                    onProfileTap: () => _showProfileMenu(context),
+                  );
                 },
               ),
               const SizedBox(height: 28),
@@ -93,13 +155,6 @@ class ElderlyHomeScreen extends StatelessWidget {
                     bg: const Color(0xFFF5F3FF),
                     onTap: () => context.push(AppConstants.routeElderlyChat),
                   ),
-                  _QuickAction(
-                    icon: Icons.settings_rounded,
-                    label: 'Settings',
-                    color: AppTheme.textMid,
-                    bg: AppTheme.divider,
-                    onTap: () => context.push(AppConstants.routeElderlySettings),
-                  ),
                 ],
               ),
               const SizedBox(height: 28),
@@ -123,11 +178,13 @@ class _Header extends StatelessWidget {
   final String greeting;
   final String date;
   final String name;
+  final VoidCallback? onProfileTap;
 
   const _Header({
     required this.greeting,
     required this.date,
     required this.name,
+    this.onProfileTap,
   });
 
   @override
@@ -170,17 +227,20 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Container(
-          width: 60,
-          height: 60,
-          decoration: const BoxDecoration(
-            color: AppTheme.primaryLight,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.person_rounded,
-            color: AppTheme.primaryBlue,
-            size: 32,
+        GestureDetector(
+          onTap: onProfileTap,
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: const BoxDecoration(
+              color: AppTheme.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: AppTheme.primaryBlue,
+              size: 32,
+            ),
           ),
         ),
       ],

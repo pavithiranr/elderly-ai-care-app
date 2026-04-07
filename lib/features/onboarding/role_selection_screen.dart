@@ -15,8 +15,84 @@ class RoleSelectionScreen extends StatelessWidget {
     if (role == AppConstants.roleCaregiver) {
       context.go(AppConstants.routeCaregiverLogin);
     } else {
-      context.go(AppConstants.routeElderlySetup);
+      // For elderly, show choice between new profile and existing profile
+      _showElderlyChoiceDialog(context);
     }
+  }
+
+  void _showElderlyChoiceDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome!',
+                  style: GoogleFonts.inter(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Are you signing up for the first time\nor already have a profile?',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: AppTheme.textMid,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.go(AppConstants.routeElderlySetup);
+                    },
+                    child: Text(
+                      'Create New Profile',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.go(AppConstants.routeElderlyExistingLogin);
+                    },
+                    child: Text(
+                      'Restore Existing Profile',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryBlue,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override

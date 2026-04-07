@@ -8,8 +8,29 @@ import '../../../shared/services/caregiver_service.dart';
 import '../../../shared/services/patient_service.dart';
 
 /// Caregiver Dashboard — MD3 card-based layout, ≥16px fonts.
-class CaregiverDashboardScreen extends StatelessWidget {
+class CaregiverDashboardScreen extends StatefulWidget {
   const CaregiverDashboardScreen({super.key});
+
+  @override
+  State<CaregiverDashboardScreen> createState() =>
+      _CaregiverDashboardScreenState();
+}
+
+class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
+  late PageController _patientPageController;
+  int _currentPatientIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _patientPageController = PageController(viewportFraction: 0.95);
+  }
+
+  @override
+  void dispose() {
+    _patientPageController.dispose();
+    super.dispose();
+  }
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -41,31 +62,80 @@ class CaregiverDashboardScreen extends StatelessWidget {
                 date: _today,
                 caregiverName: caregiverName,
                 caregiverInitial: caregiverInitial,
+                onProfileTap: () => context.push(AppConstants.routeCaregiverSettings),
               );
             },
           ),
           const SizedBox(height: 20),
 
-          // ── Patient card ───────────────────────────────────────────────
-          // Fetches patient data from Firestore
-          FutureBuilder<List<PatientProfile>>(
-            future: CaregiverService.instance
-                .getCurrentCaregiverProfile()
-                .then((profile) => profile != null
-                    ? PatientService.instance
-                        .getPatientsByCaregiver(profile.id)
-                    : []),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          // ── Patient card (Swipeable Carousel) ────────────────────────
+          // Fetches patient data from Firestore using linkedElderlyIds
+          FutureBuilder<CaregiverProfile?>(
+            future: CaregiverService.instance.getCurrentCaregiverProfile(),
+            builder: (context, caregiverSnapshot) {
+              if (caregiverSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final patients = snapshot.data ?? [];
-              final primaryPatient =
-                  patients.isNotEmpty ? patients.first : null;
+              
+              final caregiver = caregiverSnapshot.data;
+              if (caregiver == null || caregiver.linkedElderlyIds.isEmpty) {
+                return const _PatientCardPlaceholder();
+              }
 
-              return primaryPatient != null
-                  ? _PatientCard(patient: primaryPatient)
-                  : const _PatientCardPlaceholder();
+              final elderlyIds = caregiver.linkedElderlyIds;
+
+              return Column(
+                children: [
+                  SizedBox(
+                    height: 200,
+                    child: PageView.builder(
+                      controller: _patientPageController,
+                      onPageChanged: (index) {
+                        setState(() => _currentPatientIndex = index);
+                      },
+                      itemCount: elderlyIds.length,
+                      itemBuilder: (context, index) {
+                        return FutureBuilder<PatientProfile?>(
+                          future: PatientService.instance.getPatientById(elderlyIds[index]),
+                          builder: (context, patientSnapshot) {
+                            if (patientSnapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+                            
+                            final patient = patientSnapshot.data;
+                            return patient != null
+                                ? Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    child: _PatientCard(patient: patient),
+                                  )
+                                : const SizedBox.shrink();
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Dot indicator
+                  if (elderlyIds.length > 1)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        elderlyIds.length,
+                        (index) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: _currentPatientIndex == index ? 24 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _currentPatientIndex == index
+                                ? AppTheme.primaryBlue
+                                : AppTheme.divider,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
             },
           ),
           const SizedBox(height: 16),
@@ -204,13 +274,7 @@ class CaregiverDashboardScreen extends StatelessWidget {
         ],
       ),
       actions: [
-        // Profile button
-        IconButton(
-          icon: const Icon(Icons.person_rounded, size: 24),
-          onPressed: () => context.push(AppConstants.routeCaregiverSettings),
-          tooltip: 'Profile & Settings',
-        ),
-        const SizedBox(width: 4),
+        // Alerts/Notifications button
         Stack(
           children: [
             IconButton(
@@ -248,11 +312,13 @@ class _GreetingHeader extends StatelessWidget {
   final String date;
   final String caregiverName;
   final String caregiverInitial;
+  final VoidCallback? onProfileTap;
   const _GreetingHeader({
     required this.greeting,
     required this.date,
     required this.caregiverName,
     required this.caregiverInitial,
+    this.onProfileTap,
   });
 
   @override
@@ -299,15 +365,18 @@ class _GreetingHeader extends StatelessWidget {
             ],
           ),
         ),
-        CircleAvatar(
-          radius: 22,
-          backgroundColor: AppTheme.primaryLight,
-          child: Text(
-            caregiverInitial,
-            style: GoogleFonts.inter(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryBlue,
+        GestureDetector(
+          onTap: onProfileTap,
+          child: CircleAvatar(
+            radius: 22,
+            backgroundColor: AppTheme.primaryLight,
+            child: Text(
+              caregiverInitial,
+              style: GoogleFonts.inter(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryBlue,
+              ),
             ),
           ),
         ),

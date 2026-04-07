@@ -5,6 +5,7 @@ import '../../features/onboarding/role_selection_screen.dart';
 import '../../features/auth/caregiver_login_screen.dart';
 import '../../features/auth/caregiver_signup_screen.dart';
 import '../../features/auth/elderly_setup_screen.dart';
+import '../../features/auth/elderly_existing_profile_login.dart';
 import '../../features/elderly/home/elderly_home_screen.dart';
 import '../../features/elderly/checkin/checkin_screen.dart';
 import '../../features/elderly/medication/medication_screen.dart';
@@ -90,6 +91,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppConstants.routeElderlySetup,
       builder: (context, state) => const ElderlySetupScreen(),
+    ),
+    GoRoute(
+      path: AppConstants.routeElderlyExistingLogin,
+      builder: (context, state) => const ElderlyExistingProfileLoginScreen(),
     ),
 
     // ── Elderly routes ────────────────────────────────────────────────

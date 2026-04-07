@@ -221,6 +221,43 @@ class AuthService {
     }
   }
 
+  /// Verify setup code for existing elderly profile (for re-login)
+  /// Returns the elderly UID if code is valid, null if not found
+  Future<String?> verifyElderlySetupCode(String bindingCode) async {
+    try {
+      // Look up elderly by binding code
+      final querySnapshot = await _firestore
+          .collection('elderly')
+          .where('bindingCode', isEqualTo: bindingCode.toUpperCase())
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return null;
+      }
+
+      final elderlyDoc = querySnapshot.docs.first;
+      return elderlyDoc.id;
+    } catch (e) {
+      print('Error verifying elderly setup code: $e');
+      return null;
+    }
+  }
+
+  /// Get elderly profile by UID for restoration
+  Future<Map<String, dynamic>?> getElderlyProfileData(String elderlyUid) async {
+    try {
+      final doc = await _firestore.collection('elderly').doc(elderlyUid).get();
+
+      if (!doc.exists) return null;
+
+      return doc.data();
+    } catch (e) {
+      print('Error fetching elderly profile data: $e');
+      return null;
+    }
+  }
+
   // ─── Helper Methods ────────────────────────────────────────────────
 
   /// Generate a random 6-character binding code

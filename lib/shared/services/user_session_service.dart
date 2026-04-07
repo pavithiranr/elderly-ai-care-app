@@ -158,6 +158,19 @@ class UserSessionService {
     return _authService.getCurrentUserUid();
   }
 
+  /// Save elderly profile ID locally (for elderly users)
+  Future<void> setElderlyProfileId(String profileId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('elderly_profile_id', profileId);
+    await prefs.setString(AppConstants.prefUserId, profileId);
+  }
+
+  /// Get saved elderly profile ID
+  Future<String?> getElderlyProfileId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('elderly_profile_id');
+  }
+
   /// Helper to save boolean preference
   Future<void> setBool(String key, bool value) async {
     final prefs = await SharedPreferences.getInstance();

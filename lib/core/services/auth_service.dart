@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../shared/models/user_model.dart';
@@ -85,6 +86,7 @@ class AuthService {
       // Generate a custom UID for elderly (can also use auto-generated)
       final elderlyUid = _firestore.collection('elderly').doc().id;
       final bindingCode = _generateBindingCode();
+      final uniqueId = _generateUniqueId();
 
       // Create elderly profile in Firestore
       await _firestore.collection('elderly').doc(elderlyUid).set({
@@ -92,6 +94,7 @@ class AuthService {
         'name': name,
         'dateOfBirth': dateOfBirth,
         'emergencyContact': emergencyContact,
+        'uniqueId': uniqueId, // Add the unique ID for binding
         'role': 'elderly',
         'linkedCaregiver': null, // Will be set after binding
         'bindingCode': bindingCode,
@@ -271,6 +274,21 @@ class AuthService {
     }
 
     return code;
+  }
+
+  /// Generate an 8-character unique ID for elderly binding
+  /// Uses alphanumeric characters, excluding confusing ones (O, I, 0, 1)
+  /// Example: "A7K3M2P9" or "B4Q8N1R6"
+  String _generateUniqueId() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluded O, I, 0, 1
+    final random = Random();
+    String id = '';
+
+    for (int i = 0; i < 8; i++) {
+      id += chars[random.nextInt(chars.length)];
+    }
+
+    return id;
   }
 
   /// Handle Firebase Auth exceptions and return user-friendly messages

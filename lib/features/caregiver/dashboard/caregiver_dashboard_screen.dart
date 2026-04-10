@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_provider.dart';
 import '../../../shared/services/caregiver_service.dart';
 import '../../../shared/services/patient_service.dart';
 
@@ -19,11 +20,13 @@ class CaregiverDashboardScreen extends StatefulWidget {
 class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   late PageController _patientPageController;
   int _currentPatientIndex = 0;
+  late Future<CaregiverProfile?> _caregiverProfileFuture;
 
   @override
   void initState() {
     super.initState();
     _patientPageController = PageController(viewportFraction: 0.95);
+    _caregiverProfileFuture = CaregiverService.instance.getCurrentCaregiverProfile();
   }
 
   @override
@@ -44,7 +47,6 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: _buildAppBar(context),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -71,7 +73,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           // ── Patient card (Swipeable Carousel) ────────────────────────
           // Fetches patient data from Firestore using linkedElderlyIds
           FutureBuilder<CaregiverProfile?>(
-            future: CaregiverService.instance.getCurrentCaregiverProfile(),
+            future: _caregiverProfileFuture,
             builder: (context, caregiverSnapshot) {
               if (caregiverSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -93,6 +95,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                       onPageChanged: (index) {
                         setState(() => _currentPatientIndex = index);
                       },
+                      physics: const BouncingScrollPhysics(),
                       itemCount: elderlyIds.length,
                       itemBuilder: (context, index) {
                         return FutureBuilder<PatientProfile?>(
@@ -127,8 +130,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                           height: 8,
                           decoration: BoxDecoration(
                             color: _currentPatientIndex == index
-                                ? AppTheme.primaryBlue
-                                : AppTheme.divider,
+                                ? Theme.of(context).primaryColor
+                                : Theme.of(context).dividerColor,
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -140,11 +143,22 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           ),
           const SizedBox(height: 16),
 
-          // ── AI Summary ─────────────────────────────────────────────────
-          // TODO: replace placeholder text with Gemini 2.0 generated summary (later)
-          const _AiSummaryBanner(
-            summary:
-                'Patient had a good morning. Completed check-in with good mood report, took medications on time. No alerts to review.',
+          // ── Today's Check-in (Real-time) ───────────────────────────────
+          FutureBuilder<CaregiverProfile?>(
+            future: CaregiverService.instance.getCurrentCaregiverProfile(),
+            builder: (context, caregiverSnapshot) {
+              if (caregiverSnapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox.shrink();
+              }
+
+              final caregiver = caregiverSnapshot.data;
+              if (caregiver == null || caregiver.linkedElderlyIds.isEmpty || _currentPatientIndex >= caregiver.linkedElderlyIds.length) {
+                return const SizedBox.shrink();
+              }
+
+              final currentPatientId = caregiver.linkedElderlyIds[_currentPatientIndex];
+              return _TodayCheckinBanner(patientId: currentPatientId);
+            },
           ),
           const SizedBox(height: 20),
 
@@ -253,12 +267,12 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: AppTheme.primaryLight,
+              color: Theme.of(context).colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.favorite_rounded,
-              color: AppTheme.primaryBlue,
+              color: Theme.of(context).primaryColor,
               size: 18,
             ),
           ),
@@ -268,17 +282,40 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textDark,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
         ],
       ),
       actions: [
+        // Dark Mode Toggle Button
+        ListenableBuilder(
+          listenable: ThemeProvider.instance,
+          builder: (context, _) {
+            final isDarkMode = ThemeProvider.instance.isDarkMode;
+            return IconButton(
+              icon: Icon(
+                isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                size: 24,
+                color: Theme.of(context).iconTheme.color,
+              ),
+              onPressed: () {
+                ThemeProvider.instance.setDarkMode(!isDarkMode);
+              },
+              tooltip: isDarkMode ? 'Light Mode' : 'Dark Mode',
+            );
+          },
+        ),
+        const SizedBox(width: 8),
         // Alerts/Notifications button
         Stack(
           children: [
             IconButton(
-              icon: const Icon(Icons.notifications_outlined, size: 24),
+              icon: Icon(
+                Icons.notifications_outlined,
+                size: 24,
+                color: Theme.of(context).iconTheme.color,
+              ),
               onPressed: () => context.push(AppConstants.routeCaregiverAlerts),
             ),
             // Unread badge
@@ -288,8 +325,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               child: Container(
                 width: 9,
                 height: 9,
-                decoration: const BoxDecoration(
-                  color: AppTheme.accentOrange,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -298,9 +335,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
         ),
         const SizedBox(width: 8),
       ],
-      backgroundColor: AppTheme.surfaceWhite,
       surfaceTintColor: Colors.transparent,
-      elevation: 0,
+      elevation: 0.5,
     );
   }
 }
@@ -1026,6 +1062,213 @@ class _SectionHeader extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: AppTheme.textDark,
       ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Today's Check-in Banner (Real-time)
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _TodayCheckinBanner extends StatelessWidget {
+  final String patientId;
+  const _TodayCheckinBanner({required this.patientId});
+
+  String _moodIndexToEmoji(int index) {
+    const emojis = ['😊', '🙂', '😐', '😟', '😢'];
+    return index >= 0 && index < emojis.length ? emojis[index] : '❓';
+  }
+
+  String _moodIndexToLabel(int index) {
+    const labels = ['Great', 'Good', 'Okay', 'Not Great', 'Bad'];
+    return index >= 0 && index < labels.length ? labels[index] : 'Unknown';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<PatientHealthData?>(
+      stream: PatientService.instance.getTodayHealthData$Stream(patientId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1D4ED8), Color(0xFF4338CA)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: const SizedBox(
+              height: 80,
+              child: Center(child: CircularProgressIndicator(color: Colors.white)),
+            ),
+          );
+        }
+
+        final healthData = snapshot.data;
+
+        if (healthData == null) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFE0E7FF), Color(0xFFF3E8FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.info_rounded, color: AppTheme.primaryBlue, size: 14),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Check-in',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: AppTheme.primaryBlue,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Waiting for today\'s check-in...',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    color: AppTheme.textMid,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final emoji = _moodIndexToEmoji(healthData.mood.isNotEmpty ? int.tryParse(healthData.mood) ?? 0 : 0);
+        final moodLabel = _moodIndexToLabel(healthData.mood.isNotEmpty ? int.tryParse(healthData.mood) ?? 0 : 0);
+
+        return Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1D4ED8), Color(0xFF4338CA)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header badge
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 14),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Today\'s Check-in',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Main stats
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mood: $moodLabel $emoji',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Pain Level: ${healthData.painLevel.toInt()}/10',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      ),
+                      child: Text(
+                        'Submitted',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

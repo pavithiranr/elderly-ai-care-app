@@ -15,7 +15,9 @@ import '../../features/elderly/settings/settings_screen.dart';
 import '../../features/caregiver/dashboard/caregiver_dashboard_screen.dart';
 import '../../features/caregiver/settings/caregiver_settings_screen.dart';
 import '../../features/caregiver/elderly/binding_code_screen.dart';
+import '../../features/caregiver/elderly/link_by_unique_id_screen.dart';
 import '../../features/caregiver/elderly/linked_elderly_screen.dart';
+import '../../features/caregiver/elderly/patient_detail_screen.dart';
 import '../../features/caregiver/alerts/alerts_screen.dart';
 import '../../features/caregiver/reports/reports_screen.dart';
 import '../constants/app_constants.dart';
@@ -137,8 +139,19 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const BindingCodeScreen(),
     ),
     GoRoute(
+      path: AppConstants.routeLinkByUniqueId,
+      builder: (context, state) => const LinkByUniqueIdScreen(),
+    ),
+    GoRoute(
       path: '/caregiver/linked-elderly',
       builder: (context, state) => const LinkedElderlyScreen(),
+    ),
+    GoRoute(
+      path: '/caregiver/patient-detail/:patientId',
+      builder: (context, state) {
+        final patientId = state.pathParameters['patientId'];
+        return PatientDetailScreen(patientId: patientId ?? '');
+      },
     ),
     GoRoute(
       path: AppConstants.routeCaregiverAlerts,

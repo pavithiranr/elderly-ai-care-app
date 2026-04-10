@@ -68,7 +68,6 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -106,7 +105,6 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
             ),
           ],
         ),
-        backgroundColor: AppTheme.surfaceWhite,
       ),
       body: Column(
         children: [
@@ -164,8 +162,8 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
                       color: AppTheme.primaryBlue,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.send_rounded,
-                        color: Colors.white, size: 22),
+                    child: Icon(Icons.send_rounded,
+                        color: Theme.of(context).colorScheme.onPrimary, size: 22),
                   ),
                 ),
               ],
@@ -209,7 +207,7 @@ class _ChatBubble extends StatelessWidget {
           message.text,
           style: GoogleFonts.inter(
             fontSize: AppTheme.elderlyBodyFontSize,
-            color: message.isAi ? AppTheme.textDark : Colors.white,
+            color: message.isAi ? AppTheme.textDark : Theme.of(context).colorScheme.onPrimary,
             height: 1.5,
           ),
         ),

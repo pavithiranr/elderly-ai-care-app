@@ -85,7 +85,6 @@ class _ElderlyExistingProfileLoginScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -99,7 +98,6 @@ class _ElderlyExistingProfileLoginScreenState
             color: AppTheme.textDark,
           ),
         ),
-        backgroundColor: AppTheme.surfaceWhite,
         elevation: 0,
       ),
       body: SingleChildScrollView(

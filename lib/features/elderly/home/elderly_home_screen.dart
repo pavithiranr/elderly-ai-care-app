@@ -24,7 +24,6 @@ class ElderlyHomeScreen extends StatelessWidget {
   void _showProfileMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surfaceWhite,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -81,7 +80,6 @@ class ElderlyHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -119,7 +117,7 @@ class ElderlyHomeScreen extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textDark,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               const SizedBox(height: 14),
@@ -256,27 +254,33 @@ class _CheckinBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    // Use a darker, desaturated purple for dark mode
+    final gradientStart = isDarkMode ? const Color(0xFF1e40af) : const Color(0xFF2563EB);
+    final gradientEnd = isDarkMode ? const Color(0xFF3730a3) : const Color(0xFF4F46E5);
+    final textColor = Theme.of(context).colorScheme.onPrimary;
+    
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Ink(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF2563EB), Color(0xFF4F46E5)],
+              colors: [gradientStart, gradientEnd],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.all(Radius.circular(20)),
+            borderRadius: const BorderRadius.all(Radius.circular(20)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(22),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.check_circle_outline_rounded,
-                  color: Colors.white,
+                  color: textColor,
                   size: 44,
                 ),
                 const SizedBox(width: 16),
@@ -289,7 +293,7 @@ class _CheckinBanner extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -297,16 +301,16 @@ class _CheckinBanner extends StatelessWidget {
                         'How are you feeling today?',
                         style: GoogleFonts.inter(
                           fontSize: 22,
-                          color: Colors.white.withValues(alpha: 0.85),
+                          color: textColor.withValues(alpha: 0.85),
                           fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.arrow_forward_ios_rounded,
-                  color: Colors.white,
+                  color: textColor,
                   size: 22,
                 ),
               ],
@@ -337,17 +341,21 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final dividerColor = Theme.of(context).dividerColor;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? AppTheme.textDark;
+    
     return Material(
-      color: AppTheme.surfaceWhite,
+      color: surfaceColor,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Ink(
           decoration: BoxDecoration(
-            color: AppTheme.surfaceWhite,
+            color: surfaceColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.divider, width: 1.5),
+            border: Border.all(color: dividerColor, width: 1.5),
           ),
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -372,7 +380,7 @@ class _QuickAction extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: AppTheme.elderlyBodyFontSize, // 22px
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
+                    color: textColor,
                     height: 1.2,
                   ),
                 ),
@@ -400,7 +408,7 @@ class _SosButton extends StatelessWidget {
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.accentRed,
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onError,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),

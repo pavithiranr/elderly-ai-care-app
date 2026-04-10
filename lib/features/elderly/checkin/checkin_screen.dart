@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_provider.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
 
@@ -63,7 +64,6 @@ class _CheckinScreenState extends State<CheckinScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, size: 28),
@@ -74,10 +74,9 @@ class _CheckinScreenState extends State<CheckinScreen> {
           style: GoogleFonts.inter(
             fontSize: 22,
             fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
-        backgroundColor: AppTheme.surfaceWhite,
         toolbarHeight: 64,
       ),
       body: _submitted
@@ -148,7 +147,7 @@ class _FormView extends StatelessWidget {
             'Optional — your own words',
             style: GoogleFonts.inter(
               fontSize: 22,
-              color: AppTheme.textMid,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
               fontWeight: FontWeight.w400,
             ),
           ),
@@ -158,29 +157,29 @@ class _FormView extends StatelessWidget {
             maxLines: 4,
             style: GoogleFonts.inter(
               fontSize: 22,
-              color: AppTheme.textDark,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
               height: 1.5,
             ),
             decoration: InputDecoration(
               hintText: 'e.g. "I slept poorly last night…"',
               hintStyle: GoogleFonts.inter(
                 fontSize: 22,
-                color: AppTheme.textLight,
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
               filled: true,
-              fillColor: AppTheme.surfaceWhite,
+              fillColor: Theme.of(context).colorScheme.surface,
               contentPadding: const EdgeInsets.all(18),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: AppTheme.divider),
+                borderSide: BorderSide(color: Theme.of(context).dividerColor),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: AppTheme.divider, width: 1.5),
+                borderSide: BorderSide(color: Theme.of(context).dividerColor, width: 1.5),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2.5),
+                borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2.5),
               ),
             ),
           ),
@@ -193,8 +192,8 @@ class _FormView extends StatelessWidget {
             child: ElevatedButton(
               onPressed: selectedMood >= 0 ? onSubmit : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                disabledBackgroundColor: AppTheme.divider,
+                backgroundColor: Theme.of(context).primaryColor,
+                disabledBackgroundColor: Theme.of(context).disabledColor,
                 disabledForegroundColor: AppTheme.textLight,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
@@ -275,20 +274,24 @@ class _MoodTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final primaryColor = Theme.of(context).primaryColor;
+    final dividerColor = Theme.of(context).dividerColor;
+    
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primaryBlue : AppTheme.surfaceWhite,
+        color: isSelected ? primaryColor : surfaceColor,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isSelected ? AppTheme.primaryBlue : AppTheme.divider,
+          color: isSelected ? primaryColor : dividerColor,
           width: isSelected ? 2 : 1.5,
         ),
         boxShadow: isSelected
             ? [
                 BoxShadow(
-                  color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                  color: primaryColor.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 )
@@ -320,7 +323,7 @@ class _MoodTile extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
-                          color: isSelected ? Colors.white : AppTheme.textDark,
+                          color: isSelected ? Theme.of(context).colorScheme.onPrimary : AppTheme.textDark,
                         ),
                       ),
                       Text(
@@ -329,7 +332,7 @@ class _MoodTile extends StatelessWidget {
                           fontSize: 22,
                           fontWeight: FontWeight.w400,
                           color: isSelected
-                              ? Colors.white.withValues(alpha: 0.85)
+                              ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.85)
                               : AppTheme.textMid,
                         ),
                       ),
@@ -340,11 +343,11 @@ class _MoodTile extends StatelessWidget {
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 180),
                   child: isSelected
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_circle_rounded,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           size: 30,
-                          key: ValueKey('checked'),
+                          key: const ValueKey('checked'),
                         )
                       : Container(
                           key: const ValueKey('unchecked'),
@@ -392,12 +395,23 @@ class _PainSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final isHighContrast = ThemeProvider.instance.isHighContrast;
+    final borderColor = isHighContrast 
+        ? (Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white 
+            : Colors.black)
+        : Theme.of(context).dividerColor;
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.divider, width: 1.5),
+        border: Border.all(
+          color: borderColor,
+          width: isHighContrast ? 2 : 1.5,
+        ),
       ),
       child: Column(
         children: [
@@ -441,7 +455,7 @@ class _PainSelector extends StatelessWidget {
               activeTrackColor: _painColor,
               thumbColor: _painColor,
               overlayColor: _painColor.withValues(alpha: 0.15),
-              inactiveTrackColor: AppTheme.divider,
+              inactiveTrackColor: Theme.of(context).dividerColor,
             ),
             child: Slider(
               value: value,
@@ -564,7 +578,7 @@ class _SectionLabel extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 24,
           fontWeight: FontWeight.w700,
-          color: AppTheme.textDark,
+          color: Theme.of(context).textTheme.bodyLarge?.color,
         ),
       ),
     );

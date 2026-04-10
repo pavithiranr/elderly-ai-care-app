@@ -55,7 +55,6 @@ class _SosScreenState extends State<SosScreen> {
               color: AppTheme.textDark,
             ),
           ),
-          backgroundColor: AppTheme.surfaceWhite,
           toolbarHeight: 64,
         ),
         body: _alertSent
@@ -128,8 +127,8 @@ class _ConfirmDialog extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accentRed,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -470,8 +469,8 @@ class _SentView extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: onBack,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accentRed,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),

@@ -9,6 +9,7 @@ class PatientProfile {
   final DateTime lastSeen;
   final String status; // 'active', 'inactive', etc.
   final String? caregiverId;
+  final String uniqueId; // 6-8 character unique ID for binding
 
   PatientProfile({
     required this.id,
@@ -18,6 +19,7 @@ class PatientProfile {
     required this.lastSeen,
     required this.status,
     this.caregiverId,
+    required this.uniqueId,
   });
 
   factory PatientProfile.fromFirestore(DocumentSnapshot doc) {
@@ -30,6 +32,7 @@ class PatientProfile {
       lastSeen: (data['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
       status: data['status'] as String? ?? 'unknown',
       caregiverId: data['caregiverId'] as String?,
+      uniqueId: data['uniqueId'] as String? ?? '',
     );
   }
 }
@@ -99,6 +102,25 @@ class PatientService {
       }
     } catch (e) {
       print('Error fetching patient: $e');
+    }
+    return null;
+  }
+
+  /// Get patient profile by their unique ID
+  /// Used by caregivers to look up elderly when linking by ID
+  Future<PatientProfile?> getPatientByUniqueId(String uniqueId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('elderly')
+          .where('uniqueId', isEqualTo: uniqueId.toUpperCase())
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return PatientProfile.fromFirestore(snapshot.docs.first);
+      }
+    } catch (e) {
+      print('Error fetching patient by unique ID: $e');
     }
     return null;
   }

@@ -124,7 +124,6 @@ healthcare providers for medical advice.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -135,7 +134,7 @@ healthcare providers for medical advice.
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: AppTheme.textDark,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         actions: [
@@ -154,7 +153,6 @@ healthcare providers for medical advice.
           ),
           const SizedBox(width: 8),
         ],
-        backgroundColor: AppTheme.surfaceWhite,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),

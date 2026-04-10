@@ -14,8 +14,10 @@ class AppConstants {
   static const String routeElderlySettings = '/elderly/settings';
   static const String routeCaregiverDashboard = '/caregiver/dashboard';
   static const String routeCaregiverSettings = '/caregiver/settings';
+  static const String routePatientDetail = '/caregiver/patient-detail';
   static const String routeCaregiverAlerts = '/caregiver/alerts';
   static const String routeCaregiverReports = '/caregiver/reports';
+  static const String routeLinkByUniqueId = '/caregiver/link-by-id';
 
   // SharedPreferences keys
   static const String prefUserRole = 'user_role';

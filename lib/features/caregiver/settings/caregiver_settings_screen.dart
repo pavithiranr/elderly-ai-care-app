@@ -98,14 +98,14 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         content: Text(
           'You will be returned to the sign-in screen.',
           style: GoogleFonts.inter(
             fontSize: 16,
-            color: AppTheme.textMid,
+            color: Theme.of(context).textTheme.bodyMedium?.color,
           ),
         ),
         actions: [
@@ -115,7 +115,7 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
               'Cancel',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textMid,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
             ),
           ),
@@ -149,7 +149,6 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -160,10 +159,9 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
-        backgroundColor: AppTheme.surfaceWhite,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -206,7 +204,7 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
                               style: GoogleFonts.inter(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.textDark,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
                               ),
                             );
                           },
@@ -216,7 +214,7 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
                           'Care Provider',
                           style: GoogleFonts.inter(
                             fontSize: 14,
-                            color: AppTheme.textMid,
+                            color: Theme.of(context).textTheme.bodyMedium?.color,
                           ),
                         ),
                       ],
@@ -231,12 +229,12 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                           ),
                           decoration: InputDecoration(
                             hintText: 'Your name',
                             hintStyle: GoogleFonts.inter(
-                              color: AppTheme.textLight,
+                              color: Theme.of(context).textTheme.bodySmall?.color,
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),

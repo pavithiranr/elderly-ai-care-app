@@ -40,14 +40,12 @@ class MedicationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
         ),
         title: const Text('Medications'),
-        backgroundColor: AppTheme.surfaceWhite,
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -114,14 +112,18 @@ class _MedicationCardState extends State<_MedicationCard> {
 
   @override
   Widget build(BuildContext context) {
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final accentGreen = AppTheme.accentGreen;
+    final dividerColor = Theme.of(context).dividerColor;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _taken ? AppTheme.accentGreen : AppTheme.divider,
+          color: _taken ? accentGreen : dividerColor,
         ),
       ),
       child: Row(

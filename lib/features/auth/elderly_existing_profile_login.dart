@@ -89,7 +89,11 @@ class _ElderlyExistingProfileLoginScreenState
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            // Go back to role selection instead of popping
+            // because this screen uses context.go() (replacement, not push)
+            context.go(AppConstants.routeRoleSelect);
+          },
         ),
         title: Text(
           'Welcome Back!',
@@ -297,7 +301,7 @@ class _ElderlyExistingProfileLoginScreenState
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: _isLoading ? null : () => context.pop(),
+                onPressed: _isLoading ? null : () => context.go(AppConstants.routeRoleSelect),
                 child: Text(
                   'Create New Profile Instead',
                   style: GoogleFonts.inter(

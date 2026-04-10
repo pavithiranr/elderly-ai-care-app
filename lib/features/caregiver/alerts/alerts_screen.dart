@@ -13,7 +13,6 @@ class AlertsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -24,10 +23,9 @@ class AlertsScreen extends StatelessWidget {
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: AppTheme.textDark,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
-        backgroundColor: AppTheme.surfaceWhite,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),

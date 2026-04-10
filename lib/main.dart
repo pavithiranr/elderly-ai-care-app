@@ -1,7 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
 import 'core/utils/router.dart';
 import 'firebase_options.dart';
 
@@ -12,7 +12,6 @@ void main() async {
   try {
     await dotenv.load(fileName: '.env');
   } catch (e) {
-    // .env file is optional, continue without it
     debugPrint('Note: .env file not found, continuing without it');
   }
 
@@ -20,6 +19,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize Theme Provider (loads persisted settings)
+  await ThemeProvider.instance.init();
 
   runApp(const CareSyncApp());
 }
@@ -29,11 +31,30 @@ class CareSyncApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'CareSync AI',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      routerConfig: appRouter,
+    // ListenableBuilder listens to ThemeProvider changes
+    // When theme settings change, the entire MaterialApp rebuilds with new theme
+    return ListenableBuilder(
+      listenable: ThemeProvider.instance,
+      builder: (context, child) {
+        debugPrint('🔄 Rebuilding MaterialApp with new theme...');
+        
+        return MaterialApp.router(
+          title: 'CareSync AI',
+          debugShowCheckedModeBanner: false,
+          // Get theme from provider - this changes based on settings
+          theme: ThemeProvider.instance.currentTheme,
+          routerConfig: appRouter,
+          builder: (context, child) {
+            // Wrap with MediaQuery to apply text scaling system-wide
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaleFactor: ThemeProvider.instance.textScaling,
+              ),
+              child: child!,
+            );
+          },
+        );
+      },
     );
   }
 }

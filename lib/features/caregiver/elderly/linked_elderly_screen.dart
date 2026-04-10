@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:caresync_ai/core/constants/app_constants.dart';
 import 'package:caresync_ai/core/theme/app_theme.dart';
 import 'package:caresync_ai/shared/services/caregiver_service.dart';
 import 'package:caresync_ai/shared/services/patient_service.dart';
@@ -133,6 +134,23 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            // Link by Unique ID option
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  context.pop();
+                  context.push(AppConstants.routeLinkByUniqueId);
+                },
+                icon: const Icon(Icons.fingerprint_rounded),
+                label: const Text('Link by Binding ID'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             // Cancel
             SizedBox(
               width: double.infinity,
@@ -150,7 +168,6 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -161,10 +178,9 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
-        backgroundColor: AppTheme.surfaceWhite,
         elevation: 0,
       ),
       body: FutureBuilder<CaregiverProfile?>(
@@ -179,7 +195,7 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
             return Center(
               child: Text(
                 'Error loading profile',
-                style: GoogleFonts.inter(color: AppTheme.textMid),
+                style: GoogleFonts.inter(color: Theme.of(context).textTheme.bodyMedium?.color),
               ),
             );
           }
@@ -341,7 +357,7 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
                                       ],
                                     ),
                                     onTap: () {
-                                      // TODO: Navigate to patient detail screen
+                                      context.push('/caregiver/patient-detail/$elderlyId');
                                     },
                                   ),
                                   const PopupMenuDivider(),

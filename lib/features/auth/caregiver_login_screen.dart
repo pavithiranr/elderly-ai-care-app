@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/services/notification_service.dart';
 import '../../shared/services/user_session_service.dart';
 
 class CaregiverLoginScreen extends StatefulWidget {
@@ -40,10 +41,13 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
         throw Exception('Please fill in all fields');
       }
 
-      await UserSessionService.instance.caregiverSignIn(
+      final uid = await UserSessionService.instance.caregiverSignIn(
         email: email,
         password: password,
       );
+
+      // Save FCM token so this device can receive push notifications
+      await NotificationService.instance.saveTokenForUser(uid, collection: 'caregivers');
 
       if (!mounted) return;
       context.go(AppConstants.routeCaregiverDashboard);

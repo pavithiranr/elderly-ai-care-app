@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 /// Model for caregiver profile data
 class CaregiverProfile {
@@ -67,6 +68,17 @@ class CaregiverService {
       print('Error fetching caregiver profile: $e');
       return null;
     }
+  }
+
+  /// Get a caregiver profile by their Firestore document ID.
+  Future<CaregiverProfile?> getCaregiverById(String caregiverId) async {
+    try {
+      final doc = await _firestore.collection('caregivers').doc(caregiverId).get();
+      if (doc.exists) return CaregiverProfile.fromFirestore(doc);
+    } catch (e) {
+      debugPrint('Error fetching caregiver by id: $e');
+    }
+    return null;
   }
 
   /// Get caregiver name from display name or Firestore

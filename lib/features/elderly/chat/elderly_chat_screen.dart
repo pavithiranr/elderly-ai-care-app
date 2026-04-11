@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/gemini_service.dart';
 
 /// AI Chat companion for elderly users.
 /// UI shell — wire up Gemini API calls via backend team's service layer.
@@ -17,11 +18,19 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<_ChatMessage> _messages = [
     const _ChatMessage(
-      text: "Hello! I'm CareSync, your AI companion. 😊\nHow are you feeling today? You can ask me anything!",
+      text: "Hello! I'm CareSync, your AI companion.\nHow are you feeling today? You can ask me anything!",
       isAi: true,
     ),
   ];
   bool _isLoading = false;
+
+  /// Build conversation history in the format Gemini expects.
+  List<Map<String, String>> get _history {
+    return _messages.map((m) => {
+      'role': m.isAi ? 'model' : 'user',
+      'text': m.text,
+    }).toList();
+  }
 
   @override
   void dispose() {
@@ -41,15 +50,28 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
     });
     _scrollToBottom();
 
-    // TODO: call GeminiChatService.send(text) from backend integration
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _messages.add(const _ChatMessage(
-        text: "That's great to hear! Remember to take your afternoon medication at 12:00 PM. Is there anything else I can help you with?",
-        isAi: true,
-      ));
-      _isLoading = false;
-    });
+    try {
+      final reply = await GeminiService.instance.sendChatMessage(
+        message: text,
+        history: _history,
+      );
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(text: reply, isAi: true));
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(
+            text: "Sorry, I'm having trouble connecting right now. Please try again in a moment.",
+            isAi: true,
+          ));
+          _isLoading = false;
+        });
+      }
+    }
     _scrollToBottom();
   }
 

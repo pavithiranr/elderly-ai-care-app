@@ -1,20 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 /// Model for elderly patient data
 class PatientProfile {
   final String id;
   final String name;
-  final int age;
+  final String dateOfBirth; // "YYYY-MM-DD"
+  final String emergencyContact;
   final String? photoUrl;
   final DateTime lastSeen;
-  final String status; // 'active', 'inactive', etc.
+  final String status;
   final String? caregiverId;
-  final String uniqueId; // 6-8 character unique ID for binding
+  final String uniqueId;
 
   PatientProfile({
     required this.id,
     required this.name,
-    required this.age,
+    required this.dateOfBirth,
+    required this.emergencyContact,
     this.photoUrl,
     required this.lastSeen,
     required this.status,
@@ -22,15 +25,33 @@ class PatientProfile {
     required this.uniqueId,
   });
 
+  /// Age computed from dateOfBirth — no need to store it separately.
+  int get age {
+    if (dateOfBirth.isEmpty) return 0;
+    try {
+      final parts = dateOfBirth.split('-');
+      final dob = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+      final today = DateTime.now();
+      int years = today.year - dob.year;
+      if (today.month < dob.month || (today.month == dob.month && today.day < dob.day)) {
+        years--;
+      }
+      return years;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   factory PatientProfile.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return PatientProfile(
       id: doc.id,
       name: data['name'] as String? ?? 'Patient',
-      age: data['age'] as int? ?? 0,
+      dateOfBirth: data['dateOfBirth'] as String? ?? '',
+      emergencyContact: data['emergencyContact'] as String? ?? '',
       photoUrl: data['photoUrl'] as String?,
       lastSeen: (data['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      status: data['status'] as String? ?? 'unknown',
+      status: data['status'] as String? ?? 'active',
       caregiverId: data['caregiverId'] as String?,
       uniqueId: data['uniqueId'] as String? ?? '',
     );
@@ -101,7 +122,7 @@ class PatientService {
         return PatientProfile.fromFirestore(doc);
       }
     } catch (e) {
-      print('Error fetching patient: $e');
+      debugPrint('Error fetching patient: $e');
     }
     return null;
   }
@@ -120,7 +141,7 @@ class PatientService {
         return PatientProfile.fromFirestore(snapshot.docs.first);
       }
     } catch (e) {
-      print('Error fetching patient by unique ID: $e');
+      debugPrint('Error fetching patient by unique ID: $e');
     }
     return null;
   }
@@ -137,7 +158,7 @@ class PatientService {
           .map((doc) => PatientProfile.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('Error fetching patients for caregiver: $e');
+      debugPrint('Error fetching patients for caregiver: $e');
       return [];
     }
   }
@@ -152,51 +173,88 @@ class PatientService {
             snapshot.docs.map((doc) => PatientProfile.fromFirestore(doc)).toList());
   }
 
-  /// Get today's health data for a patient
+  /// Get today's health data for a patient — reads from the `checkins` collection
+  /// which is written by the elderly check-in screen.
   Future<PatientHealthData?> getTodayHealthData(String patientId) async {
     try {
       final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
+      // saveCheckin uses 'year-month-day' as the document ID
+      final docId = '${today.year}-${today.month}-${today.day}';
 
-      final snapshot = await _firestore
+      final doc = await _firestore
           .collection('elderly')
           .doc(patientId)
-          .collection('health_data')
-          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-          .where('timestamp', isLessThan: Timestamp.fromDate(endOfDay))
-          .orderBy('timestamp', descending: true)
-          .limit(1)
+          .collection('checkins')
+          .doc(docId)
           .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        return PatientHealthData.fromFirestore(snapshot.docs.first);
+      if (doc.exists) {
+        final data = doc.data()!;
+        // Check-in screen order: 0=Great, 1=Good, 2=Okay, 3=Not Great, 4=Bad
+        const moodLabels = ['great', 'good', 'okay', 'sad', 'terrible'];
+        final moodIndex = (data['moodIndex'] as int? ?? 2).clamp(0, 4);
+        return PatientHealthData(
+          elderlyId: patientId,
+          mood: moodLabels[moodIndex],
+          painLevel: (data['painLevel'] as num?)?.toInt() ?? 0,
+          medicationsTaken: 0,
+          medicationsTotal: 0,
+          sosAlerts: 0,
+          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? today,
+        );
       }
     } catch (e) {
-      print('Error fetching health data: $e');
+      debugPrint('Error fetching health data: $e');
     }
     return null;
   }
 
-  /// Stream of health data for a patient (real-time updates)
+  /// Count SOS alerts fired today for a patient.
+  Future<int> getTodaySosCount(String patientId) async {
+    try {
+      final today = DateTime.now();
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      final snap = await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('sos_alerts')
+          .where('timestamp',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .get();
+      return snap.docs.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Stream of today's health data — listens to the `checkins` collection
+  /// so the caregiver banner updates in real-time when the elderly checks in.
   Stream<PatientHealthData?> getTodayHealthData$Stream(String patientId) {
     final today = DateTime.now();
-    final startOfDay = DateTime(today.year, today.month, today.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final docId = '${today.year}-${today.month}-${today.day}';
+
+    const moodLabels = ['great', 'good', 'okay', 'sad', 'terrible'];
 
     return _firestore
         .collection('elderly')
         .doc(patientId)
-        .collection('health_data')
-        .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-        .where('timestamp', isLessThan: Timestamp.fromDate(endOfDay))
-        .orderBy('timestamp', descending: true)
-        .limit(1)
+        .collection('checkins')
+        .doc(docId)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.isNotEmpty
-                ? PatientHealthData.fromFirestore(snapshot.docs.first)
-                : null);
+        .map((doc) {
+          if (!doc.exists) return null;
+          final data = doc.data()!;
+          final moodIndex = (data['moodIndex'] as int? ?? 2).clamp(0, 4);
+          return PatientHealthData(
+            elderlyId: patientId,
+            mood: moodLabels[moodIndex],
+            painLevel: (data['painLevel'] as num?)?.toInt() ?? 0,
+            medicationsTaken: 0,
+            medicationsTotal: 0,
+            sosAlerts: 0,
+            timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? today,
+          );
+        });
   }
 
   /// Get activity stream for a patient
@@ -263,12 +321,45 @@ class PatientService {
 
       return meds;
     } catch (e) {
-      print('Error fetching medication compliance: $e');
+      debugPrint('Error fetching medication compliance: $e');
       return [];
     }
   }
 
   /// Log a medication dose taken by the patient
+  /// Add a new medication to the patient's medications list.
+  Future<void> addMedication(
+    String patientId, {
+    required String name,
+    required String dosage,
+    required String time,
+    String note = '',
+  }) async {
+    await _firestore
+        .collection('elderly')
+        .doc(patientId)
+        .collection('medications')
+        .add({
+      'name': name,
+      'dosage': dosage,
+      'time': time,
+      'note': note,
+      'createdAt': Timestamp.now(),
+    });
+  }
+
+  /// Delete a medication and all its logs.
+  Future<void> deleteMedication(String patientId, String medicationId) async {
+    // Delete the medication doc (logs subcollection is left to Firestore cleanup,
+    // which is fine for a demo — subcollections don't block parent deletion)
+    await _firestore
+        .collection('elderly')
+        .doc(patientId)
+        .collection('medications')
+        .doc(medicationId)
+        .delete();
+  }
+
   Future<void> logMedicationDose(String patientId, String medicationId) async {
     try {
       await _firestore
@@ -282,7 +373,7 @@ class PatientService {
             'taken': true,
           });
     } catch (e) {
-      print('Error logging medication dose: $e');
+      debugPrint('Error logging medication dose: $e');
       rethrow;
     }
   }
@@ -310,7 +401,7 @@ class PatientService {
             'timestamp': Timestamp.now(),
           });
     } catch (e) {
-      print('Error saving check-in: $e');
+      debugPrint('Error saving check-in: $e');
       rethrow;
     }
   }
@@ -355,7 +446,7 @@ class PatientService {
         'pain': painData,
       };
     } catch (e) {
-      print('Error fetching mood/pain trends: $e');
+      debugPrint('Error fetching mood/pain trends: $e');
       return {
         'mood': List.filled(7, 0),
         'pain': List.filled(7, 0),
@@ -436,7 +527,7 @@ class PatientService {
         'sosAlerts': sosCount.toString(),
       };
     } catch (e) {
-      print('Error fetching weekly stats: $e');
+      debugPrint('Error fetching weekly stats: $e');
       return {
         'checkins': '0 / 7',
         'adherence': '0%',

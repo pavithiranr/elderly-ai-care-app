@@ -1,12 +1,27 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/utils/router.dart';
 import 'firebase_options.dart';
+import 'shared/services/notification_service.dart';
+
+/// Must be a top-level function — called by FCM when the app is in the
+/// background or terminated. Runs in an isolate, so only minimal work here.
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // The notification is shown automatically by FCM when the app is terminated.
+  // When the app is in the background we just let the system tray handle it.
+  debugPrint('FCM background message: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Register background message handler BEFORE Firebase.initializeApp
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Load environment variables from .env file (optional)
   try {
@@ -22,6 +37,9 @@ void main() async {
 
   // Initialize Theme Provider (loads persisted settings)
   await ThemeProvider.instance.init();
+
+  // Initialize notifications (requests permission + sets up FCM listener)
+  await NotificationService.instance.init();
 
   runApp(const CareSyncApp());
 }
@@ -48,7 +66,7 @@ class CareSyncApp extends StatelessWidget {
             // Wrap with MediaQuery to apply text scaling system-wide
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                textScaleFactor: ThemeProvider.instance.textScaling,
+                textScaler: TextScaler.linear(ThemeProvider.instance.textScaling),
               ),
               child: child!,
             );

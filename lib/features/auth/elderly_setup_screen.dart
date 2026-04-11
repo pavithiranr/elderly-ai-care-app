@@ -16,10 +16,20 @@ class ElderlySetupScreen extends StatefulWidget {
 class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
   final _nameController = TextEditingController();
   final _dobController = TextEditingController();
+  // Stores only the digits after +60 — prefix is shown via InputDecoration
   final _emergencyContactController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-  String? _bindingCode;
+
+  /// Validates and returns the full +60 number, or null if invalid.
+  /// Malaysian format: +60 followed by 8–10 digits.
+  /// Mobile: +601X-XXXXXXX(X)   Landline: +60X-XXXXXXX
+  String? _validateMalaysianPhone(String digits) {
+    final cleaned = digits.replaceAll(RegExp(r'\s'), '');
+    if (cleaned.isEmpty) return null; // caught by empty check
+    if (!RegExp(r'^\d{8,10}$').hasMatch(cleaned)) return null;
+    return '+60$cleaned';
+  }
 
   @override
   void dispose() {
@@ -66,17 +76,20 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
         throw Exception('Please fill in all fields');
       }
 
+      final fullPhone = _validateMalaysianPhone(contact);
+      if (fullPhone == null) {
+        throw Exception(
+            'Enter a valid Malaysian number after +60\n(e.g. 123456789 for +60123456789)');
+      }
+
       final code = await UserSessionService.instance.elderlySetup(
         name: name,
         dateOfBirth: dob,
-        emergencyContact: contact,
+        emergencyContact: fullPhone,
       );
 
       if (!mounted) return;
 
-      setState(() => _bindingCode = code);
-      
-      // Show binding code dialog
       _showBindingCodeDialog(code);
     } catch (e) {
       setState(() {
@@ -388,17 +401,35 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                   color: AppTheme.textDark,
                 ),
               ),
+              const SizedBox(height: 4),
+              Text(
+                'Malaysian number only (+60)',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppTheme.textLight,
+                ),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: _emergencyContactController,
                 enabled: !_isLoading,
                 keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   color: AppTheme.textDark,
                 ),
                 decoration: InputDecoration(
-                  hintText: '+1 (555) 123-4567',
+                  prefixText: '+60 ',
+                  prefixStyle: GoogleFonts.inter(
+                    fontSize: 18,
+                    color: AppTheme.primaryBlue,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  hintText: '12-3456789',
                   hintStyle: GoogleFonts.inter(
                     fontSize: 18,
                     color: AppTheme.textLight,

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/services/caregiver_service.dart';
+import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/patient_service.dart';
 
 /// Weekly AI-generated health trend report for caregivers.
@@ -21,24 +22,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   bool _isGeneratingPDF = false;
 
+  /// Cached patient future — shared by all FutureBuilders so Firestore is
+  /// only queried once per screen load.
+  late final Future<PatientProfile?> _patientFuture = _loadPatient();
+
+  Future<PatientProfile?> _loadPatient() async {
+    final profile = await CaregiverService.instance.getCurrentCaregiverProfile();
+    if (profile == null) return null;
+    final patients = await PatientService.instance.getPatientsByCaregiver(profile.id);
+    return patients.isNotEmpty ? patients.first : null;
+  }
+
+  static String _getDateRangeLabel() {
+    final now = DateTime.now();
+    final start = now.subtract(const Duration(days: 6));
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    if (start.month == now.month) {
+      return '${months[start.month - 1]} ${start.day} – ${now.day}, ${now.year}';
+    }
+    return '${months[start.month - 1]} ${start.day} – ${months[now.month - 1]} ${now.day}, ${now.year}';
+  }
+
   Future<void> _generateAndSharePDF() async {
     if (_isGeneratingPDF) return;
     setState(() => _isGeneratingPDF = true);
 
     try {
-      // Fetch data
-      final caregiverProfile = await CaregiverService.instance.getCurrentCaregiverProfile();
-      if (caregiverProfile == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error: Could not load caregiver profile')),
-          );
-        }
-        return;
-      }
-
-      final patients = await PatientService.instance.getPatientsByCaregiver(caregiverProfile.id);
-      if (patients.isEmpty) {
+      final patient = await _patientFuture;
+      if (patient == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Error: No patient found')),
@@ -47,8 +61,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
         return;
       }
 
-      final patientName = patients.first.name;
-      final stats = await PatientService.instance.getWeeklyStats(patients.first.id);
+      final patientName = patient.name;
+      final stats = await PatientService.instance.getWeeklyStats(patient.id);
 
       // Generate text report
       final now = DateTime.now();
@@ -108,7 +122,7 @@ healthcare providers for medical advice.
         );
       }
     } catch (e) {
-      print('Error generating report: $e');
+      debugPrint('Error generating report: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}')),
@@ -161,7 +175,7 @@ healthcare providers for medical advice.
         children: [
           // ── Page header ────────────────────────────────────────────────
           Text(
-            'Mar 28 – Apr 3, 2026',
+            _getDateRangeLabel(),
             style: GoogleFonts.inter(
               fontSize: 13,
               color: AppTheme.textLight,
@@ -170,14 +184,7 @@ healthcare providers for medical advice.
           ),
           const SizedBox(height: 4),
           FutureBuilder<PatientProfile?>(
-            future: CaregiverService.instance
-                .getCurrentCaregiverProfile()
-                .then((profile) => profile != null
-                    ? PatientService.instance
-                        .getPatientsByCaregiver(profile.id)
-                        .then((patients) =>
-                            patients.isNotEmpty ? patients.first : null)
-                    : null),
+            future: _patientFuture,
             builder: (context, snapshot) {
               final patientName = snapshot.data?.name ?? 'Patient';
               return Text(
@@ -193,52 +200,56 @@ healthcare providers for medical advice.
           const SizedBox(height: 20),
 
           // ── AI narrative ───────────────────────────────────────────────
-          // TODO: replace placeholder with Gemini 2.0 weekly narrative
-          const _AiNarrativeCard(
-            narrative:
-                'This was a generally positive week for Margaret. She completed 6 of 7 daily check-ins and maintained strong medication adherence (89%). Pain levels stayed low throughout the week, averaging 2.1 out of 10. Mood was consistently positive on 5 of 7 days. Recommend maintaining current routine and monitoring the missed Vitamin D3 doses.',
+          FutureBuilder<PatientProfile?>(
+            future: _patientFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return _buildNarrativeShimmer();
+              }
+              final patient = snapshot.data;
+              if (patient == null) {
+                return const _AiNarrativeCard(
+                  narrative: 'No patient data available.',
+                );
+              }
+              return _AiNarrativeLoader(
+                patientId: patient.id,
+                patientName: patient.name,
+              );
+            },
           ),
           const SizedBox(height: 20),
 
           // ── Weekly stats ───────────────────────────────────────────────
           _SectionHeader(title: 'Weekly Summary'),
           const SizedBox(height: 10),
-          FutureBuilder<Map<String, dynamic>>(
-            future: CaregiverService.instance
-                .getCurrentCaregiverProfile()
-                .then((profile) => profile != null
-                    ? PatientService.instance
-                        .getPatientsByCaregiver(profile.id)
-                        .then((patients) => patients.isNotEmpty
-                            ? PatientService.instance
-                                .getWeeklyStats(patients.first.id)
-                            : {
-                                'checkins': '0 / 7',
-                                'adherence': '0%',
-                                'avgPain': '0 / 10',
-                                'sosAlerts': '0',
-                              })
-                    : Future.value({
-                        'checkins': '0 / 7',
-                        'adherence': '0%',
-                        'avgPain': '0 / 10',
-                        'sosAlerts': '0',
-                      })),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          FutureBuilder<PatientProfile?>(
+            future: _patientFuture,
+            builder: (context, patientSnap) {
+              if (patientSnap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final stats = snapshot.data ?? {
-                'checkins': '0 / 7',
-                'adherence': '0%',
-                'avgPain': '0 / 10',
-                'sosAlerts': '0',
-              };
-              return _WeeklyStatsGrid(
-                checkins: stats['checkins'] ?? '0 / 7',
-                adherence: stats['adherence'] ?? '0%',
-                avgPain: stats['avgPain'] ?? '0 / 10',
-                sosAlerts: stats['sosAlerts'] ?? '0',
+              final patient = patientSnap.data;
+              if (patient == null) {
+                return const _WeeklyStatsGrid(
+                  checkins: '0 / 7', adherence: '0%',
+                  avgPain: '0 / 10', sosAlerts: '0',
+                );
+              }
+              return FutureBuilder<Map<String, dynamic>>(
+                future: PatientService.instance.getWeeklyStats(patient.id),
+                builder: (context, statsSnap) {
+                  if (statsSnap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final s = statsSnap.data ?? {};
+                  return _WeeklyStatsGrid(
+                    checkins: s['checkins'] ?? '0 / 7',
+                    adherence: s['adherence'] ?? '0%',
+                    avgPain: s['avgPain'] ?? '0 / 10',
+                    sosAlerts: s['sosAlerts'] ?? '0',
+                  );
+                },
               );
             },
           ),
@@ -252,39 +263,35 @@ healthcare providers for medical advice.
             style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMid),
           ),
           const SizedBox(height: 10),
-          FutureBuilder<Map<String, List<double>>>(
-            future: CaregiverService.instance
-                .getCurrentCaregiverProfile()
-                .then((profile) => profile != null
-                    ? PatientService.instance
-                        .getPatientsByCaregiver(profile.id)
-                        .then((patients) {
-                      if (patients.isNotEmpty) {
-                        return PatientService.instance
-                            .getWeeklyMoodPainTrends(patients.first.id);
-                      }
-                      return {
-                        'mood': List.filled(7, 0),
-                        'pain': List.filled(7, 0),
-                      };
-                    })
-                    : Future.value({
-                        'mood': List.filled(7, 0),
-                        'pain': List.filled(7, 0),
-                      })),
-            builder: (context, snapshot) {
-              final moodData = snapshot.data?['mood'] ?? List.filled(7, 0);
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          FutureBuilder<PatientProfile?>(
+            future: _patientFuture,
+            builder: (context, patientSnap) {
+              if (patientSnap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              return _BarChartCard(
-                data: moodData,
-                dayLabels: _dayLabels,
-                maxY: 5,
-                barColor: AppTheme.accentGreen,
-                gradientColors: [AppTheme.accentGreen, const Color(0xFF4ADE80)],
-                tooltipSuffix: '/5',
-                yAxisLabel: _moodYLabel,
+              final patient = patientSnap.data;
+              if (patient == null) {
+                return _BarChartCard(
+                  data: List.filled(7, 0), dayLabels: _dayLabels, maxY: 5,
+                  barColor: AppTheme.accentGreen,
+                  gradientColors: [AppTheme.accentGreen, const Color(0xFF4ADE80)],
+                  tooltipSuffix: '/5', yAxisLabel: _moodYLabel,
+                );
+              }
+              return FutureBuilder<Map<String, List<double>>>(
+                future: PatientService.instance.getWeeklyMoodPainTrends(patient.id),
+                builder: (context, trendsSnap) {
+                  if (trendsSnap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final moodData = trendsSnap.data?['mood'] ?? List.filled(7, 0);
+                  return _BarChartCard(
+                    data: moodData, dayLabels: _dayLabels, maxY: 5,
+                    barColor: AppTheme.accentGreen,
+                    gradientColors: [AppTheme.accentGreen, const Color(0xFF4ADE80)],
+                    tooltipSuffix: '/5', yAxisLabel: _moodYLabel,
+                  );
+                },
               );
             },
           ),
@@ -298,39 +305,35 @@ healthcare providers for medical advice.
             style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMid),
           ),
           const SizedBox(height: 10),
-          FutureBuilder<Map<String, List<double>>>(
-            future: CaregiverService.instance
-                .getCurrentCaregiverProfile()
-                .then((profile) => profile != null
-                    ? PatientService.instance
-                        .getPatientsByCaregiver(profile.id)
-                        .then((patients) {
-                      if (patients.isNotEmpty) {
-                        return PatientService.instance
-                            .getWeeklyMoodPainTrends(patients.first.id);
-                      }
-                      return {
-                        'mood': List.filled(7, 0),
-                        'pain': List.filled(7, 0),
-                      };
-                    })
-                    : Future.value({
-                        'mood': List.filled(7, 0),
-                        'pain': List.filled(7, 0),
-                      })),
-            builder: (context, snapshot) {
-              final painData = snapshot.data?['pain'] ?? List.filled(7, 0);
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          FutureBuilder<PatientProfile?>(
+            future: _patientFuture,
+            builder: (context, patientSnap) {
+              if (patientSnap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              return _BarChartCard(
-                data: painData,
-                dayLabels: _dayLabels,
-                maxY: 10,
-                barColor: AppTheme.accentOrange,
-                gradientColors: [AppTheme.accentOrange, const Color(0xFFFB923C)],
-                tooltipSuffix: '/10',
-                yAxisLabel: _painYLabel,
+              final patient = patientSnap.data;
+              if (patient == null) {
+                return _BarChartCard(
+                  data: List.filled(7, 0), dayLabels: _dayLabels, maxY: 10,
+                  barColor: AppTheme.accentOrange,
+                  gradientColors: [AppTheme.accentOrange, const Color(0xFFFB923C)],
+                  tooltipSuffix: '/10', yAxisLabel: _painYLabel,
+                );
+              }
+              return FutureBuilder<Map<String, List<double>>>(
+                future: PatientService.instance.getWeeklyMoodPainTrends(patient.id),
+                builder: (context, trendsSnap) {
+                  if (trendsSnap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final painData = trendsSnap.data?['pain'] ?? List.filled(7, 0);
+                  return _BarChartCard(
+                    data: painData, dayLabels: _dayLabels, maxY: 10,
+                    barColor: AppTheme.accentOrange,
+                    gradientColors: [AppTheme.accentOrange, const Color(0xFFFB923C)],
+                    tooltipSuffix: '/10', yAxisLabel: _painYLabel,
+                  );
+                },
               );
             },
           ),
@@ -340,39 +343,40 @@ healthcare providers for medical advice.
           _SectionHeader(title: 'Medication Adherence'),
           const SizedBox(height: 10),
           FutureBuilder<PatientProfile?>(
-            future: CaregiverService.instance
-                .getCurrentCaregiverProfile()
-                .then((profile) => profile != null
-                    ? PatientService.instance
-                        .getPatientsByCaregiver(profile.id)
-                        .then((patients) =>
-                            patients.isNotEmpty ? patients.first : null)
-                    : null),
-            builder: (context, patientSnapshot) {
-              if (patientSnapshot.connectionState == ConnectionState.waiting) {
+            future: _patientFuture,
+            builder: (context, patientSnap) {
+              if (patientSnap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-
-              final patient = patientSnapshot.data;
-              if (patient == null) {
-                return const SizedBox.shrink();
-              }
-
+              final patient = patientSnap.data;
+              if (patient == null) return const SizedBox.shrink();
               return FutureBuilder<List<MedicationComplianceData>>(
-                future:
-                    PatientService.instance.getWeeklyMedicationCompliance(patient.id),
-                builder: (context, medSnapshot) {
-                  final meds = medSnapshot.data ?? [];
-                  if (meds.isEmpty) {
-                    return const _MedicationAdherenceCard(meds: []);
-                  }
-                  return _MedicationAdherenceCard(meds: meds);
+                future: PatientService.instance.getWeeklyMedicationCompliance(patient.id),
+                builder: (context, medSnap) {
+                  return _MedicationAdherenceCard(meds: medSnap.data ?? []);
                 },
               );
             },
           ),
           const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNarrativeShimmer() {
+    return Container(
+      height: 160,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1D4ED8), Color(0xFF4338CA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
       ),
     );
   }
@@ -391,6 +395,95 @@ healthcare providers for medical advice.
   static String _painYLabel(double value) {
     if (value % 2 != 0) return '';
     return value.toInt().toString();
+  }
+}
+
+// ── AI Narrative Loader ───────────────────────────────────────────────────────
+
+class _AiNarrativeLoader extends StatefulWidget {
+  final String patientId;
+  final String patientName;
+  const _AiNarrativeLoader({required this.patientId, required this.patientName});
+
+  @override
+  State<_AiNarrativeLoader> createState() => _AiNarrativeLoaderState();
+}
+
+class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
+  String? _narrative;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNarrative();
+  }
+
+  @override
+  void didUpdateWidget(_AiNarrativeLoader old) {
+    super.didUpdateWidget(old);
+    if (old.patientId != widget.patientId) _fetchNarrative();
+  }
+
+  Future<void> _fetchNarrative() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final stats = await PatientService.instance.getWeeklyStats(widget.patientId);
+      final trends = await PatientService.instance.getWeeklyMoodPainTrends(widget.patientId);
+      final meds = await PatientService.instance.getWeeklyMedicationCompliance(widget.patientId);
+
+      final moodAvg = () {
+        final list = trends['mood'] ?? [];
+        if (list.isEmpty) return 0.0;
+        return list.reduce((a, b) => a + b) / list.length;
+      }();
+
+      final events = [
+        'Patient name: ${widget.patientName}',
+        'Check-ins completed: ${stats['checkins'] ?? 'N/A'}',
+        'Medication adherence: ${stats['adherence'] ?? 'N/A'}',
+        'Average pain level: ${stats['avgPain'] ?? 'N/A'}',
+        'SOS alerts this week: ${stats['sosAlerts'] ?? '0'}',
+        'Average mood score (1-5): ${moodAvg.toStringAsFixed(1)}',
+        if (meds.isNotEmpty)
+          'Medications: ${meds.map((m) => '${m.name} ${m.daysTaken}/${m.daysTotal} days').join(', ')}',
+      ];
+
+      final narrative = await GeminiService.instance.generateWeeklyNarrative(
+        patientName: widget.patientName,
+        events: events,
+      );
+      if (mounted) setState(() { _narrative = narrative; _isLoading = false; });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _narrative = 'Unable to generate AI summary. Please check your connection and try again.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Container(
+        height: 160,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1D4ED8), Color(0xFF4338CA)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+        ),
+      );
+    }
+    return _AiNarrativeCard(narrative: _narrative!);
   }
 }
 
@@ -436,7 +529,14 @@ class _AiNarrativeCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Apr 3, 2026',
+                    () {
+                      final now = DateTime.now();
+                      const months = [
+                        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+                      ];
+                      return '${months[now.month - 1]} ${now.day}, ${now.year}';
+                    }(),
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: Colors.white.withValues(alpha: 0.75),

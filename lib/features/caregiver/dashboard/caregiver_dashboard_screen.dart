@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,7 +6,10 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../shared/services/caregiver_service.dart';
+import '../../../shared/services/gemini_service.dart';
+import '../../../shared/services/notification_service.dart';
 import '../../../shared/services/patient_service.dart';
 
 /// Caregiver Dashboard — MD3 card-based layout, ≥16px fonts.
@@ -22,16 +26,49 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   int _currentPatientIndex = 0;
   late Future<CaregiverProfile?> _caregiverProfileFuture;
 
+  // SOS listener — fires a local notification when a new alert arrives
+  final List<StreamSubscription<QuerySnapshot>> _sosSubs = [];
+
   @override
   void initState() {
     super.initState();
     _patientPageController = PageController(viewportFraction: 0.95);
     _caregiverProfileFuture = CaregiverService.instance.getCurrentCaregiverProfile();
+    _startSosListeners();
+  }
+
+  Future<void> _startSosListeners() async {
+    final profile = await _caregiverProfileFuture;
+    if (profile == null) return;
+
+    for (final patientId in profile.linkedElderlyIds) {
+      final patient = await PatientService.instance.getPatientById(patientId);
+      final name = patient?.name ?? 'Your patient';
+
+      final sub = FirebaseFirestore.instance
+          .collection('elderly')
+          .doc(patientId)
+          .collection('sos_alerts')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .snapshots()
+          .skip(1) // skip the initial snapshot — only react to NEW docs
+          .listen((snap) {
+        if (snap.docs.isNotEmpty) {
+          NotificationService.instance.showSosNotification(name);
+        }
+      });
+
+      _sosSubs.add(sub);
+    }
   }
 
   @override
   void dispose() {
     _patientPageController.dispose();
+    for (final sub in _sosSubs) {
+      sub.cancel();
+    }
     super.dispose();
   }
 
@@ -162,11 +199,46 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           ),
           const SizedBox(height: 20),
 
+          // ── AI Summary ────────────────────────────────────────────────
+          FutureBuilder<CaregiverProfile?>(
+            future: _caregiverProfileFuture,
+            builder: (context, snap) {
+              final ids = snap.data?.linkedElderlyIds ?? [];
+              if (ids.isEmpty) return const SizedBox.shrink();
+              return Column(
+                children: [
+                  _AiSummaryLoader(patientId: ids[_currentPatientIndex.clamp(0, ids.length - 1)]),
+                  const SizedBox(height: 20),
+                ],
+              );
+            },
+          ),
+
           // ── Health stats ───────────────────────────────────────────────
           _SectionHeader(title: "Today's Health"),
           const SizedBox(height: 10),
-          // TODO: replace hardcoded values with live Firestore reads
-          const _StatsGrid(),
+          FutureBuilder<CaregiverProfile?>(
+            future: _caregiverProfileFuture,
+            builder: (context, snap) {
+              final ids = snap.data?.linkedElderlyIds ?? [];
+              if (ids.isEmpty) return const _StatsGrid(health: null, sosCount: 0);
+              final patientId = ids[_currentPatientIndex.clamp(0, ids.length - 1)];
+              return FutureBuilder<PatientHealthData?>(
+                future: PatientService.instance.getTodayHealthData(patientId),
+                builder: (context, healthSnap) {
+                  return FutureBuilder<int>(
+                    future: PatientService.instance.getTodaySosCount(patientId),
+                    builder: (context, sosSnap) {
+                      return _StatsGrid(
+                        health: healthSnap.data,
+                        sosCount: sosSnap.data ?? 0,
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
           const SizedBox(height: 20),
 
           // ── Quick links ────────────────────────────────────────────────
@@ -581,6 +653,85 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
+// ── AI Summary Loader ─────────────────────────────────────────────────────────
+
+class _AiSummaryLoader extends StatefulWidget {
+  final String patientId;
+  const _AiSummaryLoader({required this.patientId});
+
+  @override
+  State<_AiSummaryLoader> createState() => _AiSummaryLoaderState();
+}
+
+class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
+  late Future<String> _summaryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _summaryFuture = _fetchSummary();
+  }
+
+  @override
+  void didUpdateWidget(_AiSummaryLoader old) {
+    super.didUpdateWidget(old);
+    if (old.patientId != widget.patientId) {
+      setState(() => _summaryFuture = _fetchSummary());
+    }
+  }
+
+  Future<String> _fetchSummary() async {
+    try {
+      final patient = await PatientService.instance.getPatientById(widget.patientId);
+      if (patient == null) return 'No patient data available.';
+
+      final health = await PatientService.instance.getTodayHealthData(widget.patientId);
+
+      final events = <String>[
+        'Patient: ${patient.name}, Age: ${patient.age}',
+        if (health != null) ...[
+          'Mood today: ${health.mood}',
+          'Pain level: ${health.painLevel}/10',
+          'Medications taken: ${health.medicationsTaken} of ${health.medicationsTotal}',
+          if (health.sosAlerts > 0) 'SOS alerts today: ${health.sosAlerts}',
+        ] else
+          'No check-in recorded today',
+      ];
+
+      return await GeminiService.instance.generateHealthSummary(events);
+    } catch (_) {
+      return 'Unable to generate summary right now.';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _summaryFuture,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 110,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1D4ED8), Color(0xFF4338CA)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+            ),
+          );
+        }
+        final summary = snap.data ?? 'Unable to generate summary.';
+        return _AiSummaryBanner(summary: summary);
+      },
+    );
+  }
+}
+
 // ── AI Summary Banner ─────────────────────────────────────────────────────────
 
 class _AiSummaryBanner extends StatelessWidget {
@@ -696,10 +847,40 @@ class _AiSummaryBanner extends StatelessWidget {
 // ── Stats Grid ────────────────────────────────────────────────────────────────
 
 class _StatsGrid extends StatelessWidget {
-  const _StatsGrid();
+  final PatientHealthData? health;
+  final int sosCount;
+
+  const _StatsGrid({required this.health, required this.sosCount});
 
   @override
   Widget build(BuildContext context) {
+    // Mood
+    const moodLabels = ['Terrible 😢', 'Sad 😟', 'Okay 😐', 'Good 🙂', 'Great 😊'];
+    final moodIndex = health?.mood == 'terrible' ? 0
+        : health?.mood == 'sad' ? 1
+        : health?.mood == 'okay' ? 2
+        : health?.mood == 'good' ? 3
+        : health?.mood == 'great' ? 4
+        : -1;
+    final moodLabel = health == null ? 'No check-in' : (moodIndex >= 0 ? moodLabels[moodIndex] : health!.mood);
+    final moodGood = moodIndex >= 3;
+
+    // Pain
+    final pain = health?.painLevel ?? 0;
+    final painLabel = health == null ? '— / 10' : '$pain / 10';
+    final painGood = pain <= 3;
+    final painSub = pain == 0 ? 'None reported' : pain <= 3 ? 'Low — stable' : pain <= 6 ? 'Moderate' : 'High — check in';
+
+    // Meds
+    final medsTaken = health?.medicationsTaken ?? 0;
+    final medsTotal = health?.medicationsTotal ?? 0;
+    final medsLabel = health == null ? '— / —' : '$medsTaken / $medsTotal';
+    final medsGood = medsTotal == 0 || medsTaken >= medsTotal;
+
+    // SOS
+    final sosLabel = sosCount == 0 ? 'None' : sosCount.toString();
+    final sosGood = sosCount == 0;
+
     return Column(
       children: [
         Row(
@@ -707,24 +888,24 @@ class _StatsGrid extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 icon: Icons.mood_rounded,
-                iconColor: AppTheme.accentGreen,
-                iconBg: const Color(0xFFDCFCE7),
+                iconColor: health == null ? AppTheme.textLight : (moodGood ? AppTheme.accentGreen : AppTheme.accentOrange),
+                iconBg: health == null ? AppTheme.backgroundGray : (moodGood ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED)),
                 label: 'Mood Today',
-                value: 'Good  🙂',
-                sub: 'Check-in at 8:12 AM',
-                subColor: AppTheme.accentGreen,
+                value: moodLabel,
+                sub: health == null ? 'No check-in yet' : 'Reported today',
+                subColor: health == null ? AppTheme.textLight : (moodGood ? AppTheme.accentGreen : AppTheme.accentOrange),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _StatCard(
                 icon: Icons.healing_rounded,
-                iconColor: AppTheme.accentGreen,
-                iconBg: const Color(0xFFDCFCE7),
+                iconColor: health == null ? AppTheme.textLight : (painGood ? AppTheme.accentGreen : AppTheme.accentOrange),
+                iconBg: health == null ? AppTheme.backgroundGray : (painGood ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED)),
                 label: 'Pain Level',
-                value: '2 / 10',
-                sub: 'Low — stable',
-                subColor: AppTheme.accentGreen,
+                value: painLabel,
+                sub: health == null ? 'No check-in yet' : painSub,
+                subColor: health == null ? AppTheme.textLight : (painGood ? AppTheme.accentGreen : AppTheme.accentOrange),
               ),
             ),
           ],
@@ -735,24 +916,24 @@ class _StatsGrid extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 icon: Icons.medication_rounded,
-                iconColor: AppTheme.accentOrange,
-                iconBg: const Color(0xFFFFF7ED),
+                iconColor: medsGood ? AppTheme.accentGreen : AppTheme.accentOrange,
+                iconBg: medsGood ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED),
                 label: 'Meds Taken',
-                value: '2 / 4',
-                sub: 'Next: 12:00 PM',
-                subColor: AppTheme.accentOrange,
+                value: medsLabel,
+                sub: medsTotal == 0 ? 'No meds scheduled' : (medsGood ? 'All taken' : '${medsTotal - medsTaken} remaining'),
+                subColor: medsGood ? AppTheme.accentGreen : AppTheme.accentOrange,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _StatCard(
                 icon: Icons.emergency_rounded,
-                iconColor: AppTheme.accentGreen,
-                iconBg: const Color(0xFFDCFCE7),
+                iconColor: sosGood ? AppTheme.accentGreen : AppTheme.accentRed,
+                iconBg: sosGood ? const Color(0xFFDCFCE7) : const Color(0xFFFFE4E4),
                 label: 'SOS Alerts',
-                value: 'None',
-                sub: 'All clear today',
-                subColor: AppTheme.accentGreen,
+                value: sosLabel,
+                sub: sosGood ? 'All clear today' : 'Needs attention',
+                subColor: sosGood ? AppTheme.accentGreen : AppTheme.accentRed,
               ),
             ),
           ],

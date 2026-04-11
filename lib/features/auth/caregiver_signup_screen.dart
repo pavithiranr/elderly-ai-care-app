@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/services/notification_service.dart';
 import '../../shared/services/user_session_service.dart';
 
 class CaregiverSignupScreen extends StatefulWidget {
@@ -61,11 +62,14 @@ class _CaregiverSignupScreenState extends State<CaregiverSignupScreen> {
         throw Exception('Please agree to the Terms and Conditions');
       }
 
-      await UserSessionService.instance.caregiverSignUp(
+      final uid = await UserSessionService.instance.caregiverSignUp(
         email: email,
         password: password,
         name: name,
       );
+
+      // Save FCM token so this device can receive push notifications
+      await NotificationService.instance.saveTokenForUser(uid, collection: 'caregivers');
 
       if (!mounted) return;
       context.go(AppConstants.routeCaregiverDashboard);

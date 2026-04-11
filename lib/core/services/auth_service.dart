@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../shared/models/user_model.dart';
@@ -74,35 +75,33 @@ class AuthService {
 
   // ─── Elderly Setup (No Password) ────────────────────────────────────
 
-  /// Create an elderly profile (first-time setup, no password required)
-  /// Generates a random UID for the elderly user
-  /// Returns binding code to share with caregiver
-  Future<String> elderlySetup({
+  /// Create an elderly profile (first-time setup, no password required).
+  /// Returns a record of (bindingCode, elderlyUid) so the caller can
+  /// both display the code and persist the UID locally.
+  Future<({String bindingCode, String elderlyUid})> elderlySetup({
     required String name,
     required String dateOfBirth, // e.g., "1945-03-15"
     required String emergencyContact,
   }) async {
     try {
-      // Generate a custom UID for elderly (can also use auto-generated)
       final elderlyUid = _firestore.collection('elderly').doc().id;
       final bindingCode = _generateBindingCode();
       final uniqueId = _generateUniqueId();
 
-      // Create elderly profile in Firestore
       await _firestore.collection('elderly').doc(elderlyUid).set({
         'uid': elderlyUid,
         'name': name,
         'dateOfBirth': dateOfBirth,
         'emergencyContact': emergencyContact,
-        'uniqueId': uniqueId, // Add the unique ID for binding
+        'uniqueId': uniqueId,
         'role': 'elderly',
-        'linkedCaregiver': null, // Will be set after binding
+        'caregiverId': null, // unified field name
         'bindingCode': bindingCode,
         'bindingCodeExpiresAt': DateTime.now().add(const Duration(hours: 24)),
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      return bindingCode;
+      return (bindingCode: bindingCode, elderlyUid: elderlyUid);
     } catch (e) {
       throw Exception('Failed to setup elderly profile: $e');
     }
@@ -141,10 +140,10 @@ class AuthService {
         throw Exception('This elderly is already linked to a caregiver.');
       }
 
-      // Link elderly to caregiver
+      // Link elderly to caregiver (unified field: caregiverId)
       await _firestore.collection('elderly').doc(elderlyUid).update({
-        'linkedCaregiver': caregiverUid,
-        'bindingCode': FieldValue.delete(), // Remove binding code after use
+        'caregiverId': caregiverUid,
+        'bindingCode': FieldValue.delete(),
         'bindingCodeExpiresAt': FieldValue.delete(),
       });
 
@@ -243,6 +242,33 @@ class AuthService {
       return elderlyDoc.id;
     } catch (e) {
       print('Error verifying elderly setup code: $e');
+      return null;
+    }
+  }
+
+  /// Find an elderly profile by name + date of birth (used for re-login).
+  /// Returns the elderly UID if found, null otherwise.
+  Future<String?> findElderlyByNameAndDOB({
+    required String name,
+    required String dateOfBirth, // "YYYY-MM-DD"
+  }) async {
+    try {
+      // Query by DOB first (narrow the set), then match name in memory
+      final snapshot = await _firestore
+          .collection('elderly')
+          .where('dateOfBirth', isEqualTo: dateOfBirth)
+          .get();
+
+      final nameLower = name.trim().toLowerCase();
+      for (final doc in snapshot.docs) {
+        final storedName = (doc['name'] as String? ?? '').trim().toLowerCase();
+        if (storedName == nameLower) {
+          return doc.id;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error finding elderly by name and DOB: $e');
       return null;
     }
   }

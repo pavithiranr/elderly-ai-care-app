@@ -60,27 +60,27 @@ class UserSessionService {
 
   // ─── Elderly Setup (No Password) ────────────────────────────────────
 
-  /// Set up a new elderly profile
-  /// Returns binding code to share with caregiver
+  /// Set up a new elderly profile.
+  /// Saves the elderly UID locally so the session persists.
+  /// Returns the binding code to display to the user.
   Future<String> elderlySetup({
     required String name,
     required String dateOfBirth,
     required String emergencyContact,
   }) async {
     try {
-      final bindingCode = await _authService.elderlySetup(
+      final result = await _authService.elderlySetup(
         name: name,
         dateOfBirth: dateOfBirth,
         emergencyContact: emergencyContact,
       );
 
-      // Note: For elderly, we don't create a Firebase Auth user
-      // Instead, they will be identified by their elderly UID
-      // which we store locally
+      // Save the elderly UID locally — this is what getElderlyProfileId() reads
+      await setElderlyProfileId(result.elderlyUid);
       await saveRole(AppConstants.roleElderly);
       await setBool(AppConstants.prefOnboardingDone, true);
 
-      return bindingCode;
+      return result.bindingCode;
     } catch (e) {
       rethrow;
     }

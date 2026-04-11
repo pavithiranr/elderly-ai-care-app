@@ -1255,14 +1255,27 @@ class _TodayCheckinBanner extends StatelessWidget {
   final String patientId;
   const _TodayCheckinBanner({required this.patientId});
 
-  String _moodIndexToEmoji(int index) {
-    const emojis = ['😊', '🙂', '😐', '😟', '😢'];
-    return index >= 0 && index < emojis.length ? emojis[index] : '❓';
+  // mood is stored as a string: 'great','good','okay','sad','terrible'
+  String _moodEmoji(String mood) {
+    return switch (mood) {
+      'great'    => '😊',
+      'good'     => '🙂',
+      'okay'     => '😐',
+      'sad'      => '😟',
+      'terrible' => '😢',
+      _          => '❓',
+    };
   }
 
-  String _moodIndexToLabel(int index) {
-    const labels = ['Great', 'Good', 'Okay', 'Not Great', 'Bad'];
-    return index >= 0 && index < labels.length ? labels[index] : 'Unknown';
+  String _moodLabel(String mood) {
+    return switch (mood) {
+      'great'    => 'Great',
+      'good'     => 'Good',
+      'okay'     => 'Okay',
+      'sad'      => 'Not Great',
+      'terrible' => 'Bad',
+      _          => 'Unknown',
+    };
   }
 
   @override
@@ -1345,8 +1358,8 @@ class _TodayCheckinBanner extends StatelessWidget {
           );
         }
 
-        final emoji = _moodIndexToEmoji(healthData.mood.isNotEmpty ? int.tryParse(healthData.mood) ?? 0 : 0);
-        final moodLabel = _moodIndexToLabel(healthData.mood.isNotEmpty ? int.tryParse(healthData.mood) ?? 0 : 0);
+        final emoji = _moodEmoji(healthData.mood);
+        final moodLabel = _moodLabel(healthData.mood);
 
         return Container(
           decoration: BoxDecoration(

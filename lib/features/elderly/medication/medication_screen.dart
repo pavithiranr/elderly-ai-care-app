@@ -1,44 +1,270 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
 
-/// Medication reminder screen — placeholder list ready for Firestore integration.
-class MedicationScreen extends StatelessWidget {
+/// Medication reminder screen — loads from Firestore, supports add/delete.
+class MedicationScreen extends StatefulWidget {
   const MedicationScreen({super.key});
 
-  // Placeholder data — replace with Firestore stream
-  static const List<_MedItem> _meds = [
-    _MedItem(
-        id: 'med_1',
-        name: 'Metformin 500mg',
-        time: '8:00 AM',
-        note: 'Take with food',
-        taken: true),
-    _MedItem(
-        id: 'med_2',
-        name: 'Lisinopril 10mg',
-        time: '8:00 AM',
-        note: 'Blood pressure',
-        taken: true),
-    _MedItem(
-        id: 'med_3',
-        name: 'Vitamin D3',
-        time: '12:00 PM',
-        note: 'With lunch',
-        taken: false),
-    _MedItem(
-        id: 'med_4',
-        name: 'Atorvastatin 20mg',
-        time: '9:00 PM',
-        note: 'Cholesterol — take at night',
-        taken: false),
-  ];
+  @override
+  State<MedicationScreen> createState() => _MedicationScreenState();
+}
+
+class _MedicationScreenState extends State<MedicationScreen> {
+  String? _patientId;
+  List<Map<String, dynamic>> _meds = [];
+  Map<String, bool> _takenToday = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final id = await UserSessionService.instance.getSavedUserId();
+    if (id == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final today = DateTime.now();
+
+      final medsSnap = await firestore
+          .collection('elderly')
+          .doc(id)
+          .collection('medications')
+          .orderBy('createdAt')
+          .get();
+
+      final meds = medsSnap.docs
+          .map((d) => {'id': d.id, ...d.data()})
+          .toList();
+
+      final takenToday = <String, bool>{};
+      for (final med in meds) {
+        final medId = med['id'] as String;
+        final logSnap = await firestore
+            .collection('elderly')
+            .doc(id)
+            .collection('medications')
+            .doc(medId)
+            .collection('logs')
+            .where('timestamp',
+                isGreaterThanOrEqualTo: Timestamp.fromDate(
+                    DateTime(today.year, today.month, today.day)))
+            .where('timestamp',
+                isLessThan: Timestamp.fromDate(
+                    DateTime(today.year, today.month, today.day + 1)))
+            .limit(1)
+            .get();
+        takenToday[medId] = logSnap.docs.isNotEmpty;
+      }
+
+      if (mounted) {
+        setState(() {
+          _patientId = id;
+          _meds = meds;
+          _takenToday = takenToday;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('MedicationScreen load error: $e');
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _toggleMed(String medId, bool newValue) async {
+    final id = _patientId;
+    if (id == null) return;
+
+    setState(() => _takenToday[medId] = newValue);
+
+    try {
+      if (newValue) {
+        await PatientService.instance.logMedicationDose(id, medId);
+      } else {
+        final firestore = FirebaseFirestore.instance;
+        final today = DateTime.now();
+        final logSnap = await firestore
+            .collection('elderly')
+            .doc(id)
+            .collection('medications')
+            .doc(medId)
+            .collection('logs')
+            .where('timestamp',
+                isGreaterThanOrEqualTo: Timestamp.fromDate(
+                    DateTime(today.year, today.month, today.day)))
+            .where('timestamp',
+                isLessThan: Timestamp.fromDate(
+                    DateTime(today.year, today.month, today.day + 1)))
+            .get();
+        for (final doc in logSnap.docs) {
+          await doc.reference.delete();
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _takenToday[medId] = !newValue);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save — please try again')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteMed(String medId) async {
+    final id = _patientId;
+    if (id == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Remove medication?',
+            style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w600)),
+        content: Text('This medication will be removed from your list.',
+            style: GoogleFonts.inter(fontSize: 16)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Remove',
+                  style: TextStyle(color: Color(0xFFEF4444)))),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await PatientService.instance.deleteMedication(id, medId);
+      setState(() {
+        _meds.removeWhere((m) => m['id'] == medId);
+        _takenToday.remove(medId);
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not remove — please try again')),
+        );
+      }
+    }
+  }
+
+  void _showAddDialog() {
+    final nameCtrl = TextEditingController();
+    final dosageCtrl = TextEditingController();
+    final timeCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Add Medication',
+            style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w600)),
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _DialogField(
+                  controller: nameCtrl,
+                  label: 'Medication Name',
+                  hint: 'e.g. Metformin',
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                _DialogField(
+                  controller: dosageCtrl,
+                  label: 'Dosage',
+                  hint: 'e.g. 500mg',
+                ),
+                const SizedBox(height: 12),
+                _DialogField(
+                  controller: timeCtrl,
+                  label: 'Time',
+                  hint: 'e.g. 8:00 AM',
+                  inputFormatters: [LengthLimitingTextInputFormatter(20)],
+                ),
+                const SizedBox(height: 12),
+                _DialogField(
+                  controller: noteCtrl,
+                  label: 'Note (optional)',
+                  hint: 'e.g. Take with food',
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(ctx);
+              await _addMed(
+                name: nameCtrl.text.trim(),
+                dosage: dosageCtrl.text.trim(),
+                time: timeCtrl.text.trim(),
+                note: noteCtrl.text.trim(),
+              );
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addMed({
+    required String name,
+    required String dosage,
+    required String time,
+    required String note,
+  }) async {
+    final id = _patientId;
+    if (id == null) return;
+
+    try {
+      await PatientService.instance.addMedication(
+        id,
+        name: name,
+        dosage: dosage,
+        time: time,
+        note: note,
+      );
+      // Reload to get the new doc ID from Firestore
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not add medication')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final takenCount = _takenToday.values.where((v) => v).length;
+    final total = _meds.length;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -46,76 +272,156 @@ class MedicationScreen extends StatelessWidget {
           onPressed: () => context.pop(),
         ),
         title: const Text('Medications'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // Summary chip
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryLight,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline_rounded,
-                    color: AppTheme.primaryBlue, size: 20),
-                const SizedBox(width: 10),
-                Text(
-                  '2 of 4 medications taken today',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: AppTheme.primaryBlue,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Add medication',
+            onPressed: _patientId == null ? null : _showAddDialog,
           ),
-          const SizedBox(height: 20),
-
-          Text(
-            'Today\'s Schedule',
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textDark,
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          ..._meds.map((med) => _MedicationCard(med: med)),
         ],
       ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _meds.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.medication_outlined,
+                          size: 64, color: AppTheme.textLight),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No medications yet',
+                        style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textMid),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap + to add your first medication',
+                        style: GoogleFonts.inter(
+                            fontSize: 16, color: AppTheme.textLight),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    // Summary chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded,
+                              color: AppTheme.primaryBlue, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            '$takenCount of $total medications taken today',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: AppTheme.primaryBlue,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Text(
+                      "Today's Schedule",
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    ..._meds.map((med) {
+                      final medId = med['id'] as String;
+                      final taken = _takenToday[medId] ?? false;
+                      final label = [
+                        if ((med['dosage'] as String? ?? '').isNotEmpty)
+                          med['dosage'] as String,
+                        if ((med['note'] as String? ?? '').isNotEmpty)
+                          med['note'] as String,
+                      ].join('  ·  ');
+
+                      return Dismissible(
+                        key: ValueKey(medId),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(Icons.delete_rounded,
+                              color: Colors.white, size: 28),
+                        ),
+                        confirmDismiss: (_) async {
+                          await _deleteMed(medId);
+                          return false; // We handle removal in _deleteMed
+                        },
+                        child: _MedicationCard(
+                          name: med['name'] as String? ?? 'Unknown',
+                          time: med['time'] as String? ?? '',
+                          label: label,
+                          taken: taken,
+                          onChanged: (v) => _toggleMed(medId, v ?? false),
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _showAddDialog,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add medication'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.primaryBlue,
+                        textStyle: GoogleFonts.inter(
+                            fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
     );
   }
 }
 
-class _MedicationCard extends StatefulWidget {
-  final _MedItem med;
-  const _MedicationCard({required this.med});
+class _MedicationCard extends StatelessWidget {
+  final String name;
+  final String time;
+  final String label;
+  final bool taken;
+  final ValueChanged<bool?> onChanged;
 
-  @override
-  State<_MedicationCard> createState() => _MedicationCardState();
-}
-
-class _MedicationCardState extends State<_MedicationCard> {
-  late bool _taken;
-
-  @override
-  void initState() {
-    super.initState();
-    _taken = widget.med.taken;
-  }
+  const _MedicationCard({
+    required this.name,
+    required this.time,
+    required this.label,
+    required this.taken,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     final surfaceColor = Theme.of(context).colorScheme.surface;
-    final accentGreen = AppTheme.accentGreen;
     final dividerColor = Theme.of(context).dividerColor;
-    
+    final subtitle = [if (time.isNotEmpty) time, if (label.isNotEmpty) label]
+        .join('  ·  ');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(18),
@@ -123,17 +429,15 @@ class _MedicationCardState extends State<_MedicationCard> {
         color: surfaceColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _taken ? accentGreen : dividerColor,
-        ),
+            color: taken ? AppTheme.accentGreen : dividerColor),
       ),
       child: Row(
         children: [
-          // Status dot
           Container(
             width: 14,
             height: 14,
             decoration: BoxDecoration(
-              color: _taken ? AppTheme.accentGreen : AppTheme.textLight,
+              color: taken ? AppTheme.accentGreen : AppTheme.textLight,
               shape: BoxShape.circle,
             ),
           ),
@@ -143,51 +447,31 @@ class _MedicationCardState extends State<_MedicationCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.med.name,
+                  name,
                   style: GoogleFonts.inter(
                     fontSize: AppTheme.elderlyBodyFontSize,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textDark,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${widget.med.time}  ·  ${widget.med.note}',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: AppTheme.textMid,
+                if (subtitle.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                          fontSize: 14, color: AppTheme.textMid),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
-          // Mark as taken checkbox
           Checkbox(
-            value: _taken,
+            value: taken,
             activeColor: AppTheme.accentGreen,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-            onChanged: (v) async {
-              setState(() => _taken = v ?? false);
-              
-              // Log to Firestore
-              try {
-                final patientId = await UserSessionService.instance.getSavedUserId();
-                if (patientId != null) {
-                  await PatientService.instance.logMedicationDose(
-                    patientId,
-                    widget.med.id,
-                  );
-                }
-              } catch (e) {
-                print('Error logging medication: $e');
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error saving medication log: $e')),
-                  );
-                }
-              }
-            },
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6)),
+            onChanged: onChanged,
           ),
         ],
       ),
@@ -195,16 +479,35 @@ class _MedicationCardState extends State<_MedicationCard> {
   }
 }
 
-class _MedItem {
-  final String id;
-  final String name;
-  final String time;
-  final String note;
-  final bool taken;
-  const _MedItem(
-      {required this.id,
-      required this.name,
-      required this.time,
-      required this.note,
-      required this.taken});
+class _DialogField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final String? Function(String?)? validator;
+  final List<TextInputFormatter>? inputFormatters;
+
+  const _DialogField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    this.validator,
+    this.inputFormatters,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      inputFormatters: inputFormatters,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+      style: GoogleFonts.inter(fontSize: 16),
+    );
+  }
 }

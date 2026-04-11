@@ -324,33 +324,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (profile != null) ...[
-                  Text(
-                    'Name',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textMid,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    profile['name'] ?? 'N/A',
-                    style: GoogleFonts.inter(fontSize: 22, color: AppTheme.textDark),
-                  ),
+                  _ProfileRow(label: 'Name', value: profile['name'] ?? 'N/A'),
                   const SizedBox(height: 16),
-                  Text(
-                    'Date of Birth',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textMid,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    profile['dob'] ?? 'N/A',
-                    style: GoogleFonts.inter(fontSize: 22, color: AppTheme.textDark),
-                  ),
+                  _ProfileRow(label: 'Date of Birth', value: profile['dob'] ?? 'N/A'),
+                  const SizedBox(height: 16),
+                  _ProfileRow(label: 'Emergency Contact', value: profile['emergencyContact'] ?? 'N/A'),
                 ] else
                   Text(
                     'No profile information available.',
@@ -374,10 +352,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final elderlyId = await UserSessionService.instance.getElderlyProfileId();
       if (elderlyId == null) return null;
-      // Fetch profile details from service
+      final profile = await PatientService.instance.getPatientById(elderlyId);
+      if (profile == null) return null;
       return {
-        'name': 'Profile Name',  // Replace with actual service call
-        'dob': 'Date of Birth',
+        'name': profile.name,
+        'dob': profile.dateOfBirth.isNotEmpty ? profile.dateOfBirth : 'Not set',
+        'emergencyContact': profile.emergencyContact.isNotEmpty ? profile.emergencyContact : 'Not set',
       };
     } catch (e) {
       debugPrint('Error loading profile: $e');
@@ -394,10 +374,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w600),
         ),
         content: FutureBuilder<CaregiverProfile?>(
-          future: CaregiverService.instance.getCurrentCaregiverProfile(),
+          future: _getLinkedCaregiver(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const SizedBox(
+                height: 80,
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
 
             final caregiver = snapshot.data;
@@ -406,37 +389,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (caregiver != null) ...[
-                  Text(
-                    'Name',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textMid,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    caregiver.name,
-                    style: GoogleFonts.inter(fontSize: 22, color: AppTheme.textDark),
-                  ),
+                  _ProfileRow(label: 'Name', value: caregiver.name),
                   const SizedBox(height: 16),
-                  Text(
-                    'Email',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textMid,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    caregiver.email,
-                    style: GoogleFonts.inter(fontSize: 22, color: AppTheme.textDark),
-                  ),
+                  _ProfileRow(label: 'Email', value: caregiver.email),
+                  if (caregiver.phoneNumber != null && caregiver.phoneNumber!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _ProfileRow(label: 'Phone', value: caregiver.phoneNumber!),
+                  ],
                 ] else
                   Text(
-                    'No caregiver information available.',
-                    style: GoogleFonts.inter(fontSize: 22, color: AppTheme.textMid),
+                    'No caregiver linked yet.',
+                    style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textMid),
                   ),
               ],
             );
@@ -450,6 +413,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<CaregiverProfile?> _getLinkedCaregiver() async {
+    try {
+      final elderlyId = await UserSessionService.instance.getElderlyProfileId();
+      if (elderlyId == null) return null;
+      final profile = await PatientService.instance.getPatientById(elderlyId);
+      if (profile?.caregiverId == null) return null;
+      return CaregiverService.instance.getCaregiverById(profile!.caregiverId!);
+    } catch (e) {
+      debugPrint('Error loading linked caregiver: $e');
+      return null;
+    }
   }
 
   void _showAbout(BuildContext context) {
@@ -555,6 +531,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Profile Row ────────────────────────────────────────────────────────────
+
+class _ProfileRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _ProfileRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textMid,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.inter(fontSize: 20, color: AppTheme.textDark),
+        ),
+      ],
     );
   }
 }
@@ -677,7 +683,7 @@ class _AccessibilityTile extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(8 * textScale),
               decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.1),
+                color: theme.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: theme.primaryColor, size: 24 * textScale),

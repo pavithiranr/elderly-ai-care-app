@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/user_session_service.dart';
 
 /// SOS Emergency Screen.
 /// Full-screen design with a pulsing button and a confirmation dialog
@@ -27,9 +29,23 @@ class _SosScreenState extends State<SosScreen> {
     }
   }
 
-  void _sendAlert() {
-    // TODO: call Firebase Cloud Function → notify caregivers via FCM
-    setState(() => _alertSent = true);
+  Future<void> _sendAlert() async {
+    try {
+      final patientId = await UserSessionService.instance.getSavedUserId();
+      if (patientId != null) {
+        await FirebaseFirestore.instance
+            .collection('elderly')
+            .doc(patientId)
+            .collection('sos_alerts')
+            .add({
+          'timestamp': Timestamp.now(),
+          'resolved': false,
+        });
+      }
+    } catch (e) {
+      debugPrint('SOS write error: $e');
+    }
+    if (mounted) setState(() => _alertSent = true);
   }
 
   @override

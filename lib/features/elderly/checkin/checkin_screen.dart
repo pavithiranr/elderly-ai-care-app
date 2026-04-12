@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../../core/services/logging_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
 
@@ -49,7 +50,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
         );
       }
     } catch (e) {
-      print('Error submitting check-in: $e');
+      logger.error('Error submitting check-in', e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving check-in: $e')),

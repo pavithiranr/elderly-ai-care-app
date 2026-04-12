@@ -22,11 +22,12 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyB4th4Iwep0zVcyi26MBZ3TJRoerjFk--4',
-    appId: '1:631057330468:web:YOUR_WEB_APP_ID', // Update with your web app ID
+    apiKey: 'AIzaSyAE3hE0pcYq3iLKbI4xaquQxyHzyOcMsY4',
+    appId: '1:631057330468:web:62aa3e016e18b0833a83b1',
     messagingSenderId: '631057330468',
     projectId: 'caresync-vertex',
     storageBucket: 'caresync-vertex.firebasestorage.app',
+    authDomain: 'caresync-vertex.firebaseapp.com',
   );
 
   static FirebaseOptions get currentPlatform {

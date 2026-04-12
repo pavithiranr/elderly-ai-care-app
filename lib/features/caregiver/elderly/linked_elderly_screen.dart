@@ -28,7 +28,7 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
     // Show confirmation dialog
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.surfaceWhite,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
@@ -48,7 +48,7 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => context.pop(),
+            onPressed: () => dialogContext.pop(),
             child: Text(
               'Cancel',
               style: GoogleFonts.inter(
@@ -65,11 +65,13 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
                 );
 
                 if (mounted) {
-                  context.pop(); // Close dialog
+                  // ignore: use_build_context_synchronously
+                  Navigator.of(context).pop(); // Close dialog using State's context
                   setState(() {}); // Refresh list
                 }
               } catch (e) {
                 if (mounted) {
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(

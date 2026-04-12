@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import '../../core/services/logging_service.dart';
 
 /// Model for caregiver profile data
 class CaregiverProfile {
@@ -65,7 +66,7 @@ class CaregiverService {
         profilePhotoUrl: user.photoURL,
       );
     } catch (e) {
-      print('Error fetching caregiver profile: $e');
+      logger.error('Error fetching caregiver profile', e);
       return null;
     }
   }
@@ -104,7 +105,7 @@ class CaregiverService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error saving caregiver profile: $e');
+      logger.error('Error saving caregiver profile', e);
       rethrow;
     }
   }
@@ -127,7 +128,7 @@ class CaregiverService {
 
       await _firestore.collection('caregivers').doc(uid).update(updates);
     } catch (e) {
-      print('Error updating caregiver profile: $e');
+      logger.error('Error updating caregiver profile', e);
       rethrow;
     }
   }
@@ -140,7 +141,7 @@ class CaregiverService {
       final linkedIds = doc['linkedElderlyIds'] as List<dynamic>? ?? [];
       return linkedIds.length;
     } catch (e) {
-      print('Error getting linked elderly count: $e');
+      logger.error('Error getting linked elderly count', e);
       return 0;
     }
   }
@@ -166,9 +167,9 @@ class CaregiverService {
         'linkedCaregiver': FieldValue.delete(),
       });
 
-      print('✅ Unlocked elderly: $elderlyId');
+      logger.success('Unlocked elderly: $elderlyId');
     } catch (e) {
-      print('❌ Error unlinking elderly: $e');
+      logger.error('Error unlinking elderly', e);
       throw Exception('Failed to unlink elderly: $e');
     }
   }

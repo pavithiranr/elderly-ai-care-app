@@ -1,8 +1,8 @@
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../shared/models/user_model.dart';
+import 'logging_service.dart';
 
 /// Centralized Firebase Authentication Service
 /// Handles caregiver auth (email/password) and elderly setup (no password)
@@ -23,7 +23,7 @@ class AuthService {
     required String name,
   }) async {
     try {
-      print('🔐 Starting caregiver signup for email: $email');
+      logger.debug('Starting caregiver signup for email: $email');
       
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -31,10 +31,10 @@ class AuthService {
       );
 
       final uid = userCredential.user!.uid;
-      print('✅ Firebase Auth user created: $uid');
+      logger.success('Firebase Auth user created: $uid');
 
       // Store caregiver profile in Firestore
-      print('📝 Writing caregiver profile to Firestore...');
+      logger.info('Writing caregiver profile to Firestore...');
       await _firestore.collection('caregivers').doc(uid).set({
         'uid': uid,
         'email': email,
@@ -43,14 +43,14 @@ class AuthService {
         'linkedElderlyIds': [],
         'createdAt': FieldValue.serverTimestamp(),
       });
-      print('✅ Caregiver profile saved successfully');
+      logger.success('Caregiver profile saved successfully');
 
       return uid;
     } on FirebaseAuthException catch (e) {
-      print('❌ FirebaseAuthException: ${e.code} - ${e.message}');
+      logger.error('FirebaseAuthException: ${e.code} - ${e.message}', e);
       throw _handleAuthException(e);
     } catch (e) {
-      print('❌ General Exception: $e');
+      logger.error('General Exception in caregiverSignUp', e);
       throw Exception('Signup failed: $e');
     }
   }
@@ -241,7 +241,7 @@ class AuthService {
       final elderlyDoc = querySnapshot.docs.first;
       return elderlyDoc.id;
     } catch (e) {
-      print('Error verifying elderly setup code: $e');
+      logger.error('Error verifying elderly setup code', e);
       return null;
     }
   }
@@ -268,7 +268,7 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error finding elderly by name and DOB: $e');
+      logger.error('Error finding elderly by name and DOB', e);
       return null;
     }
   }
@@ -282,7 +282,7 @@ class AuthService {
 
       return doc.data();
     } catch (e) {
-      print('Error fetching elderly profile data: $e');
+      logger.error('Error fetching elderly profile data', e);
       return null;
     }
   }

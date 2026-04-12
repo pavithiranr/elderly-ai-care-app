@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/logging_service.dart';
 
 /// Session service — integrates Firebase Auth with local SharedPreferences storage.
 /// Handles caregiver auth (email/password) and elderly setup (no password).
@@ -134,7 +135,7 @@ class UserSessionService {
       await prefs.clear();
     } catch (e) {
       // Log error but don't throw — clearing should succeed even if auth fails
-      print('Error clearing session: $e');
+      logger.error('Error clearing session', e);
     }
   }
 

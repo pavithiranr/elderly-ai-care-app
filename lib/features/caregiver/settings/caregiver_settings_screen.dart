@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/logging_service.dart';
 import '../../../shared/services/user_session_service.dart';
 import '../../../shared/services/caregiver_service.dart';
 
@@ -39,7 +40,7 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
         });
       }
     } catch (e) {
-      print('Error loading profile: $e');
+      logger.error('Error loading profile', e);
     }
   }
 

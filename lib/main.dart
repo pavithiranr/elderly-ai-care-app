@@ -31,15 +31,31 @@ void main() async {
   }
 
   // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('✅ Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Firebase initialization error: $e');
+    // Continue anyway - some features may not work but app should still display
+  }
 
-  // Initialize Theme Provider (loads persisted settings)
-  await ThemeProvider.instance.init();
+  try {
+    // Initialize Theme Provider (loads persisted settings)
+    await ThemeProvider.instance.init();
+    debugPrint('✅ ThemeProvider initialized');
+  } catch (e) {
+    debugPrint('❌ ThemeProvider initialization error: $e');
+  }
 
-  // Initialize notifications (requests permission + sets up FCM listener)
-  await NotificationService.instance.init();
+  try {
+    // Initialize notifications (requests permission + sets up FCM listener)
+    await NotificationService.instance.init();
+    debugPrint('✅ NotificationService initialized');
+  } catch (e) {
+    debugPrint('❌ NotificationService initialization error: $e');
+  }
 
   runApp(const CareSyncApp());
 }

@@ -135,22 +135,22 @@ class ElderlyHomeScreen extends StatelessWidget {
                   _QuickAction(
                     icon: Icons.check_circle_outline_rounded,
                     label: 'Check In',
-                    color: AppTheme.primaryBlue,
-                    bg: AppTheme.primaryLight,
+                    color: Theme.of(context).colorScheme.primary,
+                    bg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                     onTap: () => context.push(AppConstants.routeElderlyCheckin),
                   ),
                   _QuickAction(
                     icon: Icons.medication_rounded,
                     label: 'Medications',
-                    color: AppTheme.accentOrange,
-                    bg: const Color(0xFFFFF7ED),
+                    color: const Color(0xFFEA580C),
+                    bg: const Color(0xFFEA580C),
                     onTap: () => context.push(AppConstants.routeMedication),
                   ),
                   _QuickAction(
                     icon: Icons.chat_bubble_rounded,
                     label: 'Talk to AI',
                     color: const Color(0xFF7C3AED),
-                    bg: const Color(0xFFF5F3FF),
+                    bg: const Color(0xFF7C3AED),
                     onTap: () => context.push(AppConstants.routeElderlyChat),
                   ),
                 ],
@@ -187,6 +187,12 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textMid = Theme.of(context).textTheme.bodyMedium?.color 
+      ?? (isDarkMode ? Colors.grey[400] : Colors.grey[600]);
+    final textDark = Theme.of(context).colorScheme.onSurface;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -198,7 +204,7 @@ class _Header extends StatelessWidget {
                 greeting,
                 style: GoogleFonts.inter(
                   fontSize: 22,
-                  color: AppTheme.textMid,
+                  color: textMid,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -208,7 +214,7 @@ class _Header extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: AppTheme.elderlyTitleFontSize,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
+                  color: textDark,
                   height: 1.15,
                 ),
               ),
@@ -217,7 +223,7 @@ class _Header extends StatelessWidget {
                 date,
                 style: GoogleFonts.inter(
                   fontSize: 22,
-                  color: AppTheme.textMid,
+                  color: textMid,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -230,13 +236,14 @@ class _Header extends StatelessWidget {
           child: Container(
             width: 60,
             height: 60,
-            decoration: const BoxDecoration(
-              color: AppTheme.primaryLight,
+            decoration: BoxDecoration(
+              color: isDarkMode ? primaryColor.withValues(alpha: 0.2) : primaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
+              border: isDarkMode ? Border.all(color: primaryColor, width: 1.5) : null,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.person_rounded,
-              color: AppTheme.primaryBlue,
+              color: primaryColor,
               size: 32,
             ),
           ),
@@ -255,10 +262,11 @@ class _CheckinBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    // Use a darker, desaturated purple for dark mode
-    final gradientStart = isDarkMode ? const Color(0xFF1e40af) : const Color(0xFF2563EB);
-    final gradientEnd = isDarkMode ? const Color(0xFF3730a3) : const Color(0xFF4F46E5);
-    final textColor = Theme.of(context).colorScheme.onPrimary;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    // Use a darker, desaturated accent for dark mode
+    final gradientStart = isDarkMode ? primaryColor.withValues(alpha: 0.8) : primaryColor;
+    final gradientEnd = isDarkMode ? primaryColor.withValues(alpha: 0.6) : primaryColor.withAlpha(220);
+    final textColor = isDarkMode ? Colors.white : Theme.of(context).colorScheme.onPrimary;
     
     return Material(
       color: Colors.transparent,
@@ -341,9 +349,12 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final dividerColor = Theme.of(context).dividerColor;
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? AppTheme.textDark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface;
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    // Adapt background color for dark mode for better contrast
+    final adaptedBg = isDarkMode ? bg.withValues(alpha: 0.15) : bg.withValues(alpha: 0.1);
     
     return Material(
       color: surfaceColor,
@@ -355,7 +366,10 @@ class _QuickAction extends StatelessWidget {
           decoration: BoxDecoration(
             color: surfaceColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: dividerColor, width: 1.5),
+            border: Border.all(
+              color: isDarkMode ? dividerColor.withValues(alpha: 0.6) : dividerColor,
+              width: 1.5,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -366,12 +380,13 @@ class _QuickAction extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: bg,
+                    color: adaptedBg,
                     borderRadius: BorderRadius.circular(14),
+                    border: isDarkMode ? Border.all(color: color.withValues(alpha: 0.4), width: 1) : null,
                   ),
                   child: Icon(
                     icon,
-                    color: color,
+                    color: isDarkMode ? color.withValues(alpha: 0.9) : color,
                     size: AppTheme.elderlyIconSize,
                   ),
                 ),
@@ -401,19 +416,20 @@ class _SosButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final errorColor = Theme.of(context).colorScheme.error;
     return SizedBox(
       width: double.infinity,
       height: AppTheme.elderlyButtonHeight + 10, // 74px — extra prominent
       child: ElevatedButton.icon(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.accentRed,
+          backgroundColor: errorColor,
           foregroundColor: Theme.of(context).colorScheme.onError,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           elevation: 4,
-          shadowColor: AppTheme.accentRed.withValues(alpha: 0.4),
+          shadowColor: errorColor.withValues(alpha: 0.4),
           textStyle: GoogleFonts.inter(
             fontSize: 24,
             fontWeight: FontWeight.bold,

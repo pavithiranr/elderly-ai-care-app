@@ -163,71 +163,18 @@ class _MedicationScreenState extends State<MedicationScreen> {
   }
 
   void _showAddDialog() {
-    final nameCtrl = TextEditingController();
-    final dosageCtrl = TextEditingController();
-    final timeCtrl = TextEditingController();
-    final noteCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Add Medication',
-            style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w600)),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _DialogField(
-                  controller: nameCtrl,
-                  label: 'Medication Name',
-                  hint: 'e.g. Metformin',
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                _DialogField(
-                  controller: dosageCtrl,
-                  label: 'Dosage',
-                  hint: 'e.g. 500mg',
-                ),
-                const SizedBox(height: 12),
-                _DialogField(
-                  controller: timeCtrl,
-                  label: 'Time',
-                  hint: 'e.g. 8:00 AM',
-                  inputFormatters: [LengthLimitingTextInputFormatter(20)],
-                ),
-                const SizedBox(height: 12),
-                _DialogField(
-                  controller: noteCtrl,
-                  label: 'Note (optional)',
-                  hint: 'e.g. Take with food',
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              Navigator.pop(ctx);
-              await _addMed(
-                name: nameCtrl.text.trim(),
-                dosage: dosageCtrl.text.trim(),
-                time: timeCtrl.text.trim(),
-                note: noteCtrl.text.trim(),
-              );
-            },
-            child: const Text('Add'),
-          ),
-        ],
+      builder: (ctx) => _AddMedicationDialog(
+        onAdd: (name, dosage, time, note) async {
+          Navigator.pop(ctx);
+          await _addMed(
+            name: name,
+            dosage: dosage,
+            time: time,
+            note: note,
+          );
+        },
       ),
     );
   }
@@ -479,26 +426,315 @@ class _MedicationCard extends StatelessWidget {
   }
 }
 
+// ── Add Medication Dialog (with Time Picker & Accessible Design) ─────────────
+
+class _AddMedicationDialog extends StatefulWidget {
+  final Function(String name, String dosage, String time, String note) onAdd;
+
+  const _AddMedicationDialog({required this.onAdd});
+
+  @override
+  State<_AddMedicationDialog> createState() => _AddMedicationDialogState();
+}
+
+class _AddMedicationDialogState extends State<_AddMedicationDialog> {
+  final _nameCtrl = TextEditingController();
+  final _dosageCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  TimeOfDay? _selectedTime;
+  String? _selectedUnit = 'mg';
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _dosageCtrl.dispose();
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Format TimeOfDay to readable 12-hour format
+  String _formatTime(TimeOfDay time) {
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour >= 12 ? 'PM' : 'AM';
+    final displayHour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
+    return '${displayHour.toString().padLeft(2, '0')}:$minute $period';
+  }
+
+  /// Open native time picker
+  Future<void> _openTimePicker() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() => _selectedTime = picked);
+    }
+  }
+
+  /// Quick select time chip
+  void _setQuickTime(int hour) {
+    setState(() => _selectedTime = TimeOfDay(hour: hour, minute: 0));
+  }
+
+  /// Format dosage with unit
+  String _formatDosage() {
+    final dosage = _dosageCtrl.text.trim();
+    if (dosage.isEmpty) return '';
+    return '$dosage $_selectedUnit';
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a time')),
+      );
+      return;
+    }
+
+    widget.onAdd(
+      _nameCtrl.text.trim(),
+      _formatDosage(),
+      _formatTime(_selectedTime!),
+      _noteCtrl.text.trim(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        'Add Medication',
+        style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w600),
+      ),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Medication Name (with autocomplete hint) ────────────────
+              _DialogField(
+                controller: _nameCtrl,
+                label: 'Medication Name',
+                hint: 'e.g. Metformin, Aspirin, Lisinopril',
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // ── Time Picker Section ────────────────────────────────────
+              Text(
+                'Time',
+                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              
+              // Quick select chips
+              Wrap(
+                spacing: 8,
+                children: [
+                  _QuickTimeChip(
+                    label: 'Morning',
+                    isSelected: _selectedTime?.hour == 8,
+                    onTap: () => _setQuickTime(8),
+                  ),
+                  _QuickTimeChip(
+                    label: 'Afternoon',
+                    isSelected: _selectedTime?.hour == 14,
+                    onTap: () => _setQuickTime(14),
+                  ),
+                  _QuickTimeChip(
+                    label: 'Evening',
+                    isSelected: _selectedTime?.hour == 20,
+                    onTap: () => _setQuickTime(20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Time picker button
+              ElevatedButton.icon(
+                onPressed: _openTimePicker,
+                icon: const Icon(Icons.schedule_rounded),
+                label: Text(
+                  _selectedTime == null 
+                    ? 'Select Exact Time' 
+                    : 'Time: ${_formatTime(_selectedTime!)}',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ── Dosage (Number + Unit) ────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _dosageCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[\d.]'),
+                        ),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'Dosage',
+                        hintText: 'e.g. 500',
+                        border:
+                            OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      style: GoogleFonts.inter(fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _selectedUnit,
+                      items: ['mg', 'mcg', 'ml', 'tablets'].map((unit) {
+                        return DropdownMenuItem(
+                          value: unit,
+                          child: Text(unit, style: GoogleFonts.inter(fontSize: 16)),
+                        );
+                      }).toList(),
+                      onChanged: (unit) {
+                        setState(() => _selectedUnit = unit);
+                      },
+                      decoration: InputDecoration(
+                        border:
+                            OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── Note (with voice input placeholder) ──────────────────
+              TextFormField(
+                controller: _noteCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Note (optional)',
+                  hintText: 'e.g. Take with food',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.mic_rounded),
+                    tooltip: 'Voice input (coming soon)',
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Voice input coming soon!'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+                maxLines: 2,
+                style: GoogleFonts.inter(fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Cancel',
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+            ),
+            child: Text(
+              'Add Medication',
+              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+      actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+  }
+}
+
+// ── Quick Time Selection Chip ──────────────────────────────────────────────
+
+class _QuickTimeChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _QuickTimeChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FilterChip(
+      label: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: isSelected 
+            ? Colors.white 
+            : Theme.of(context).textTheme.bodyMedium?.color,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      backgroundColor: Colors.transparent,
+      selectedColor: Theme.of(context).colorScheme.primary,
+      side: BorderSide(
+        color: isSelected 
+          ? Theme.of(context).colorScheme.primary 
+          : Theme.of(context).dividerColor,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    );
+  }
+}
+
 class _DialogField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String hint;
   final String? Function(String?)? validator;
-  final List<TextInputFormatter>? inputFormatters;
 
   const _DialogField({
     required this.controller,
     required this.label,
     required this.hint,
     this.validator,
-    this.inputFormatters,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      inputFormatters: inputFormatters,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,

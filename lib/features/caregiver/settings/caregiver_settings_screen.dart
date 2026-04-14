@@ -92,7 +92,7 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceWhite,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Sign Out?',
@@ -170,8 +170,8 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
           children: [
             // ── Profile Section ────────────────────────────────────────
             Container(
-              color: AppTheme.surfaceWhite,
               padding: const EdgeInsets.all(24),
+              color: Theme.of(context).colorScheme.surface,
               child: Column(
                 children: [
                   // Profile avatar
@@ -239,18 +239,20 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  const BorderSide(color: AppTheme.divider),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).dividerColor,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  const BorderSide(color: AppTheme.divider),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).dividerColor,
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: AppTheme.primaryBlue,
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
                                 width: 2,
                               ),
                             ),
@@ -290,23 +292,21 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
             const SizedBox(height: 16),
 
             // ── Account Section ────────────────────────────────────────
-            Container(
-              color: AppTheme.surfaceWhite,
+            Card(
               margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 8,
+                      vertical: 12,
                     ),
                     child: Text(
                       'Account',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textMid,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
                       ),
                     ),
                   ),
@@ -342,23 +342,21 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
             const SizedBox(height: 16),
 
             // ── Linked Elderly Section ──────────────────────────────────
-            Container(
-              color: AppTheme.surfaceWhite,
+            Card(
               margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 8,
+                      vertical: 12,
                     ),
                     child: Text(
                       'Elderly Profiles',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textMid,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
                       ),
                     ),
                   ),
@@ -392,23 +390,21 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
             const SizedBox(height: 16),
 
             // ── App Section ────────────────────────────────────────────
-            Container(
-              color: AppTheme.surfaceWhite,
+            Card(
               margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 8,
+                      vertical: 12,
                     ),
                     child: Text(
                       'App',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textMid,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
                       ),
                     ),
                   ),
@@ -491,7 +487,7 @@ class _SettingsTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: AppTheme.primaryBlue),
+              Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -502,7 +498,7 @@ class _SettingsTile extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: AppTheme.textDark,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -510,7 +506,8 @@ class _SettingsTile extends StatelessWidget {
                       subtitle,
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: AppTheme.textMid,
+                        color: Theme.of(context).textTheme.bodyMedium?.color ?? 
+                               Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ],

@@ -672,10 +672,12 @@ class _AiSummaryLoader extends StatefulWidget {
 
 class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
   late Future<String> _summaryFuture;
+  String? _lastPatientId; // Track current patient to detect changes
 
   @override
   void initState() {
     super.initState();
+    _lastPatientId = widget.patientId;
     _summaryFuture = _fetchSummary();
   }
 
@@ -683,16 +685,29 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
   void didUpdateWidget(_AiSummaryLoader old) {
     super.didUpdateWidget(old);
     if (old.patientId != widget.patientId) {
-      setState(() => _summaryFuture = _fetchSummary());
+      // Clear old data and reset summary
+      _lastPatientId = widget.patientId;
+      final newSummaryFuture = _fetchSummary();
+      
+      // Use setState only to update the future reference, NOT async
+      if (mounted) {
+        setState(() {
+          _summaryFuture = newSummaryFuture;
+        });
+      }
     }
   }
 
   Future<String> _fetchSummary() async {
     try {
-      final patient = await PatientService.instance.getPatientById(widget.patientId);
+      final patientId = widget.patientId;
+      
+      final patient = await PatientService.instance.getPatientById(patientId);
+      if (!mounted || _lastPatientId != patientId) return ''; // Cancel stale request
       if (patient == null) return 'No patient data available.';
 
-      final health = await PatientService.instance.getTodayHealthData(widget.patientId);
+      final health = await PatientService.instance.getTodayHealthData(patientId);
+      if (!mounted || _lastPatientId != patientId) return ''; // Cancel stale request
 
       final events = <String>[
         'Patient: ${patient.name}, Age: ${patient.age}',
@@ -705,8 +720,12 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
           'No check-in recorded today',
       ];
 
-      return await GeminiService.instance.generateHealthSummary(events);
+      final summary = await GeminiService.instance.generateHealthSummary(events);
+      if (!mounted || _lastPatientId != patientId) return ''; // Cancel stale request
+      
+      return summary;
     } catch (_) {
+      if (!mounted) return ''; // Widget was disposed
       return 'Unable to generate summary right now.';
     }
   }
@@ -733,6 +752,9 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
           );
         }
         final summary = snap.data ?? 'Unable to generate summary.';
+        if (summary.isEmpty) {
+          return const SizedBox.shrink(); // Don't show empty summaries from cancelled requests
+        }
         return _AiSummaryBanner(summary: summary);
       },
     );
@@ -747,13 +769,23 @@ class _AiSummaryBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
+    
+    // In dark mode, use a darker shade with lower opacity for less glare
+    final bannerPrimary = isDarkMode 
+      ? primaryColor.withValues(alpha: 0.8)  // Darker/more transparent
+      : primaryColor;
+    final bannerSecondary = isDarkMode
+      ? primaryColor.withValues(alpha: 0.5)
+      : primaryColor.withValues(alpha: 0.7);
+    
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            primaryColor,
-            primaryColor.withValues(alpha: 0.7),
+            bannerPrimary,
+            bannerSecondary,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -761,7 +793,7 @@ class _AiSummaryBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withValues(alpha: 0.25),
+            color: primaryColor.withValues(alpha: isDarkMode ? 0.15 : 0.25),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -778,9 +810,9 @@ class _AiSummaryBanner extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
+                    color: Colors.white.withValues(alpha: isDarkMode ? 0.12 : 0.18),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                    border: Border.all(color: Colors.white.withValues(alpha: isDarkMode ? 0.15 : 0.25)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -803,14 +835,14 @@ class _AiSummaryBanner extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: Colors.white.withValues(alpha: isDarkMode ? 0.1 : 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     'Just now',
                     style: GoogleFonts.inter(
                       fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.75),
+                      color: Colors.white.withValues(alpha: isDarkMode ? 0.65 : 0.75),
                     ),
                   ),
                 ),
@@ -823,7 +855,7 @@ class _AiSummaryBanner extends StatelessWidget {
               summary,
               style: GoogleFonts.inter(
                 fontSize: 15,
-                color: Colors.white,
+                color: Colors.white.withValues(alpha: isDarkMode ? 0.87 : 1.0),
                 height: 1.65,
               ),
             ),
@@ -842,7 +874,7 @@ class _AiSummaryBanner extends StatelessWidget {
                   'Generated by Gemini 2.0',
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.65),
+                    color: Colors.white.withValues(alpha: isDarkMode ? 0.55 : 0.65),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -975,12 +1007,26 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: isDarkMode 
+          ? Theme.of(context).colorScheme.surface 
+          : AppTheme.surfaceWhite,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.divider),
+        border: Border.all(
+          color: isDarkMode 
+            ? Colors.white.withValues(alpha: 0.1)
+            : AppTheme.divider,
+        ),
+        boxShadow: isDarkMode ? [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ] : [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1001,7 +1047,9 @@ class _StatCard extends StatelessWidget {
                   label,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: AppTheme.textMid,
+                    color: isDarkMode 
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : AppTheme.textMid,
                     fontWeight: FontWeight.w500,
                   ),
                   maxLines: 1,
@@ -1016,7 +1064,9 @@ class _StatCard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textDark,
+              color: isDarkMode 
+                ? Colors.white.withValues(alpha: 0.87)
+                : AppTheme.textDark,
             ),
           ),
           const SizedBox(height: 3),
@@ -1055,8 +1105,11 @@ class _QuickLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: AppTheme.surfaceWhite,
+      color: isDarkMode 
+        ? Theme.of(context).colorScheme.surface 
+        : AppTheme.surfaceWhite,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -1064,7 +1117,18 @@ class _QuickLink extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppTheme.divider),
+            border: Border.all(
+              color: isDarkMode 
+                ? Colors.white.withValues(alpha: 0.1)
+                : AppTheme.divider,
+            ),
+            boxShadow: isDarkMode ? [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ] : [],
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1088,14 +1152,18 @@ class _QuickLink extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.textDark,
+                          color: isDarkMode 
+                            ? Colors.white.withValues(alpha: 0.87)
+                            : AppTheme.textDark,
                         ),
                       ),
                       Text(
                         sublabel,
                         style: GoogleFonts.inter(
                           fontSize: 13,
-                          color: AppTheme.textMid,
+                          color: isDarkMode 
+                            ? Colors.white.withValues(alpha: 0.6)
+                            : AppTheme.textMid,
                         ),
                       ),
                     ],

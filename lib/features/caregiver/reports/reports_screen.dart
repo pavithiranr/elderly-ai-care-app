@@ -412,26 +412,41 @@ class _AiNarrativeLoader extends StatefulWidget {
 class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
   String? _narrative;
   bool _isLoading = true;
+  String? _lastPatientId; // Track current patient to detect changes
 
   @override
   void initState() {
     super.initState();
+    _lastPatientId = widget.patientId;
     _fetchNarrative();
   }
 
   @override
   void didUpdateWidget(_AiNarrativeLoader old) {
     super.didUpdateWidget(old);
-    if (old.patientId != widget.patientId) _fetchNarrative();
+    if (old.patientId != widget.patientId) {
+      _lastPatientId = widget.patientId;
+      _narrative = null; // Clear old data
+      _fetchNarrative();
+    }
   }
 
   Future<void> _fetchNarrative() async {
     if (!mounted) return;
+    
     setState(() => _isLoading = true);
     try {
-      final stats = await PatientService.instance.getWeeklyStats(widget.patientId);
-      final trends = await PatientService.instance.getWeeklyMoodPainTrends(widget.patientId);
-      final meds = await PatientService.instance.getWeeklyMedicationCompliance(widget.patientId);
+      final patientId = widget.patientId;
+      final patientName = widget.patientName;
+      
+      final stats = await PatientService.instance.getWeeklyStats(patientId);
+      if (!mounted || _lastPatientId != patientId) return; // Cancel stale request
+      
+      final trends = await PatientService.instance.getWeeklyMoodPainTrends(patientId);
+      if (!mounted || _lastPatientId != patientId) return; // Cancel stale request
+      
+      final meds = await PatientService.instance.getWeeklyMedicationCompliance(patientId);
+      if (!mounted || _lastPatientId != patientId) return; // Cancel stale request
 
       final moodAvg = () {
         final list = trends['mood'] ?? [];
@@ -440,7 +455,7 @@ class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
       }();
 
       final events = [
-        'Patient name: ${widget.patientName}',
+        'Patient name: $patientName',
         'Check-ins completed: ${stats['checkins'] ?? 'N/A'}',
         'Medication adherence: ${stats['adherence'] ?? 'N/A'}',
         'Average pain level: ${stats['avgPain'] ?? 'N/A'}',
@@ -451,12 +466,17 @@ class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
       ];
 
       final narrative = await GeminiService.instance.generateWeeklyNarrative(
-        patientName: widget.patientName,
+        patientName: patientName,
         events: events,
       );
-      if (mounted) setState(() { _narrative = narrative; _isLoading = false; });
+      if (mounted && _lastPatientId == patientId) {
+        setState(() { 
+          _narrative = narrative; 
+          _isLoading = false; 
+        });
+      }
     } catch (_) {
-      if (mounted) {
+      if (mounted && _lastPatientId == widget.patientId) {
         setState(() {
           _narrative = 'Unable to generate AI summary. Please check your connection and try again.';
           _isLoading = false;
@@ -710,12 +730,26 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: isDarkMode 
+          ? Theme.of(context).colorScheme.surface 
+          : AppTheme.surfaceWhite,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.divider),
+        border: Border.all(
+          color: isDarkMode 
+            ? Colors.white.withValues(alpha: 0.1)
+            : AppTheme.divider,
+        ),
+        boxShadow: isDarkMode ? [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ] : [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -734,7 +768,9 @@ class _StatTile extends StatelessWidget {
                   label,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: AppTheme.textMid,
+                    color: isDarkMode 
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : AppTheme.textMid,
                     fontWeight: FontWeight.w500,
                   ),
                   maxLines: 1,
@@ -749,7 +785,9 @@ class _StatTile extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textDark,
+              color: isDarkMode 
+                ? Colors.white.withValues(alpha: 0.87)
+                : AppTheme.textDark,
             ),
           ),
           const SizedBox(height: 3),
@@ -811,12 +849,26 @@ class _BarChartCardState extends State<_BarChartCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: isDarkMode 
+          ? Theme.of(context).colorScheme.surface 
+          : AppTheme.surfaceWhite,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.divider),
+        border: Border.all(
+          color: isDarkMode 
+            ? Colors.white.withValues(alpha: 0.1)
+            : AppTheme.divider,
+        ),
+        boxShadow: isDarkMode ? [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ] : [],
       ),
       child: SizedBox(
         height: 180,
@@ -838,13 +890,15 @@ class _BarChartCardState extends State<_BarChartCard> {
                 });
               },
               touchTooltipData: BarTouchTooltipData(
-                getTooltipColor: (_) => AppTheme.textDark,
+                getTooltipColor: (_) => isDarkMode 
+                  ? Colors.white.withValues(alpha: 0.87)
+                  : AppTheme.textDark,
                 tooltipRoundedRadius: 8,
                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
                   return BarTooltipItem(
                     '${rod.toY.toStringAsFixed(0)}${widget.tooltipSuffix}',
                     GoogleFonts.inter(
-                      color: Colors.white,
+                      color: isDarkMode ? Colors.black : Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),

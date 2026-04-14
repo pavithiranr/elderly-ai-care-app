@@ -188,10 +188,11 @@ class AppTheme {
         ? Color(0xFFFFFF00) // Bright yellow for maximum contrast on dark
         : (isColorBlind ? colorBlindPrimaryBlue : primaryBlue);
 
-    // High contrast dark mode: pure black background, pure white text
-    const darkBgColor = Color(0xFF000000);
-    const darkSurfaceColor = Color(0xFF1A1A1A);
-    const darkTextColor = Color(0xFFFFFFFF);
+    // ── Material Design 3 Dark Mode Surface Elevation ──────────────────
+    // These colors create visual depth without harsh glare
+    const darkBgColor = Color(0xFF121212);           // Scaffold background (darkest)
+    const darkSurfaceColor = Color(0xFF1E1E1E);     // Card/elevated surface (slightly lighter)
+    const darkTextColor = Color(0xFFFFFFFF);        // Primary text (pure white for contrast)
     
     // High contrast uses pure colors for accessibility
     const highContrastDarkBg = Color(0xFF000000);       // Pure black
@@ -199,7 +200,7 @@ class AppTheme {
     const highContrastDarkText = Color(0xFFFFFFFF);    // Pure white
     const highContrastDarkDivider = Color(0xFFFFFFFF); // Pure white dividers
     
-    const darkDividerColor = Color(0xFF404040);
+    const darkDividerColor = Color(0xFF3F3F3F);     // Slightly lighter for non-elevated
 
     // Choose colors based on accessibility mode
     final bgColor = isHighContrast ? highContrastDarkBg : darkBgColor;

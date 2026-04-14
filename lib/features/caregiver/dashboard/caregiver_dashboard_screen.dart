@@ -244,8 +244,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           // ── Quick links ────────────────────────────────────────────────
           _QuickLink(
             icon: Icons.bar_chart_rounded,
-            iconColor: AppTheme.primaryBlue,
-            iconBg: AppTheme.primaryLight,
+            iconColor: Theme.of(context).colorScheme.primary,
+            iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
             label: 'Weekly Health Report',
             sublabel: 'AI-generated summary & charts',
             onTap: () => context.push(AppConstants.routeCaregiverReports),
@@ -253,8 +253,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           const SizedBox(height: 10),
           _QuickLink(
             icon: Icons.notifications_active_rounded,
-            iconColor: AppTheme.accentOrange,
-            iconBg: const Color(0xFFFFF7ED),
+            iconColor: const Color(0xFFEA580C),
+            iconBg: const Color(0xFFEA580C),
             label: 'All Alerts',
             sublabel: '1 warning today',
             onTap: () => context.push(AppConstants.routeCaregiverAlerts),
@@ -309,7 +309,9 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                       child: Center(
                         child: Text(
                           'No recent activity',
-                          style: GoogleFonts.inter(color: AppTheme.textMid),
+                          style: GoogleFonts.inter(
+                            color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
                         ),
                       ),
                     );
@@ -442,7 +444,7 @@ class _GreetingHeader extends StatelessWidget {
                 date,
                 style: GoogleFonts.inter(
                   fontSize: 13,
-                  color: AppTheme.textLight,
+                  color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.2,
                 ),
@@ -455,7 +457,7 @@ class _GreetingHeader extends StatelessWidget {
                       text: '$greeting, ',
                       style: GoogleFonts.inter(
                         fontSize: 22,
-                        color: AppTheme.textMid,
+                        color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -463,7 +465,7 @@ class _GreetingHeader extends StatelessWidget {
                       text: caregiverName,
                       style: GoogleFonts.inter(
                         fontSize: 22,
-                        color: AppTheme.textDark,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -477,13 +479,13 @@ class _GreetingHeader extends StatelessWidget {
           onTap: onProfileTap,
           child: CircleAvatar(
             radius: 22,
-            backgroundColor: AppTheme.primaryLight,
+            backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
             child: Text(
               caregiverInitial,
               style: GoogleFonts.inter(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.primaryBlue,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -501,25 +503,30 @@ class _PatientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.divider),
+        border: Border.all(
+          color: isDarkMode ? Theme.of(context).dividerColor.withValues(alpha: 0.6) : Theme.of(context).dividerColor,
+          width: 1.5,
+        ),
       ),
       child: Row(
         children: [
           Container(
             width: 52,
             height: 52,
-            decoration: const BoxDecoration(
-              color: AppTheme.primaryLight,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
+              border: isDarkMode ? Border.all(color: Theme.of(context).colorScheme.primary, width: 1.5) : null,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.elderly_rounded,
-              color: AppTheme.primaryBlue,
+              color: Theme.of(context).colorScheme.primary,
               size: 30,
             ),
           ),
@@ -533,7 +540,7 @@ class _PatientCard extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -541,7 +548,7 @@ class _PatientCard extends StatelessWidget {
                   '${patient.age} years old  ·  Last seen: ${_formatLastSeen(patient.lastSeen)}',
                   style: GoogleFonts.inter(
                     fontSize: 13,
-                    color: AppTheme.textMid,
+                    color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -571,11 +578,11 @@ class _PatientCard extends StatelessWidget {
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
       case 'active':
-        return AppTheme.accentGreen;
+        return const Color(0xFF10B981); // green
       case 'inactive':
-        return AppTheme.accentOrange;
+        return const Color(0xFFEA580C); // orange
       default:
-        return AppTheme.textMid;
+        return Colors.grey[400] ?? Colors.grey;
     }
   }
 }
@@ -589,16 +596,16 @@ class _PatientCardPlaceholder extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.divider),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Center(
         child: Column(
           children: [
             Icon(
               Icons.person_off_rounded,
-              color: AppTheme.textLight,
+              color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
               size: 40,
             ),
             const SizedBox(height: 8),
@@ -606,7 +613,7 @@ class _PatientCardPlaceholder extends StatelessWidget {
               'No patients assigned',
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: AppTheme.textMid,
+                color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -740,17 +747,21 @@ class _AiSummaryBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1D4ED8), Color(0xFF4338CA)],
+        gradient: LinearGradient(
+          colors: [
+            primaryColor,
+            primaryColor.withValues(alpha: 0.7),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+            color: primaryColor.withValues(alpha: 0.25),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -1090,9 +1101,9 @@ class _QuickLink extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: AppTheme.textLight,
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5) ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                   size: 22,
                 ),
               ],
@@ -1113,16 +1124,16 @@ class _ActivityTileFromMap extends StatelessWidget {
   Color _getIconColor(String? type) {
     switch (type?.toLowerCase()) {
       case 'medication':
-        return AppTheme.accentOrange;
+        return const Color(0xFFEA580C);
       case 'checkin':
-        return AppTheme.accentGreen;
+        return const Color(0xFF10B981);
       case 'alert':
       case 'warning':
-        return AppTheme.accentRed;
+        return const Color(0xFFEF4444);
       case 'chat':
-        return AppTheme.primaryBlue;
+        return const Color(0xFF3B82F6);
       default:
-        return AppTheme.primaryBlue;
+        return const Color(0xFF3B82F6);
     }
   }
 
@@ -1170,9 +1181,9 @@ class _ActivityTileFromMap extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.divider),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1180,7 +1191,7 @@ class _ActivityTileFromMap extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: _getIconColor(type).withValues(alpha: 0.1),
+              color: _getIconColor(type).withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(_getIcon(type), color: _getIconColor(type), size: 18),
@@ -1195,7 +1206,7 @@ class _ActivityTileFromMap extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 if (subtitle.isNotEmpty) ...[
@@ -1241,7 +1252,7 @@ class _SectionHeader extends StatelessWidget {
       style: GoogleFonts.inter(
         fontSize: 17,
         fontWeight: FontWeight.w700,
-        color: AppTheme.textDark,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }

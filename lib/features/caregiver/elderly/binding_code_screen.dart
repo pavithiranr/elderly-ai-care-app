@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:pinput/pinput.dart';
 import 'package:caresync_ai/core/theme/app_theme.dart';
 import 'package:caresync_ai/shared/services/user_session_service.dart';
 import 'package:caresync_ai/core/services/auth_service.dart';
@@ -14,24 +15,20 @@ class BindingCodeScreen extends StatefulWidget {
 }
 
 class _BindingCodeScreenState extends State<BindingCodeScreen> {
-  final _codeControllers = List.generate(6, (_) => TextEditingController());
+  final _pinController = TextEditingController();
+  final _pinFocus = FocusNode();
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
   void dispose() {
-    for (var controller in _codeControllers) {
-      controller.dispose();
-    }
+    _pinController.dispose();
+    _pinFocus.dispose();
     super.dispose();
   }
 
-  String _getFullCode() {
-    return _codeControllers.map((c) => c.text).join();
-  }
-
   Future<void> _handleLinkElderly() async {
-    final code = _getFullCode();
+    final code = _pinController.text;
 
     if (code.length != 6) {
       setState(() => _errorMessage = 'Please enter all 6 digits');
@@ -132,14 +129,19 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
     );
   }
 
-  void _focusNextField(int index) {
-    if (index < 5 && _codeControllers[index].text.isNotEmpty) {
-      FocusScope.of(context).nextFocus();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallPhone = screenWidth < 360;
+    
+    // Calculate responsive sizes
+    final pinHeight = (screenHeight * 0.08).clamp(48.0, 80.0);
+    final pinFontSize = (pinHeight * 0.5).clamp(20.0, 40.0);
+    final headerFontSize = isSmallPhone ? 20.0 : 24.0;
+    final subtitleFontSize = isSmallPhone ? 12.0 : 14.0;
+    final horizontalPadding = isSmallPhone ? 16.0 : 24.0;
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
@@ -159,7 +161,10 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: 24,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -167,7 +172,7 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
             Text(
               'Enter Binding Code',
               style: GoogleFonts.inter(
-                fontSize: 24,
+                fontSize: headerFontSize,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textDark,
               ),
@@ -176,7 +181,7 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
             Text(
               'Ask the elderly to share the 6-digit code\nfrom their setup screen.',
               style: GoogleFonts.inter(
-                fontSize: 14,
+                fontSize: subtitleFontSize,
                 color: AppTheme.textMid,
                 height: 1.5,
               ),
@@ -184,7 +189,7 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
             const SizedBox(height: 32),
 
             // Error message
-            if (_errorMessage != null)
+            if (_errorMessage != null) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -201,7 +206,7 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
                       child: Text(
                         _errorMessage!,
                         style: GoogleFonts.inter(
-                          fontSize: 14,
+                          fontSize: subtitleFontSize,
                           color: AppTheme.accentRed,
                         ),
                       ),
@@ -209,72 +214,110 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
                   ],
                 ),
               ),
-            if (_errorMessage != null) const SizedBox(height: 24),
+              const SizedBox(height: 24),
+            ],
 
-            // Code input fields
-            Row(
-              children: List.generate(
-                6,
-                (index) => Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: index == 0 || index == 5 ? 0 : 4,
+            // Pinput OTP field
+            Center(
+              child: Pinput(
+                length: 6,
+                controller: _pinController,
+                focusNode: _pinFocus,
+                enabled: !_isLoading,
+                autofocus: true,
+                useNativeKeyboard: true,
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.done,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
+                ],
+                toolbarEnabled: true,
+                pinAnimationType: PinAnimationType.fade,
+                animationDuration: const Duration(milliseconds: 200),
+                submittedPinTheme: PinTheme(
+                  width: pinHeight,
+                  height: pinHeight,
+                  textStyle: GoogleFonts.inter(
+                    fontSize: pinFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                    letterSpacing: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceWhite,
+                    border: Border.all(
+                      color: AppTheme.primaryBlue,
+                      width: 3,
                     ),
-                    child: TextField(
-                      controller: _codeControllers[index],
-                      enabled: !_isLoading,
-                      keyboardType: TextInputType.text,
-                      textCapitalization: TextCapitalization.characters,
-                      textAlign: TextAlign.center,
-                      maxLength: 1,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
-                        _UpperCaseTextFormatter(),
-                      ],
-                      style: GoogleFonts.inter(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textDark,
-                        letterSpacing: 2,
-                      ),
-                      decoration: InputDecoration(
-                        counter: const SizedBox.shrink(),
-                        filled: true,
-                        fillColor: AppTheme.surfaceWhite,
-                        contentPadding: const EdgeInsets.all(20),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: AppTheme.divider, width: 2),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: AppTheme.divider, width: 2),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: AppTheme.primaryBlue,
-                            width: 3,
-                          ),
-                        ),
-                        disabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: AppTheme.divider, width: 2),
-                        ),
-                      ),
-                      onChanged: (value) {
-                        if (value.isEmpty && index > 0) {
-                          // Allow backspace to previous field
-                          FocusScope.of(context).previousFocus();
-                        } else if (value.isNotEmpty && index < 5) {
-                          // Auto-focus next field
-                          _focusNextField(index);
-                        }
-                        setState(() {});
-                      },
-                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
+                focusedPinTheme: PinTheme(
+                  width: pinHeight,
+                  height: pinHeight,
+                  textStyle: GoogleFonts.inter(
+                    fontSize: pinFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                    letterSpacing: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceWhite,
+                    border: Border.all(
+                      color: AppTheme.primaryBlue,
+                      width: 3,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+                defaultPinTheme: PinTheme(
+                  width: pinHeight,
+                  height: pinHeight,
+                  textStyle: GoogleFonts.inter(
+                    fontSize: pinFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                    letterSpacing: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceWhite,
+                    border: Border.all(
+                      color: AppTheme.divider,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                disabledPinTheme: PinTheme(
+                  width: pinHeight,
+                  height: pinHeight,
+                  textStyle: GoogleFonts.inter(
+                    fontSize: pinFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textMid,
+                    letterSpacing: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    border: Border.all(
+                      color: AppTheme.divider,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onCompleted: (_) {
+                  // Auto-submit when all 6 digits are entered
+                  _handleLinkElderly();
+                },
               ),
             ),
             const SizedBox(height: 32),
@@ -299,7 +342,7 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
                     child: Text(
                       'The binding code expires after 24 hours.',
                       style: GoogleFonts.inter(
-                        fontSize: 13,
+                        fontSize: subtitleFontSize,
                         color: AppTheme.primaryBlue,
                       ),
                     ),
@@ -337,20 +380,6 @@ class _BindingCodeScreenState extends State<BindingCodeScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Custom formatter to convert text to uppercase
-class _UpperCaseTextFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return newValue.copyWith(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
     );
   }
 }

@@ -4,12 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/services/logging_service.dart';
-import '../../../shared/services/patient_service.dart';
+import '../../../shared/services/checkin_service.dart';
 import '../../../shared/services/user_session_service.dart';
+import '../../../shared/models/daily_checkin_model.dart';
 
 /// Daily health check-in for elderly users.
-/// Captures mood, pain level, and an optional note — ready for Gemini AI analysis.
+/// Captures mood, pain level, daily plan, and pain details — ready for Gemini AI analysis.
 /// Design rules: ≥22px font, ≥64px buttons, high contrast, MD3.
+/// 
+/// The "Golden 3 Questions":
+/// 1. How are you feeling mentally today? (Emoji mood)
+/// 2. Do you have any physical pain or discomfort? (1-10 scale + location)
+/// 3. What is one thing you're planning to do today? (Conversation starter for caregivers)
 class CheckinScreen extends StatefulWidget {
   const CheckinScreen({super.key});
 
@@ -18,36 +24,116 @@ class CheckinScreen extends StatefulWidget {
 }
 
 class _CheckinScreenState extends State<CheckinScreen> {
-  int _selectedMood = -1;
-  double _painLevel = 0;
-  final _noteController = TextEditingController();
+  int _selectedMood = -1; // 1-4 (emoji indexes)
+  double _painLevel = 0; // 1-10
+  final _painLocationController = TextEditingController();
+  final _painDescriptionController = TextEditingController();
+  final _dailyPlanController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  
   bool _submitted = false;
+  bool _isLoading = false;
+  DailyCheckin? _existingCheckin;
+  GeminiSummary? _geminiSummary;
 
   static const List<_MoodOption> _moods = [
     _MoodOption(emoji: '😊', label: 'Great',     sublabel: 'Feeling wonderful'),
     _MoodOption(emoji: '🙂', label: 'Good',      sublabel: 'Doing well'),
     _MoodOption(emoji: '😐', label: 'Okay',      sublabel: 'So-so'),
     _MoodOption(emoji: '😟', label: 'Not Great', sublabel: 'A bit off'),
-    _MoodOption(emoji: '😢', label: 'Bad',       sublabel: 'Struggling today'),
   ];
 
   @override
   void dispose() {
-    _noteController.dispose();
+    _painLocationController.dispose();
+    _painDescriptionController.dispose();
+    _dailyPlanController.dispose();
     super.dispose();
   }
 
-  void _submit() async {
-    // Save to Firestore
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingCheckin();
+  }
+
+  /// Check if user has already checked in today
+  Future<void> _checkExistingCheckin() async {
     try {
-      final patientId = await UserSessionService.instance.getSavedUserId();
-      if (patientId != null) {
-        await PatientService.instance.saveCheckin(
-          patientId,
-          _selectedMood,
-          _painLevel,
-          _noteController.text.isEmpty ? null : _noteController.text,
+      final userId = await UserSessionService.instance.getSavedUserId();
+      if (userId == null) return;
+
+      final existingCheckin = await CheckinService.instance.getCheckInToday(userId);
+      final geminiSummary = existingCheckin != null 
+          ? await CheckinService.instance.getGeminiSummaryForToday(userId)
+          : null;
+
+      if (mounted) {
+        setState(() {
+          _existingCheckin = existingCheckin;
+          _geminiSummary = geminiSummary;
+          
+          // Pre-fill form if updating
+          if (existingCheckin != null) {
+            _selectedMood = existingCheckin.moodScore - 1;
+            _painLevel = existingCheckin.painScore.toDouble();
+            _painLocationController.text = existingCheckin.painLocation;
+            _painDescriptionController.text = existingCheckin.painDescription;
+            _dailyPlanController.text = existingCheckin.dailyPlan;
+          }
+        });
+      }
+    } catch (e) {
+      logger.error('Error checking existing check-in', e);
+    }
+  }
+
+  void _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedMood < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a mood to continue')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userId = await UserSessionService.instance.getSavedUserId();
+      if (userId == null) {
+        throw Exception('User ID not found');
+      }
+
+      // Determine mood text from selection
+      final moodText = _moods[_selectedMood].label;
+
+      if (_existingCheckin != null) {
+        // Update existing check-in
+        await CheckinService.instance.updateCheckin(
+          userId: userId,
+          moodScore: _selectedMood + 1,
+          moodText: moodText,
+          painScore: _painLevel.toInt(),
+          painLocation: _painLocationController.text.trim(),
+          painDescription: _painDescriptionController.text.trim(),
+          dailyPlan: _dailyPlanController.text.trim(),
         );
+      } else {
+        // Submit new check-in
+        await CheckinService.instance.submitCheckin(
+          userId: userId,
+          moodScore: _selectedMood + 1,
+          moodText: moodText,
+          painScore: _painLevel.toInt(),
+          painLocation: _painLocationController.text.trim(),
+          painDescription: _painDescriptionController.text.trim(),
+          dailyPlan: _dailyPlanController.text.trim(),
+        );
+      }
+
+      if (mounted) {
+        setState(() => _submitted = true);
       }
     } catch (e) {
       logger.error('Error submitting check-in', e);
@@ -55,15 +141,40 @@ class _CheckinScreenState extends State<CheckinScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving check-in: $e')),
         );
-        return;
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
-    
-    setState(() => _submitted = true);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_submitted) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, size: 28),
+            onPressed: () => context.pop(),
+          ),
+          title: Text(
+            "Today's Check-in",
+            style: GoogleFonts.inter(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+          ),
+          toolbarHeight: 64,
+        ),
+        body: _SuccessView(
+          geminiSummary: _geminiSummary,
+          isUpdate: _existingCheckin != null,
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -71,7 +182,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          "Today's Check-in",
+          _existingCheckin != null ? "Update Check-in" : "Today's Check-in",
           style: GoogleFonts.inter(
             fontSize: 22,
             fontWeight: FontWeight.w600,
@@ -80,17 +191,23 @@ class _CheckinScreenState extends State<CheckinScreen> {
         ),
         toolbarHeight: 64,
       ),
-      body: _submitted
-          ? _SuccessView()
-          : _FormView(
-              moods: _moods,
-              selectedMood: _selectedMood,
-              painLevel: _painLevel,
-              noteController: _noteController,
-              onMoodSelected: (i) => setState(() => _selectedMood = i),
-              onPainChanged: (v) => setState(() => _painLevel = v),
-              onSubmit: _submit,
-            ),
+      body: Form(
+        key: _formKey,
+        child: _FormView(
+          moods: _moods,
+          selectedMood: _selectedMood,
+          painLevel: _painLevel,
+          painLocationController: _painLocationController,
+          painDescriptionController: _painDescriptionController,
+          dailyPlanController: _dailyPlanController,
+          geminiSummary: _geminiSummary,
+          onMoodSelected: (i) => setState(() => _selectedMood = i),
+          onPainChanged: (v) => setState(() => _painLevel = v),
+          onSubmit: _isLoading ? null : _submit,
+          isLoading: _isLoading,
+          isUpdate: _existingCheckin != null,
+        ),
+      ),
     );
   }
 }
@@ -101,19 +218,29 @@ class _FormView extends StatelessWidget {
   final List<_MoodOption> moods;
   final int selectedMood;
   final double painLevel;
-  final TextEditingController noteController;
+  final TextEditingController painLocationController;
+  final TextEditingController painDescriptionController;
+  final TextEditingController dailyPlanController;
+  final GeminiSummary? geminiSummary;
   final ValueChanged<int> onMoodSelected;
   final ValueChanged<double> onPainChanged;
-  final VoidCallback onSubmit;
+  final VoidCallback? onSubmit;
+  final bool isLoading;
+  final bool isUpdate;
 
   const _FormView({
     required this.moods,
     required this.selectedMood,
     required this.painLevel,
-    required this.noteController,
+    required this.painLocationController,
+    required this.painDescriptionController,
+    required this.dailyPlanController,
+    required this.geminiSummary,
     required this.onMoodSelected,
     required this.onPainChanged,
     required this.onSubmit,
+    required this.isLoading,
+    required this.isUpdate,
   });
 
   @override
@@ -123,8 +250,22 @@ class _FormView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Section 1: Mood ─────────────────────────────────────────
+          // ── Show Gemini summary if available and updating
+          if (geminiSummary != null) ...[
+            _GeminiSummaryCard(summary: geminiSummary!),
+            const SizedBox(height: 32),
+          ],
+
+          // ── Question 1: Mood ─────────────────────────────────────────
           _SectionLabel('How are you feeling?'),
+          Text(
+            'On a scale of feeling great to struggling',
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
           const SizedBox(height: 12),
           _MoodSelector(
             moods: moods,
@@ -133,56 +274,108 @@ class _FormView extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          // ── Section 2: Pain level ────────────────────────────────────
-          _SectionLabel('Any pain today?'),
+          // ── Question 2: Pain ────────────────────────────────────────
+          _SectionLabel('Any pain or discomfort?'),
+          Text(
+            'Tell us the level and location',
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
           const SizedBox(height: 16),
           _PainSelector(
             value: painLevel,
             onChanged: onPainChanged,
           ),
+          const SizedBox(height: 16),
+          
+          // Pain location field
+          TextFormField(
+            controller: painLocationController,
+            style: GoogleFonts.inter(fontSize: 18),
+            decoration: InputDecoration(
+              labelText: 'Where does it hurt?',
+              hintText: 'e.g. left knee, lower back',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            validator: (v) {
+              if (painLevel > 0 && (v == null || v.trim().isEmpty)) {
+                return 'Please specify the location';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Pain description (voice-first)
+          TextFormField(
+            controller: painDescriptionController,
+            style: GoogleFonts.inter(fontSize: 18),
+            maxLines: 3,
+            decoration: InputDecoration(
+              labelText: 'Describe the pain',
+              hintText: 'e.g. Sharp, dull, constant, comes and goes',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.mic_rounded),
+                tooltip: 'Voice input (coming soon)',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Voice input coming soon!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            validator: (v) {
+              if (painLevel > 0 && (v == null || v.trim().isEmpty)) {
+                return 'Please describe the pain';
+              }
+              return null;
+            },
+          ),
           const SizedBox(height: 32),
 
-          // ── Section 3: Notes ─────────────────────────────────────────
-          _SectionLabel('Anything else to share?'),
+          // ── Question 3: Daily Plan ──────────────────────────────────
+          _SectionLabel('What\'s planned for today?'),
           Text(
-            'Optional — your own words',
+            'Your caregiver loves to know!',
             style: GoogleFonts.inter(
-              fontSize: 22,
+              fontSize: 18,
               color: Theme.of(context).textTheme.bodyMedium?.color,
               fontWeight: FontWeight.w400,
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: noteController,
-            maxLines: 4,
-            style: GoogleFonts.inter(
-              fontSize: 22,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-              height: 1.5,
-            ),
+          TextFormField(
+            controller: dailyPlanController,
+            style: GoogleFonts.inter(fontSize: 18),
+            maxLines: 3,
             decoration: InputDecoration(
-              hintText: 'e.g. "I slept poorly last night…"',
-              hintStyle: GoogleFonts.inter(
-                fontSize: 22,
-                color: Theme.of(context).textTheme.bodySmall?.color,
+              hintText: 'e.g. Going to the garden, visiting grandchildren, etc.',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.mic_rounded),
+                tooltip: 'Voice input (coming soon)',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Voice input coming soon!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
-              filled: true,
-              fillColor: Theme.of(context).colorScheme.surface,
-              contentPadding: const EdgeInsets.all(18),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Theme.of(context).dividerColor),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Theme.of(context).dividerColor, width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2.5),
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
+            validator: (v) =>
+                v == null || v.trim().isEmpty ? 'Please share your plans' : null,
           ),
           const SizedBox(height: 40),
 
@@ -191,7 +384,7 @@ class _FormView extends StatelessWidget {
             width: double.infinity,
             height: AppTheme.elderlyButtonHeight,
             child: ElevatedButton(
-              onPressed: selectedMood >= 0 ? onSubmit : null,
+              onPressed: selectedMood >= 0 && !isLoading ? onSubmit : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).primaryColor,
                 disabledBackgroundColor: Theme.of(context).disabledColor,
@@ -205,7 +398,17 @@ class _FormView extends StatelessWidget {
                 ),
                 elevation: 0,
               ),
-              child: const Text('Submit Check-in'),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(isUpdate ? 'Update Check-in' : 'Submit Check-in'),
             ),
           ),
 
@@ -215,7 +418,7 @@ class _FormView extends StatelessWidget {
               child: Text(
                 'Please select a mood above to continue.',
                 style: GoogleFonts.inter(
-                  fontSize: 22,
+                  fontSize: 18,
                   color: AppTheme.textMid,
                 ),
                 textAlign: TextAlign.center,
@@ -498,11 +701,19 @@ class _PainSelector extends StatelessWidget {
 // ── Success View ──────────────────────────────────────────────────────────────
 
 class _SuccessView extends StatelessWidget {
+  final GeminiSummary? geminiSummary;
+  final bool isUpdate;
+
+  const _SuccessView({
+    required this.geminiSummary,
+    required this.isUpdate,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -521,7 +732,7 @@ class _SuccessView extends StatelessWidget {
             ),
             const SizedBox(height: 28),
             Text(
-              'Check-in Complete!',
+              isUpdate ? 'Check-in Updated!' : 'Check-in Complete!',
               style: GoogleFonts.inter(
                 fontSize: 30,
                 fontWeight: FontWeight.bold,
@@ -539,7 +750,15 @@ class _SuccessView extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 32),
+
+            // Show Gemini summary if available
+            if (geminiSummary != null) ...[
+              _GeminiSummaryCard(summary: geminiSummary!),
+              const SizedBox(height: 32),
+            ],
+
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: AppTheme.elderlyButtonHeight,
@@ -559,6 +778,121 @@ class _SuccessView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Gemini Summary Card ───────────────────────────────────────────────────────
+
+class _GeminiSummaryCard extends StatelessWidget {
+  final GeminiSummary summary;
+
+  const _GeminiSummaryCard({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = GeminiSummary.colorMap[summary.statusColor] ?? 0xFF66BB6A;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Color(statusColor).withValues(alpha: 0.08),
+        border: Border.all(
+          color: Color(statusColor).withValues(alpha: 0.3),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Color(statusColor),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'AI Summary',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(statusColor),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            summary.oneSentenceSummary,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+          ),
+          if (summary.keyInsights.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Key Insights:',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...summary.keyInsights.map((insight) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '• ',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      insight,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+          ],
+          if (summary.caregiverAction.isNotEmpty &&
+              summary.caregiverAction != 'No action needed') ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Color(statusColor).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Caregiver Action: ${summary.caregiverAction}',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(statusColor),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

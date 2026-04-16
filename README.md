@@ -76,8 +76,8 @@ main   ← stable releases only — do not push directly
 ```
 
 **Workflow:**
-1. All daily commits go to `dev`
-2. When a feature is stable and tested, open a PR from `dev` → `main`
+1. All daily commits go to `pavz`
+2. When a feature is stable and tested, open a PR from `pavz` → `main`
 3. Coordinate with the team before merging to `main`
 
 ---

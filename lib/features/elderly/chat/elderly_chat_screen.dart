@@ -252,6 +252,8 @@ class _ChatBubble extends StatelessWidget {
         ),
         child: Text(
           message.text,
+          softWrap: true,
+          maxLines: null,
           style: GoogleFonts.inter(
             fontSize: AppTheme.elderlyBodyFontSize,
             color: message.isAi

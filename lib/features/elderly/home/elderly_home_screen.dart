@@ -123,35 +123,41 @@ class ElderlyHomeScreen extends StatelessWidget {
               const SizedBox(height: 14),
 
               // ── Quick Action grid ─────────────────────────────────────
-              // 2-column grid; childAspectRatio tuned so label text fits at 22px
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-                childAspectRatio: 0.95,
+              // Using Wrap instead of GridView for better responsiveness
+              // Buttons will flow to new lines if text grows with accessibility settings
+              Wrap(
+                spacing: 14,
+                runSpacing: 14,
                 children: [
-                  _QuickAction(
-                    icon: Icons.check_circle_outline_rounded,
-                    label: 'Check In',
-                    color: Theme.of(context).colorScheme.primary,
-                    bg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                    onTap: () => context.push(AppConstants.routeElderlyCheckin),
+                  SizedBox(
+                    width: (MediaQuery.of(context).size.width - 54) / 2, // 2-column layout with padding/spacing
+                    child: _QuickAction(
+                      icon: Icons.check_circle_outline_rounded,
+                      label: 'Check In',
+                      color: Theme.of(context).colorScheme.primary,
+                      bg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                      onTap: () => context.push(AppConstants.routeElderlyCheckin),
+                    ),
                   ),
-                  _QuickAction(
-                    icon: Icons.medication_rounded,
-                    label: 'Medications',
-                    color: const Color(0xFFEA580C),
-                    bg: const Color(0xFFEA580C),
-                    onTap: () => context.push(AppConstants.routeMedication),
+                  SizedBox(
+                    width: (MediaQuery.of(context).size.width - 54) / 2,
+                    child: _QuickAction(
+                      icon: Icons.medication_rounded,
+                      label: 'Medications',
+                      color: const Color(0xFFEA580C),
+                      bg: const Color(0xFFEA580C),
+                      onTap: () => context.push(AppConstants.routeMedication),
+                    ),
                   ),
-                  _QuickAction(
-                    icon: Icons.chat_bubble_rounded,
-                    label: 'Talk to AI',
-                    color: const Color(0xFF7C3AED),
-                    bg: const Color(0xFF7C3AED),
-                    onTap: () => context.push(AppConstants.routeElderlyChat),
+                  SizedBox(
+                    width: (MediaQuery.of(context).size.width - 54) / 2,
+                    child: _QuickAction(
+                      icon: Icons.chat_bubble_rounded,
+                      label: 'Talk to AI',
+                      color: const Color(0xFF7C3AED),
+                      bg: const Color(0xFF7C3AED),
+                      onTap: () => context.push(AppConstants.routeElderlyChat),
+                    ),
                   ),
                 ],
               ),
@@ -371,11 +377,12 @@ class _QuickAction extends StatelessWidget {
               width: 1.5,
             ),
           ),
-          child: Padding(
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 120),
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -390,13 +397,22 @@ class _QuickAction extends StatelessWidget {
                     size: AppTheme.elderlyIconSize,
                   ),
                 ),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: AppTheme.elderlyBodyFontSize, // 22px
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                    height: 1.2,
+                const SizedBox(height: 12),
+                // Wrap label in FittedBox to allow text scaling without overflow
+                // Use mainAxisSize.min to allow the Column to shrink-wrap
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topLeft,
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: AppTheme.elderlyBodyFontSize, // 22px
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                      height: 1.2,
+                    ),
                   ),
                 ),
               ],

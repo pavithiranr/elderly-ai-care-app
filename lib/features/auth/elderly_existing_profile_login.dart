@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
-import '../../shared/services/user_session_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../shared/services/user_session_service.dart';
 
 /// Re-login screen for returning elderly users.
-/// Identifies them by name + date of birth — no codes needed.
+/// Identifies them by IC number — no passwords or codes needed.
 class ElderlyExistingProfileLoginScreen extends StatefulWidget {
   const ElderlyExistingProfileLoginScreen({super.key});
 
@@ -19,47 +19,22 @@ class ElderlyExistingProfileLoginScreen extends StatefulWidget {
 
 class _ElderlyExistingProfileLoginScreenState
     extends State<ElderlyExistingProfileLoginScreen> {
-  final _nameController = TextEditingController();
-  DateTime? _selectedDOB;
+  final _icController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _icController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDOB ?? DateTime(1950),
-      firstDate: DateTime(1920),
-      lastDate: DateTime(DateTime.now().year - 18),
-      helpText: 'Select your date of birth',
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          textTheme: Theme.of(context).textTheme.copyWith(
-                bodyLarge: GoogleFonts.inter(fontSize: 18),
-              ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() => _selectedDOB = picked);
-    }
-  }
+  Future<void> _handleRestore() async {
+    final icRaw = _icController.text.trim();
+    final icNumber = icRaw.replaceAll('-', '');
 
-  Future<void> _handleRestoreProfile() async {
-    final name = _nameController.text.trim();
-
-    if (name.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your full name');
-      return;
-    }
-    if (_selectedDOB == null) {
-      setState(() => _errorMessage = 'Please select your date of birth');
+    if (icNumber.length != 12) {
+      setState(() => _errorMessage = 'Please enter your full 12-digit IC number');
       return;
     }
 
@@ -69,16 +44,11 @@ class _ElderlyExistingProfileLoginScreenState
     });
 
     try {
-      final dob = DateFormat('yyyy-MM-dd').format(_selectedDOB!);
-
-      final elderlyId = await AuthService.instance.findElderlyByNameAndDOB(
-        name: name,
-        dateOfBirth: dob,
-      );
+      final elderlyId = await AuthService.instance.findElderlyByIC(icNumber);
 
       if (elderlyId == null) {
         throw Exception(
-            'No profile found with that name and date of birth.\nPlease check your details or create a new profile.');
+            'No profile found with that IC number.\nPlease check your details or create a new profile.');
       }
 
       await UserSessionService.instance.setElderlyProfileId(elderlyId);
@@ -99,10 +69,7 @@ class _ElderlyExistingProfileLoginScreenState
 
   @override
   Widget build(BuildContext context) {
-    final dobLabel = _selectedDOB != null
-        ? DateFormat('MMMM d, yyyy').format(_selectedDOB!)
-        : 'Select your date of birth';
-    final hasDob = _selectedDOB != null;
+    final hasIC = _icController.text.replaceAll('-', '').length == 12;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundGray,
@@ -127,7 +94,6 @@ class _ElderlyExistingProfileLoginScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Text(
               'Restore Your Profile',
               style: GoogleFonts.inter(
@@ -138,7 +104,7 @@ class _ElderlyExistingProfileLoginScreenState
             ),
             const SizedBox(height: 10),
             Text(
-              'Enter your name and date of birth\nto access your profile.',
+              'Enter your IC number to access your profile.',
               style: GoogleFonts.inter(
                 fontSize: AppTheme.elderlyBodyFontSize,
                 color: AppTheme.textMid,
@@ -147,7 +113,6 @@ class _ElderlyExistingProfileLoginScreenState
             ),
             const SizedBox(height: 40),
 
-            // Error message
             if (_errorMessage != null) ...[
               Container(
                 padding: const EdgeInsets.all(14),
@@ -178,9 +143,8 @@ class _ElderlyExistingProfileLoginScreenState
               const SizedBox(height: 28),
             ],
 
-            // Name field
             Text(
-              'Your Full Name',
+              'IC Number (MyKad)',
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -189,27 +153,38 @@ class _ElderlyExistingProfileLoginScreenState
             ),
             const SizedBox(height: 10),
             TextField(
-              controller: _nameController,
+              controller: _icController,
               enabled: !_isLoading,
-              textCapitalization: TextCapitalization.words,
+              keyboardType: TextInputType.number,
               textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _handleRestore(),
+              onChanged: (_) => setState(() {}),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[\d\-]')),
+                LengthLimitingTextInputFormatter(14),
+                _IcNumberFormatter(),
+              ],
               style: GoogleFonts.inter(
                 fontSize: AppTheme.elderlyBodyFontSize,
                 color: AppTheme.textDark,
                 fontWeight: FontWeight.w500,
+                letterSpacing: 1.5,
               ),
               decoration: InputDecoration(
-                hintText: 'e.g. Margaret Johnson',
+                hintText: '901231-14-5678',
                 hintStyle: GoogleFonts.inter(
                   fontSize: AppTheme.elderlyBodyFontSize,
                   color: AppTheme.textLight,
                 ),
-                prefixIcon: const Icon(Icons.person_rounded,
-                    color: AppTheme.primaryBlue, size: 24),
+                prefixIcon: Icon(
+                  Icons.badge_rounded,
+                  color: hasIC ? AppTheme.primaryBlue : AppTheme.textLight,
+                  size: 24,
+                ),
                 filled: true,
                 fillColor: AppTheme.surfaceWhite,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 18),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide:
@@ -226,77 +201,14 @@ class _ElderlyExistingProfileLoginScreenState
                       const BorderSide(color: AppTheme.primaryBlue, width: 2),
                 ),
               ),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 24),
-
-            // Date of birth picker
-            Text(
-              'Date of Birth',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textMid,
-              ),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: _isLoading ? null : _pickDate,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 18),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceWhite,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: hasDob ? AppTheme.primaryBlue : AppTheme.divider,
-                    width: hasDob ? 2 : 1.5,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.cake_rounded,
-                      color: hasDob
-                          ? AppTheme.primaryBlue
-                          : AppTheme.textLight,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        dobLabel,
-                        style: GoogleFonts.inter(
-                          fontSize: AppTheme.elderlyBodyFontSize,
-                          color: hasDob
-                              ? AppTheme.textDark
-                              : AppTheme.textLight,
-                          fontWeight: hasDob
-                              ? FontWeight.w500
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_drop_down_rounded,
-                      color: hasDob
-                          ? AppTheme.primaryBlue
-                          : AppTheme.textLight,
-                      size: 28,
-                    ),
-                  ],
-                ),
-              ),
             ),
             const SizedBox(height: 48),
 
-            // Restore button
             SizedBox(
               width: double.infinity,
               height: AppTheme.elderlyButtonHeight,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _handleRestoreProfile,
+                onPressed: _isLoading ? null : _handleRestore,
                 child: _isLoading
                     ? const SizedBox(
                         height: 26,
@@ -318,7 +230,6 @@ class _ElderlyExistingProfileLoginScreenState
             ),
             const SizedBox(height: 16),
 
-            // Create new profile
             SizedBox(
               width: double.infinity,
               height: AppTheme.elderlyButtonHeight,
@@ -339,6 +250,28 @@ class _ElderlyExistingProfileLoginScreenState
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Auto-formats IC number as XXXXXX-XX-XXXX while typing.
+class _IcNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll('-', '');
+    if (digits.length > 12) return oldValue;
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 6 || i == 8) buffer.write('-');
+      buffer.write(digits[i]);
+    }
+
+    final formatted = buffer.toString();
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

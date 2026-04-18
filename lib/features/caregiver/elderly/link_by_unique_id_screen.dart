@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:caresync_ai/core/theme/app_theme.dart';
+import 'package:caresync_ai/core/services/auth_service.dart';
 import 'package:caresync_ai/shared/services/user_session_service.dart';
-import 'package:caresync_ai/shared/services/patient_service.dart';
 
 class LinkByUniqueIdScreen extends StatefulWidget {
   const LinkByUniqueIdScreen({super.key});
@@ -14,97 +14,50 @@ class LinkByUniqueIdScreen extends StatefulWidget {
 }
 
 class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
-  final _idController = TextEditingController();
+  final _icController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-  String? _successMessage;
 
   @override
   void dispose() {
-    _idController.dispose();
+    _icController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLinkElderly() async {
-    final uniqueId = _idController.text.trim().toUpperCase();
+    final icNumber = _icController.text.replaceAll('-', '');
 
-    if (uniqueId.isEmpty) {
-      setState(() => _errorMessage = 'Please enter the elderly\'s binding ID');
-      return;
-    }
-
-    if (uniqueId.length != 8) {
-      setState(() => _errorMessage = 'Binding ID must be 8 characters');
+    if (icNumber.length != 12) {
+      setState(() => _errorMessage = 'Please enter the full 12-digit IC number');
       return;
     }
 
     setState(() {
       _errorMessage = null;
-      _successMessage = null;
       _isLoading = true;
     });
 
     try {
-      // Look up the elderly by unique ID
-      final patient = await PatientService.instance.getPatientByUniqueId(uniqueId);
-
-      if (patient == null) {
-        setState(() {
-          _errorMessage = 'Binding ID not found. Please check and try again.';
-        });
-        return;
-      }
-
-      // Check if already linked to another caregiver
-      if (patient.caregiverId != null) {
-        setState(() {
-          _errorMessage = '${patient.name} is already linked to a caregiver.';
-        });
-        return;
-      }
-
-      // Get current caregiver UID
       final caregiverUid = UserSessionService.instance.getCurrentUserUid();
-      if (caregiverUid == null) {
-        throw Exception('Not logged in');
-      }
+      if (caregiverUid == null) throw Exception('Not logged in');
 
-      // Link the elderly to this caregiver
-      await _linkElderlyToCaregiver(patient.id, caregiverUid);
+      await AuthService.instance.linkElderlyByIC(
+        icNumber: icNumber,
+        caregiverUid: caregiverUid,
+      );
 
       if (!mounted) return;
-
-      // Show success dialog
-      _showSuccessDialog(patient.name);
+      _showSuccessDialog();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _linkElderlyToCaregiver(String elderlyId, String caregiverUid) async {
-    try {
-      // Update elderly document with caregiver ID
-      final firestore = FirebaseFirestore.instance;
-      await firestore.collection('elderly').doc(elderlyId).update({
-        'caregiverId': caregiverUid,
-      });
-
-      // Add elderly to caregiver's linked list
-      await firestore.collection('caregivers').doc(caregiverUid).update({
-        'linkedElderlyIds': FieldValue.arrayUnion([elderlyId])
-      });
-    } catch (e) {
-      throw Exception('Failed to link elderly: $e');
-    }
-  }
-
-  void _showSuccessDialog(String elderlyName) {
+  void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -121,29 +74,22 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
                 color: AppTheme.accentGreen.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: AppTheme.accentGreen,
-                size: 36,
-              ),
+              child: const Icon(Icons.check_circle_rounded,
+                  color: AppTheme.accentGreen, size: 36),
             ),
             const SizedBox(height: 16),
             Text(
               'Linked Successfully!',
               style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDark,
-              ),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark),
             ),
             const SizedBox(height: 8),
             Text(
-              'You are now connected with $elderlyName.',
+              'You are now connected with this elderly profile.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: AppTheme.textMid,
-              ),
+              style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textMid),
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -152,13 +98,10 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  // Close binding screen and refresh list
                   context.pop();
                 },
-                child: Text(
-                  'Continue',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                ),
+                child: Text('Continue',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -177,12 +120,11 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Link by Binding ID',
+          'Link by IC Number',
           style: GoogleFonts.inter(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
-          ),
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textDark),
         ),
         backgroundColor: AppTheme.surfaceWhite,
         elevation: 0,
@@ -192,27 +134,21 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Section
             Text(
-              'Enter Binding ID',
+              'Enter Elderly\'s IC Number',
               style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDark,
-              ),
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark),
             ),
             const SizedBox(height: 12),
             Text(
-              'Ask the elderly person for their 8-character Binding ID. They can find it in their Settings under "Share Your Binding ID".',
+              'Ask the elderly person for their MyKad (IC) number. They registered with it during setup.',
               style: GoogleFonts.inter(
-                fontSize: 16,
-                color: AppTheme.textMid,
-                height: 1.6,
-              ),
+                  fontSize: 16, color: AppTheme.textMid, height: 1.6),
             ),
             const SizedBox(height: 32),
 
-            // Input Section
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -224,60 +160,58 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Binding ID (8 characters)',
+                    'IC Number (12 digits)',
                     style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textMid,
-                    ),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textMid),
                   ),
                   const SizedBox(height: 12),
                   TextField(
-                    controller: _idController,
+                    controller: _icController,
                     enabled: !_isLoading,
+                    keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.done,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: InputDecoration(
-                      hintText: 'e.g., A7K3M2P9',
-                      hintStyle: GoogleFonts.inter(
-                        fontSize: 16,
-                        color: AppTheme.textLight,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(
-                          color: AppTheme.divider,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(
-                          color: AppTheme.divider,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(
-                          color: AppTheme.primaryBlue,
-                          width: 2,
-                        ),
-                      ),
-                    ),
+                    onSubmitted: (_) => _handleLinkElderly(),
+                    onChanged: (_) => setState(() {}),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[\d\-]')),
+                      LengthLimitingTextInputFormatter(14),
+                      _IcNumberFormatter(),
+                    ],
                     style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2),
+                    decoration: InputDecoration(
+                      hintText: '901231-14-5678',
+                      hintStyle: GoogleFonts.inter(
+                          fontSize: 16,
+                          color: AppTheme.textLight,
+                          fontWeight: FontWeight.normal,
+                          letterSpacing: 0),
+                      prefixIcon: const Icon(Icons.badge_rounded,
+                          color: AppTheme.primaryBlue, size: 22),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: AppTheme.divider)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: AppTheme.divider)),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                              color: AppTheme.primaryBlue, width: 2)),
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Error Message
             if (_errorMessage != null) ...[
               const SizedBox(height: 16),
               Container(
@@ -289,52 +223,14 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.error_rounded,
-                      color: Color(0xFFEF4444),
-                      size: 20,
-                    ),
+                    const Icon(Icons.error_rounded,
+                        color: Color(0xFFEF4444), size: 20),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: const Color(0xFFEF4444),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // Success Message
-            if (_successMessage != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.accentGreen),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle_rounded,
-                      color: AppTheme.accentGreen,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _successMessage!,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: AppTheme.accentGreen,
-                        ),
-                      ),
+                      child: Text(_errorMessage!,
+                          style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: const Color(0xFFEF4444))),
                     ),
                   ],
                 ),
@@ -343,7 +239,6 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
 
             const SizedBox(height: 32),
 
-            // Action Buttons
             SizedBox(
               width: double.infinity,
               height: 56,
@@ -354,33 +249,27 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
                   disabledBackgroundColor:
                       AppTheme.primaryBlue.withValues(alpha: 0.5),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _isLoading
                     ? const SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                          strokeWidth: 2,
-                        ),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            strokeWidth: 2),
                       )
-                    : Text(
-                        'Link Elderly',
+                    : Text('Link Elderly',
                         style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white)),
               ),
             ),
 
             const SizedBox(height: 16),
 
-            // Info Box
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -393,30 +282,25 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.info_rounded,
-                        color: AppTheme.primaryBlue,
-                        size: 20,
-                      ),
+                      const Icon(Icons.info_rounded,
+                          color: AppTheme.primaryBlue, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        'About Binding IDs',
+                        'About IC Linking',
                         style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textDark,
-                        ),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textDark),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '• Each elderly user gets a unique 8-character Binding ID when they create their account\n• The ID is permanent and can be found in their Settings\n• You can only link with one elderly person per account\n• Once linked, you\'ll see all their health updates',
+                    '• The IC number is permanent — no expiry\n'
+                    '• Each elderly profile can only be linked to one caregiver\n'
+                    '• Once linked, you\'ll see all their health updates',
                     style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppTheme.textMid,
-                      height: 1.6,
-                    ),
+                        fontSize: 13, color: AppTheme.textMid, height: 1.6),
                   ),
                 ],
               ),
@@ -424,6 +308,28 @@ class _LinkByUniqueIdScreenState extends State<LinkByUniqueIdScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Auto-formats IC number as XXXXXX-XX-XXXX while typing.
+class _IcNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll('-', '');
+    if (digits.length > 12) return oldValue;
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 6 || i == 8) buffer.write('-');
+      buffer.write(digits[i]);
+    }
+
+    final formatted = buffer.toString();
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

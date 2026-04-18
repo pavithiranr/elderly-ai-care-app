@@ -14,7 +14,7 @@ import '../../features/elderly/chat/elderly_chat_screen.dart';
 import '../../features/elderly/settings/settings_screen.dart';
 import '../../features/caregiver/dashboard/caregiver_dashboard_screen.dart';
 import '../../features/caregiver/settings/caregiver_settings_screen.dart';
-import '../../features/caregiver/elderly/binding_code_screen.dart';
+import '../../features/caregiver/elderly/link_by_ic_screen.dart';
 import '../../features/caregiver/elderly/link_by_unique_id_screen.dart';
 import '../../features/caregiver/elderly/linked_elderly_screen.dart';
 import '../../features/caregiver/elderly/patient_detail_screen.dart';
@@ -136,7 +136,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/caregiver/link-elderly',
-      builder: (context, state) => const BindingCodeScreen(),
+      builder: (context, state) => const LinkByIcScreen(),
     ),
     GoRoute(
       path: AppConstants.routeLinkByUniqueId,

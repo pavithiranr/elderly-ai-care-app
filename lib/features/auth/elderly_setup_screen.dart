@@ -16,17 +16,23 @@ class ElderlySetupScreen extends StatefulWidget {
 class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
   final _nameController = TextEditingController();
   final _dobController = TextEditingController();
-  // Stores only the digits after +60 — prefix is shown via InputDecoration
   final _emergencyContactController = TextEditingController();
+  final _icController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
-  /// Validates and returns the full +60 number, or null if invalid.
+  /// Malaysian IC: 12 digits formatted as XXXXXX-XX-XXXX
+  /// Returns raw 12-digit string or null if invalid.
+  String? _validateIC(String input) {
+    final digits = input.replaceAll('-', '');
+    if (!RegExp(r'^\d{12}$').hasMatch(digits)) return null;
+    return digits;
+  }
+
   /// Malaysian format: +60 followed by 8–10 digits.
-  /// Mobile: +601X-XXXXXXX(X)   Landline: +60X-XXXXXXX
   String? _validateMalaysianPhone(String digits) {
     final cleaned = digits.replaceAll(RegExp(r'\s'), '');
-    if (cleaned.isEmpty) return null; // caught by empty check
+    if (cleaned.isEmpty) return null;
     if (!RegExp(r'^\d{8,10}$').hasMatch(cleaned)) return null;
     return '+60$cleaned';
   }
@@ -36,6 +42,7 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
     _nameController.dispose();
     _dobController.dispose();
     _emergencyContactController.dispose();
+    _icController.dispose();
     super.dispose();
   }
 
@@ -71,38 +78,46 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
       final name = _nameController.text.trim();
       final dob = _dobController.text.trim();
       final contact = _emergencyContactController.text.trim();
+      final icRaw = _icController.text.trim();
 
-      if (name.isEmpty || dob.isEmpty || contact.isEmpty) {
-        throw Exception('Please fill in all fields');
+      if (name.isEmpty || dob.isEmpty || icRaw.isEmpty) {
+        throw Exception('Please fill in your name, date of birth, and IC number');
       }
 
-      final fullPhone = _validateMalaysianPhone(contact);
-      if (fullPhone == null) {
-        throw Exception(
-            'Enter a valid Malaysian number after +60\n(e.g. 123456789 for +60123456789)');
+      // Emergency contact is optional — validate only if provided
+      String? fullPhone;
+      if (contact.isNotEmpty) {
+        fullPhone = _validateMalaysianPhone(contact);
+        if (fullPhone == null) {
+          throw Exception(
+              'Enter a valid Malaysian number after +60\n(e.g. 123456789 for +60123456789)');
+        }
       }
 
-      final code = await UserSessionService.instance.elderlySetup(
+      final icNumber = _validateIC(icRaw);
+      if (icNumber == null) {
+        throw Exception('IC number must be exactly 12 digits\n(e.g. 901231-14-5678)');
+      }
+
+      await UserSessionService.instance.elderlySetup(
         name: name,
         dateOfBirth: dob,
-        emergencyContact: fullPhone,
+        emergencyContact: fullPhone ?? '',
+        icNumber: icNumber,
       );
 
       if (!mounted) return;
-
-      _showBindingCodeDialog(code);
+      _showSuccessDialog();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showBindingCodeDialog(String code) {
+  void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -127,7 +142,7 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              'Setup Successful!',
+              'Profile Created!',
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -136,73 +151,45 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Share this code with your caregiver\nso they can link to your profile.',
+              'Share your IC number with your caregiver so they can link to your profile.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,
                 color: AppTheme.textMid,
+                height: 1.5,
               ),
             ),
             const SizedBox(height: 24),
-            // Binding code display
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
               decoration: BoxDecoration(
                 color: AppTheme.primaryLight,
                 border: Border.all(color: AppTheme.primaryBlue),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Your Binding Code',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: AppTheme.textMid,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    code,
-                    style: GoogleFonts.inter(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryBlue,
-                      letterSpacing: 4,
+                  const Icon(Icons.badge_rounded,
+                      color: AppTheme.primaryBlue, size: 22),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      'Your IC number is your link key',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppTheme.primaryBlue,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            // Copy button
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  // Copy to clipboard
-                  Clipboard.setData(ClipboardData(text: code));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Binding code copied to clipboard!',
-                        style: GoogleFonts.inter(),
-                      ),
-                      backgroundColor: AppTheme.accentGreen,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.content_copy_rounded),
-                label: const Text('Copy Code'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Continue button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
+              child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
                   context.go(AppConstants.routeElderlyHome);
@@ -229,7 +216,6 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back button
               IconButton(
                 onPressed: () => context.go(AppConstants.routeRoleSelect),
                 icon: const Icon(Icons.arrow_back_rounded),
@@ -239,8 +225,6 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Header
               Text(
                 'Welcome!',
                 style: GoogleFonts.inter(
@@ -260,8 +244,7 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Error message
-              if (_errorMessage != null)
+              if (_errorMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -278,136 +261,82 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                         child: Text(
                           _errorMessage!,
                           style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: AppTheme.accentRed,
-                          ),
+                              fontSize: 14, color: AppTheme.accentRed),
                         ),
                       ),
                     ],
                   ),
                 ),
-              if (_errorMessage != null) const SizedBox(height: 20),
+                const SizedBox(height: 20),
+              ],
 
-              // Name field (Large text for accessibility)
-              Text(
-                'Full Name',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
-                ),
-              ),
+              _buildLabel('Full Name'),
               const SizedBox(height: 12),
-              TextField(
+              _buildTextField(
                 controller: _nameController,
-                enabled: !_isLoading,
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  color: AppTheme.textDark,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Margaret Smith',
-                  hintStyle: GoogleFonts.inter(
-                    fontSize: 18,
-                    color: AppTheme.textLight,
-                  ),
-                  filled: true,
-                  fillColor: AppTheme.surfaceWhite,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppTheme.divider),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppTheme.divider),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: AppTheme.primaryBlue, width: 2),
-                  ),
-                ),
+                hint: 'Margaret Smith',
+                keyboardType: TextInputType.name,
+                textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 24),
 
-              // Date of Birth field
-              Text(
-                'Date of Birth',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
-                ),
-              ),
+              _buildLabel('Date of Birth'),
               const SizedBox(height: 12),
               GestureDetector(
                 onTap: _isLoading ? null : _pickDate,
                 child: TextField(
                   controller: _dobController,
                   enabled: false,
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    color: AppTheme.textDark,
-                  ),
+                  style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textDark),
                   decoration: InputDecoration(
                     hintText: 'YYYY-MM-DD',
-                    hintStyle: GoogleFonts.inter(
-                      fontSize: 18,
-                      color: AppTheme.textLight,
-                    ),
+                    hintStyle: GoogleFonts.inter(fontSize: 18, color: AppTheme.textLight),
                     filled: true,
                     fillColor: AppTheme.surfaceWhite,
-                    suffixIcon: const Icon(
-                      Icons.calendar_month_rounded,
-                      size: 24,
-                      color: AppTheme.primaryBlue,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
+                    suffixIcon: const Icon(Icons.calendar_month_rounded,
+                        size: 24, color: AppTheme.primaryBlue),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.divider),
-                    ),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppTheme.divider)),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.divider),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AppTheme.primaryBlue, width: 2),
-                    ),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppTheme.divider)),
                     disabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.divider),
-                    ),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppTheme.divider)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2)),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
 
-              // Emergency Contact field
+              _buildLabel('IC Number'),
+              const SizedBox(height: 4),
               Text(
-                'Emergency Contact Phone',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
-                ),
+                'MyKad number (12 digits)',
+                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight),
               ),
+              const SizedBox(height: 12),
+              _buildTextField(
+                controller: _icController,
+                hint: '901231-14-5678',
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d\-]')),
+                  LengthLimitingTextInputFormatter(14), // 12 digits + 2 dashes
+                  _IcNumberFormatter(),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              _buildLabel('Emergency Contact Phone (Optional)'),
               const SizedBox(height: 4),
               Text(
                 'Malaysian number only (+60)',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: AppTheme.textLight,
-                ),
+                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -418,46 +347,29 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(10),
                 ],
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  color: AppTheme.textDark,
-                ),
+                style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textDark),
                 decoration: InputDecoration(
                   prefixText: '+60 ',
                   prefixStyle: GoogleFonts.inter(
-                    fontSize: 18,
-                    color: AppTheme.primaryBlue,
-                    fontWeight: FontWeight.w600,
-                  ),
+                      fontSize: 18, color: AppTheme.primaryBlue, fontWeight: FontWeight.w600),
                   hintText: '12-3456789',
-                  hintStyle: GoogleFonts.inter(
-                    fontSize: 18,
-                    color: AppTheme.textLight,
-                  ),
+                  hintStyle: GoogleFonts.inter(fontSize: 18, color: AppTheme.textLight),
                   filled: true,
                   fillColor: AppTheme.surfaceWhite,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppTheme.divider),
-                  ),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.divider)),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppTheme.divider),
-                  ),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.divider)),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: AppTheme.primaryBlue, width: 2),
-                  ),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2)),
                 ),
               ),
               const SizedBox(height: 40),
 
-              // Setup button (Elderly-sized — large)
               SizedBox(
                 width: double.infinity,
                 height: AppTheme.elderlyButtonHeight,
@@ -465,8 +377,7 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                   onPressed: _isLoading ? null : _handleSetup,
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                        borderRadius: BorderRadius.circular(16)),
                   ),
                   child: _isLoading
                       ? const SizedBox(
@@ -481,9 +392,7 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                       : Text(
                           'Get Started',
                           style: GoogleFonts.inter(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
+                              fontSize: 20, fontWeight: FontWeight.w700),
                         ),
                 ),
               ),
@@ -492,6 +401,66 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLabel(String text) => Text(
+        text,
+        style: GoogleFonts.inter(
+            fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textDark),
+      );
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    TextInputType keyboardType = TextInputType.text,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    List<TextInputFormatter>? inputFormatters,
+  }) =>
+      TextField(
+        controller: controller,
+        enabled: !_isLoading,
+        keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
+        inputFormatters: inputFormatters,
+        style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textDark),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: GoogleFonts.inter(fontSize: 18, color: AppTheme.textLight),
+          filled: true,
+          fillColor: AppTheme.surfaceWhite,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.divider)),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.divider)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2)),
+        ),
+      );
+}
+
+/// Auto-formats IC number as XXXXXX-XX-XXXX while typing.
+class _IcNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll('-', '');
+    if (digits.length > 12) return oldValue;
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 6 || i == 8) buffer.write('-');
+      buffer.write(digits[i]);
+    }
+
+    final formatted = buffer.toString();
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

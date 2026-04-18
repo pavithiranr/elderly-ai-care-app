@@ -7,12 +7,18 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
+import '../sos-experiment/shake_sos_mixin.dart';
 
 /// Elderly Home Screen.
 /// Design rules: ≥22px font, ≥64px buttons, high contrast, MD3.
-class ElderlyHomeScreen extends StatelessWidget {
+class ElderlyHomeScreen extends StatefulWidget {
   const ElderlyHomeScreen({super.key});
 
+  @override
+  State<ElderlyHomeScreen> createState() => _ElderlyHomeScreenState();
+}
+
+class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with ShakeSosMixin {
   String get _greeting {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good Morning';
@@ -21,6 +27,18 @@ class ElderlyHomeScreen extends StatelessWidget {
   }
 
   String get _today => DateFormat('EEEE, MMMM d').format(DateTime.now());
+
+  @override
+  void initState() {
+    super.initState();
+    initShakeSos(context);
+  }
+
+  @override
+  void dispose() {
+    disposeShakeSos();
+    super.dispose();
+  }
 
   void _showProfileMenu(BuildContext context) {
     showModalBottomSheet(

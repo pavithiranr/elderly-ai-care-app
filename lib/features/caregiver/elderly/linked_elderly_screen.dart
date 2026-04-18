@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:caresync_ai/core/constants/app_constants.dart';
 import 'package:caresync_ai/core/theme/app_theme.dart';
 import 'package:caresync_ai/shared/services/caregiver_service.dart';
 import 'package:caresync_ai/shared/services/patient_service.dart';

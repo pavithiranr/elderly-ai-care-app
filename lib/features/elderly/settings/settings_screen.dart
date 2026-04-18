@@ -236,9 +236,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 32),
 
-              // ── Binding Information Section ────────────────────────────
+              // ── IC Number Section ──────────────────────────────────────
               _SectionLabel(
-                'Share Your Binding ID', 
+                'Share With Caregiver',
                 textScale: textScale,
                 textColor: textColor,
               ),
@@ -327,8 +327,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _ProfileRow(label: 'Name', value: profile['name'] ?? 'N/A'),
                   const SizedBox(height: 16),
                   _ProfileRow(label: 'Date of Birth', value: profile['dob'] ?? 'N/A'),
-                  const SizedBox(height: 16),
-                  _ProfileRow(label: 'Emergency Contact', value: profile['emergencyContact'] ?? 'N/A'),
                 ] else
                   Text(
                     'No profile information available.',
@@ -714,7 +712,7 @@ class _AccessibilityTile extends StatelessWidget {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeThumbColor: theme.primaryColor,
+              activeColor: theme.primaryColor,
             ),
           ],
         ),
@@ -739,67 +737,62 @@ class _UniqueIdTile extends StatefulWidget {
 }
 
 class _UniqueIdTileState extends State<_UniqueIdTile> {
-  String? _uniqueId;
+  String? _icNumber; // raw 12 digits from Firestore
+  bool _loading = true;
   bool _copied = false;
+
+  /// Formats raw 12-digit IC as XXXXXX-XX-XXXX for display.
+  String _formatIC(String raw) {
+    if (raw.length != 12) return raw;
+    return '${raw.substring(0, 6)}-${raw.substring(6, 8)}-${raw.substring(8)}';
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadUniqueId();
+    _loadIC();
   }
 
-  Future<void> _loadUniqueId() async {
+  Future<void> _loadIC() async {
     try {
+      // Read from SharedPreferences first — instant, no network call
+      final cached = await UserSessionService.instance.getElderlyIC();
+      if (cached != null && cached.isNotEmpty) {
+        if (mounted) setState(() { _icNumber = cached; _loading = false; });
+        return;
+      }
+
+      // Fallback to Firestore for profiles created before local caching was added
       final elderlyId = await UserSessionService.instance.getElderlyProfileId();
       if (elderlyId != null) {
         final profile = await PatientService.instance.getPatientById(elderlyId);
-        if (mounted && profile != null) {
+        if (mounted) {
           setState(() {
-            _uniqueId = profile.uniqueId;
+            _icNumber = profile?.icNumber.isNotEmpty == true ? profile!.icNumber : null;
+            _loading = false;
           });
         }
+      } else {
+        if (mounted) setState(() => _loading = false);
       }
     } catch (e) {
-      debugPrint('Error loading unique ID: $e');
+      debugPrint('Error loading IC number: $e');
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _copyToClipboard() async {
-    if (_uniqueId == null) return;
-    
-    await Clipboard.setData(ClipboardData(text: _uniqueId!));
-    
+    if (_icNumber == null) return;
+    await Clipboard.setData(ClipboardData(text: _formatIC(_icNumber!)));
     if (mounted) {
-      setState(() {
-        _copied = true;
-      });
-      
+      setState(() => _copied = true);
       await Future.delayed(const Duration(seconds: 2));
-      
-      if (mounted) {
-        setState(() {
-          _copied = false;
-        });
-      }
+      if (mounted) setState(() => _copied = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_uniqueId == null) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: widget.theme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: widget.theme.dividerColor),
-        ),
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -811,7 +804,7 @@ class _UniqueIdTileState extends State<_UniqueIdTile> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Your Binding ID',
+            'Your IC Number',
             style: GoogleFonts.inter(
               fontSize: 14 * widget.textScale,
               fontWeight: FontWeight.w600,
@@ -819,18 +812,29 @@ class _UniqueIdTileState extends State<_UniqueIdTile> {
             ),
           ),
           const SizedBox(height: 12),
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else if (_icNumber == null)
+            Text(
+              'IC number not available',
+              style: GoogleFonts.inter(
+                fontSize: 15 * widget.textScale,
+                color: widget.theme.textTheme.bodySmall?.color,
+              ),
+            )
+          else
           Row(
             children: [
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: widget.theme.scaffoldBackgroundColor,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: widget.theme.dividerColor),
                   ),
                   child: Text(
-                    _uniqueId!,
+                    _formatIC(_icNumber!),
                     style: GoogleFonts.inter(
                       fontSize: 20 * widget.textScale,
                       fontWeight: FontWeight.w700,

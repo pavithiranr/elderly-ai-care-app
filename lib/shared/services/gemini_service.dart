@@ -38,7 +38,7 @@ class GeminiService {
     }
 
     final prompt = _buildHealthSummaryPrompt(recentEvents);
-    return _makeApiRequest({
+    final result = await _makeApiRequest({
       'contents': [
         {
           'parts': [{'text': prompt}]
@@ -50,17 +50,23 @@ class GeminiService {
         'topP': 0.9,
       },
     });
+    return _validateSummary(result);
   }
 
   /// Build a focused prompt for health summaries.
   String _buildHealthSummaryPrompt(List<String> events) {
     final eventsList = events.join('\n• ');
-    return '''Based on these recent events for an elderly person, write a brief 1-2 sentence health summary for a caregiver dashboard. Be concise, warm, and focus on key health indicators.
+    return '''TASK: Write a 1-2 sentence health status report for a caregiver dashboard.
+STRICT RULES:
+- Start the response directly with the patient's health condition (e.g. "The patient..." or "[Name] is...")
+- Do NOT begin with greetings like "Good morning", "Hello", "Hi", or any salutation
+- Use only the data listed below — do not invent or assume details
+- Be factual, concise, and professional
 
-Recent events:
+PATIENT DATA:
 • $eventsList
 
-Summary:''';
+HEALTH STATUS REPORT (start with patient condition, no greeting):''';
   }
 
   /// Send a chat message as an elderly companion.
@@ -135,7 +141,7 @@ Summary:''';
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
+
         // CRITICAL: Validate response structure before accessing
         final candidates = data['candidates'] as List?;
         if (candidates == null || candidates.isEmpty) {
@@ -152,10 +158,12 @@ Summary:''';
         final text = parts[0]['text']?.toString() ?? '';
         return text.trim();
       } else {
-        logger.error('Gemini API error response: ${response.body}', null);
+        final body = response.body;
+        logger.error('Gemini API error response: $body', null);
+        // Pass full body so retry logic can detect daily quota vs per-minute rate limit
         throw _ApiException(
           statusCode: response.statusCode,
-          message: 'Gemini API error: ${response.statusCode}',
+          message: body,
         );
       }
     }, maxRetries: 4);
@@ -181,13 +189,13 @@ Summary:''';
       } on _ApiException catch (e) {
         final errorMsg = e.message.toLowerCase();
         
-        // Check for "limit: 0" error (model deprecated for free tier)
-        if (errorMsg.contains('limit: 0') || errorMsg.contains('quota exceeded')) {
-          logger.error('Model quota permanently disabled for free tier. Link a Billing Account in Google AI Studio to resolve.');
-          throw Exception(
-            'Model version deprecated for free tier (limit: 0). '
-            'Solution: Link a Billing Account in Google AI Studio (no charges required).'
-          );
+        // Check for daily quota exhaustion (per-day limit, not per-minute rate limit)
+        final isDailyQuota = errorMsg.contains('per_day') ||
+            errorMsg.contains('generateRequestsPerDayPerProjectPerModel'.toLowerCase()) ||
+            errorMsg.contains('limit: 0');
+        if (isDailyQuota) {
+          logger.error('Daily Gemini quota exhausted. Will not retry — try again tomorrow.');
+          throw Exception('AI summary unavailable — daily quota reached. Try again tomorrow.');
         }
         
         // Retry on 429 (rate limit) and 503 (service unavailable)
@@ -214,12 +222,12 @@ Summary:''';
     throw Exception('Unknown error in retry logic');
   }
 
-  /// Generate a detailed weekly health narrative for a caregiver report.
-  /// Accepts pre-formatted event strings containing stats and trends.
+  /// Generate a daily health summary for a caregiver report.
+  /// Accepts pre-formatted strings from today's check-in data.
   /// Protected by exponential backoff retry logic and response validation.
-  /// 
+  ///
   /// NOTE: [patientName] should be a nickname or ID, NOT the real full name (privacy).
-  Future<String> generateWeeklyNarrative({
+  Future<String> generateDailySummary({
     required String patientName,
     required List<String> events,
   }) async {
@@ -229,12 +237,17 @@ Summary:''';
 
     final eventsList = events.join('\n• ');
     final prompt =
-        'You are a caring health assistant. Write a 2-3 sentence weekly summary for a caregiver '
-        'about their elderly patient. Be warm and professional. Highlight key trends and any concerns. '
-        'Use the actual numbers provided — do not invent data.\n\n'
-        'Patient weekly data:\n• $eventsList\n\nWeekly summary:';
+        'TASK: Write a 2-3 sentence daily health report for a caregiver about their elderly patient.\n'
+        'STRICT RULES:\n'
+        '- Start directly with the patient\'s health condition (e.g. "The patient..." or "$patientName is...")\n'
+        '- Do NOT begin with greetings, salutations, or "Good morning/afternoon/evening"\n'
+        '- Mention mood, pain level, and medication adherence from the data provided\n'
+        '- Flag any SOS alerts if present\n'
+        '- Use only the data below — do not invent or assume anything\n\n'
+        'PATIENT DATA FOR TODAY:\n• $eventsList\n\n'
+        'DAILY HEALTH REPORT (begin with patient status, no greeting):';
 
-    return _makeApiRequest({
+    final result = await _makeApiRequest({
       'contents': [
         {
           'parts': [{'text': prompt}]
@@ -242,10 +255,29 @@ Summary:''';
       ],
       'generationConfig': {
         'temperature': 0.65,
-        'maxOutputTokens': 200,
+        'maxOutputTokens': 150,
         'topP': 0.9,
       },
     });
+    return _validateSummary(result);
+  }
+
+  /// Rejects greeting-only or too-short Gemini responses.
+  String _validateSummary(String text) {
+    final trimmed = text.trim();
+    final lower = trimmed.toLowerCase();
+    final startsWithGreeting = lower.startsWith('good morning') ||
+        lower.startsWith('good afternoon') ||
+        lower.startsWith('good evening') ||
+        lower.startsWith('hello') ||
+        lower.startsWith('hi ') ||
+        lower.startsWith('hi,') ||
+        lower.startsWith('hi!');
+    if (startsWithGreeting || trimmed.length < 40) {
+      logger.warning('Gemini returned invalid summary (greeting or too short): "$trimmed"');
+      throw Exception('Gemini returned an unusable response');
+    }
+    return trimmed;
   }
 
   /// Generate medication reminder text.

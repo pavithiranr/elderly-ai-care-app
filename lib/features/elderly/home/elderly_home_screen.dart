@@ -7,7 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
-import '../sos-experiment/shake_sos_mixin.dart';
+import '../../sos-experiment/shake_sos_mixin.dart';
 
 /// Elderly Home Screen.
 /// Design rules: ≥22px font, ≥64px buttons, high contrast, MD3.

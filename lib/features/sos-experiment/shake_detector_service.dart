@@ -1,6 +1,7 @@
 // lib/services/shake_detector_service.dart
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 /// Detects vigorous shake gestures using the user accelerometer.

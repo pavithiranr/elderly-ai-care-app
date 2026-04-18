@@ -8,6 +8,8 @@ import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
 import '../../sos-experiment/shake_sos_mixin.dart';
+import '../../deadman-switch/inactivity_sos_mixin.dart';
+import '../../deadman-switch/safety_status_indicator.dart';
 
 /// Elderly Home Screen.
 /// Design rules: ≥22px font, ≥64px buttons, high contrast, MD3.
@@ -18,7 +20,8 @@ class ElderlyHomeScreen extends StatefulWidget {
   State<ElderlyHomeScreen> createState() => _ElderlyHomeScreenState();
 }
 
-class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with ShakeSosMixin {
+class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
+    with ShakeSosMixin, InactivitySosMixin {
   String get _greeting {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good Morning';
@@ -32,11 +35,19 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with ShakeSosMixi
   void initState() {
     super.initState();
     initShakeSos(context);
+
+    // Start inactivity monitor
+    UserSessionService.instance.getSavedUserId().then((userId) {
+      if (userId != null && mounted) {
+        initInactivityMonitor(userId: userId);
+      }
+    });
   }
 
   @override
   void dispose() {
     disposeShakeSos();
+    disposeInactivityMonitor();
     super.dispose();
   }
 
@@ -99,8 +110,26 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with ShakeSosMixi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
+      appBar: AppBar(
+        title: const Text('Home'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: SafetyStatusIndicator(
+                isActive: inactivityMonitorActive,
+                isWithinActiveHours: isWithinActiveHours,
+                timeSinceLastActivity: timeSinceLastActivity,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: GestureDetector(
+        onTap: inactivityResetTimer,
+        behavior: HitTestBehavior.translucent,
+        child: SafeArea(
+          child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,6 +217,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen> with ShakeSosMixi
           ),
         ),
       ),
+    ),
     );
   }
 }

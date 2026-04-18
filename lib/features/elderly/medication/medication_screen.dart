@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/models/medication_model.dart';
+import '../../../shared/services/notification_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
 
@@ -17,7 +19,7 @@ class MedicationScreen extends StatefulWidget {
 
 class _MedicationScreenState extends State<MedicationScreen> {
   String? _patientId;
-  List<Map<String, dynamic>> _meds = [];
+  List<Medication> _meds = [];
   Map<String, bool> _takenToday = {};
   bool _loading = true;
 
@@ -46,17 +48,16 @@ class _MedicationScreenState extends State<MedicationScreen> {
           .get();
 
       final meds = medsSnap.docs
-          .map((d) => {'id': d.id, ...d.data()})
+          .map((d) => Medication.fromFirestore(d.id, d.data()))
           .toList();
 
       final takenToday = <String, bool>{};
       for (final med in meds) {
-        final medId = med['id'] as String;
         final logSnap = await firestore
             .collection('elderly')
             .doc(id)
             .collection('medications')
-            .doc(medId)
+            .doc(med.id)
             .collection('logs')
             .where('timestamp',
                 isGreaterThanOrEqualTo: Timestamp.fromDate(
@@ -66,7 +67,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
                     DateTime(today.year, today.month, today.day + 1)))
             .limit(1)
             .get();
-        takenToday[medId] = logSnap.docs.isNotEmpty;
+        takenToday[med.id] = logSnap.docs.isNotEmpty;
       }
 
       if (mounted) {
@@ -148,9 +149,12 @@ class _MedicationScreenState extends State<MedicationScreen> {
     if (confirm != true) return;
 
     try {
+      // Cancel scheduled notifications
+      await NotificationService.instance.cancelMedicationNotifications(medId);
+      
       await PatientService.instance.deleteMedication(id, medId);
       setState(() {
-        _meds.removeWhere((m) => m['id'] == medId);
+        _meds.removeWhere((m) => m.id == medId);
         _takenToday.remove(medId);
       });
     } catch (_) {
@@ -166,12 +170,13 @@ class _MedicationScreenState extends State<MedicationScreen> {
     showDialog(
       context: context,
       builder: (ctx) => _AddMedicationDialog(
-        onAdd: (name, dosage, time, note) async {
+        onAdd: (name, dosage, times, frequency, note) async {
           Navigator.pop(ctx);
           await _addMed(
             name: name,
             dosage: dosage,
-            time: time,
+            times: times,
+            frequency: frequency,
             note: note,
           );
         },
@@ -182,7 +187,8 @@ class _MedicationScreenState extends State<MedicationScreen> {
   Future<void> _addMed({
     required String name,
     required String dosage,
-    required String time,
+    required List<String> times,
+    required String frequency,
     required String note,
   }) async {
     final id = _patientId;
@@ -193,9 +199,20 @@ class _MedicationScreenState extends State<MedicationScreen> {
         id,
         name: name,
         dosage: dosage,
-        time: time,
+        times: times,
+        frequency: frequency,
         note: note,
       );
+
+      // Schedule notifications
+      await NotificationService.instance.scheduleMedicationNotifications(
+        medicationId: '${DateTime.now().millisecondsSinceEpoch}',
+        medicationName: name,
+        dosage: dosage,
+        times: times,
+        frequency: frequency,
+      );
+
       // Reload to get the new doc ID from Firestore
       await _load();
     } catch (_) {
@@ -293,17 +310,14 @@ class _MedicationScreenState extends State<MedicationScreen> {
                     const SizedBox(height: 14),
 
                     ..._meds.map((med) {
-                      final medId = med['id'] as String;
-                      final taken = _takenToday[medId] ?? false;
+                      final taken = _takenToday[med.id] ?? false;
                       final label = [
-                        if ((med['dosage'] as String? ?? '').isNotEmpty)
-                          med['dosage'] as String,
-                        if ((med['note'] as String? ?? '').isNotEmpty)
-                          med['note'] as String,
+                        if (med.dosage.isNotEmpty) med.dosage,
+                        if (med.note.isNotEmpty) med.note,
                       ].join('  ·  ');
 
                       return Dismissible(
-                        key: ValueKey(medId),
+                        key: ValueKey(med.id),
                         direction: DismissDirection.endToStart,
                         background: Container(
                           alignment: Alignment.centerRight,
@@ -317,15 +331,16 @@ class _MedicationScreenState extends State<MedicationScreen> {
                               color: Colors.white, size: 28),
                         ),
                         confirmDismiss: (_) async {
-                          await _deleteMed(medId);
-                          return false; // We handle removal in _deleteMed
+                          await _deleteMed(med.id);
+                          return false;
                         },
                         child: _MedicationCard(
-                          name: med['name'] as String? ?? 'Unknown',
-                          time: med['time'] as String? ?? '',
+                          name: med.name,
+                          times: med.times,
+                          frequency: med.frequency,
                           label: label,
                           taken: taken,
-                          onChanged: (v) => _toggleMed(medId, v ?? false),
+                          onChanged: (v) => _toggleMed(med.id, v ?? false),
                         ),
                       );
                     }),
@@ -349,14 +364,16 @@ class _MedicationScreenState extends State<MedicationScreen> {
 
 class _MedicationCard extends StatelessWidget {
   final String name;
-  final String time;
+  final List<String> times;
+  final String frequency;
   final String label;
   final bool taken;
   final ValueChanged<bool?> onChanged;
 
   const _MedicationCard({
     required this.name,
-    required this.time,
+    required this.times,
+    required this.frequency,
     required this.label,
     required this.taken,
     required this.onChanged,
@@ -366,7 +383,8 @@ class _MedicationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final surfaceColor = Theme.of(context).colorScheme.surface;
     final dividerColor = Theme.of(context).dividerColor;
-    final subtitle = [if (time.isNotEmpty) time, if (label.isNotEmpty) label]
+    final timesStr = times.join(', ');
+    final subtitle = [if (timesStr.isNotEmpty) timesStr, if (label.isNotEmpty) label]
         .join('  ·  ');
 
     return Container(
@@ -405,7 +423,7 @@ class _MedicationCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
-                      subtitle,
+                      '$subtitle  ·  $frequency',
                       style: GoogleFonts.inter(
                           fontSize: 14, color: AppTheme.textMid),
                     ),
@@ -429,7 +447,7 @@ class _MedicationCard extends StatelessWidget {
 // ── Add Medication Dialog (with Time Picker & Accessible Design) ─────────────
 
 class _AddMedicationDialog extends StatefulWidget {
-  final Function(String name, String dosage, String time, String note) onAdd;
+  final Function(String name, String dosage, List<String> times, String frequency, String note) onAdd;
 
   const _AddMedicationDialog({required this.onAdd});
 
@@ -443,8 +461,9 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   final _noteCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  TimeOfDay? _selectedTime;
+  final List<String> _selectedTimes = []; // List of times like "08:00", "20:00"
   String? _selectedUnit = 'mg';
+  String _selectedFrequency = 'Daily';
 
   @override
   void dispose() {
@@ -454,28 +473,57 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     super.dispose();
   }
 
-  /// Format TimeOfDay to readable 12-hour format
-  String _formatTime(TimeOfDay time) {
+  /// Format TimeOfDay to 24-hour format "HH:MM"
+  String _formatTimeForStorage(TimeOfDay time) {
+    final hour = time.hour.toString().padLeft(2, '0');
     final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.hour >= 12 ? 'PM' : 'AM';
-    final displayHour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
-    return '${displayHour.toString().padLeft(2, '0')}:$minute $period';
+    return '$hour:$minute';
+  }
+
+  /// Format TimeOfDay to readable 12-hour format
+  String _formatTimeForDisplay(String timeStr) {
+    try {
+      final parts = timeStr.split(':');
+      if (parts.length != 2) return timeStr;
+      
+      final hour = int.parse(parts[0]);
+      final minute = parts[1];
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '${displayHour.toString().padLeft(2, '0')}:$minute $period';
+    } catch (_) {
+      return timeStr;
+    }
   }
 
   /// Open native time picker
   Future<void> _openTimePicker() async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
+      initialTime: TimeOfDay.now(),
     );
     if (picked != null) {
-      setState(() => _selectedTime = picked);
+      final timeStr = _formatTimeForStorage(picked);
+      if (!_selectedTimes.contains(timeStr)) {
+        setState(() => _selectedTimes.add(timeStr));
+        // Sort times
+        _selectedTimes.sort();
+      }
     }
+  }
+
+  /// Remove a time from selection
+  void _removeTime(String time) {
+    setState(() => _selectedTimes.remove(time));
   }
 
   /// Quick select time chip
   void _setQuickTime(int hour) {
-    setState(() => _selectedTime = TimeOfDay(hour: hour, minute: 0));
+    final timeStr = '${hour.toString().padLeft(2, '0')}:00';
+    if (!_selectedTimes.contains(timeStr)) {
+      setState(() => _selectedTimes.add(timeStr));
+      _selectedTimes.sort();
+    }
   }
 
   /// Format dosage with unit
@@ -487,9 +535,9 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedTime == null) {
+    if (_selectedTimes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a time')),
+        const SnackBar(content: Text('Please select at least one time')),
       );
       return;
     }
@@ -497,7 +545,8 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     widget.onAdd(
       _nameCtrl.text.trim(),
       _formatDosage(),
-      _formatTime(_selectedTime!),
+      _selectedTimes,
+      _selectedFrequency,
       _noteCtrl.text.trim(),
     );
   }
@@ -516,7 +565,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Medication Name (with autocomplete hint) ────────────────
+              // ── Medication Name ────────────────────────────────────
               _DialogField(
                 controller: _nameCtrl,
                 label: 'Medication Name',
@@ -526,9 +575,9 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
               ),
               const SizedBox(height: 16),
 
-              // ── Time Picker Section ────────────────────────────────────
+              // ── Multiple Times Section ────────────────────────────
               Text(
-                'Time',
+                'Times to Take',
                 style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -538,18 +587,23 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 spacing: 8,
                 children: [
                   _QuickTimeChip(
-                    label: 'Morning',
-                    isSelected: _selectedTime?.hour == 8,
+                    label: 'Morning (8 AM)',
+                    isSelected: _selectedTimes.contains('08:00'),
                     onTap: () => _setQuickTime(8),
                   ),
                   _QuickTimeChip(
-                    label: 'Afternoon',
-                    isSelected: _selectedTime?.hour == 14,
+                    label: 'Noon (12 PM)',
+                    isSelected: _selectedTimes.contains('12:00'),
+                    onTap: () => _setQuickTime(12),
+                  ),
+                  _QuickTimeChip(
+                    label: 'Afternoon (2 PM)',
+                    isSelected: _selectedTimes.contains('14:00'),
                     onTap: () => _setQuickTime(14),
                   ),
                   _QuickTimeChip(
-                    label: 'Evening',
-                    isSelected: _selectedTime?.hour == 20,
+                    label: 'Evening (8 PM)',
+                    isSelected: _selectedTimes.contains('20:00'),
                     onTap: () => _setQuickTime(20),
                   ),
                 ],
@@ -561,18 +615,36 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 onPressed: _openTimePicker,
                 icon: const Icon(Icons.schedule_rounded),
                 label: Text(
-                  _selectedTime == null 
-                    ? 'Select Exact Time' 
-                    : 'Time: ${_formatTime(_selectedTime!)}',
+                  'Select Custom Time',
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                 ),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 48),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-              // ── Dosage (Number) ──────────────────────────────────────
+              // Display selected times as removable chips
+              if (_selectedTimes.isNotEmpty) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _selectedTimes.map((time) {
+                    return Chip(
+                      label: Text(
+                        _formatTimeForDisplay(time),
+                        style: GoogleFonts.inter(fontSize: 12),
+                      ),
+                      onDeleted: () => _removeTime(time),
+                      backgroundColor: AppTheme.primaryLight,
+                      deleteIconColor: AppTheme.primaryBlue,
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // ── Dosage ────────────────────────────────────────────
               TextFormField(
                 controller: _dosageCtrl,
                 keyboardType: TextInputType.number,
@@ -593,7 +665,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
               ),
               const SizedBox(height: 12),
 
-              // ── Unit (Full width, better for elderly) ─────────────────
+              // ── Unit ───────────────────────────────────────────────
               DropdownButtonFormField<String>(
                 initialValue: _selectedUnit,
                 isDense: true,
@@ -608,7 +680,6 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 },
                 decoration: InputDecoration(
                   labelText: 'Unit',
-                  hintText: 'Select a unit',
                   border:
                       OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   contentPadding:
@@ -617,24 +688,35 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
               ),
               const SizedBox(height: 16),
 
-              // ── Note (with voice input placeholder) ──────────────────
+              // ── Frequency ─────────────────────────────────────────
+              DropdownButtonFormField<String>(
+                initialValue: _selectedFrequency,
+                isDense: true,
+                items: ['Daily', 'Every Other Day', 'Weekly'].map((freq) {
+                  return DropdownMenuItem(
+                    value: freq,
+                    child: Text(freq, style: GoogleFonts.inter(fontSize: 14)),
+                  );
+                }).toList(),
+                onChanged: (freq) {
+                  setState(() => _selectedFrequency = freq ?? 'Daily');
+                },
+                decoration: InputDecoration(
+                  labelText: 'Frequency',
+                  border:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ── Note ───────────────────────────────────────────────
               TextFormField(
                 controller: _noteCtrl,
                 decoration: InputDecoration(
                   labelText: 'Note (optional)',
                   hintText: 'e.g. Take with food',
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.mic_rounded),
-                    tooltip: 'Voice input (coming soon)',
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Voice input coming soon!'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                  ),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -693,7 +775,7 @@ class _QuickTimeChip extends StatelessWidget {
       label: Text(
         label,
         style: GoogleFonts.inter(
-          fontSize: 14,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
           color: isSelected 
             ? Colors.white 
@@ -709,7 +791,7 @@ class _QuickTimeChip extends StatelessWidget {
           ? Theme.of(context).colorScheme.primary 
           : Theme.of(context).dividerColor,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     );
   }
 }

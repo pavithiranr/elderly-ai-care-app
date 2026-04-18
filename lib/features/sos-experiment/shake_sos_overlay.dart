@@ -85,10 +85,8 @@ class _ShakeSosOverlayState extends State<ShakeSosOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return WillPopScope(
-      onWillPop: () async => false, // Block back button during emergency
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         backgroundColor: const Color(0xFFCC0000),
         body: SafeArea(
@@ -134,7 +132,7 @@ class _ShakeSosOverlayState extends State<ShakeSosOverlay>
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Colors.white
-                              .withOpacity(1.0 - _ringAnimation.value * 0.7),
+                                .withValues(alpha: 1.0 - _ringAnimation.value * 0.7),
                           width: 3,
                         ),
                       ),
@@ -185,7 +183,7 @@ class _ShakeSosOverlayState extends State<ShakeSosOverlay>
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Column(

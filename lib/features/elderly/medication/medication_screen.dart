@@ -572,52 +572,48 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
               ),
               const SizedBox(height: 16),
 
-              // ── Dosage (Number + Unit) ────────────────────────────────
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      controller: _dosageCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'[\d.]'),
-                        ),
-                      ],
-                      decoration: InputDecoration(
-                        labelText: 'Dosage',
-                        hintText: 'e.g. 500',
-                        border:
-                            OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                      style: GoogleFonts.inter(fontSize: 16),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _selectedUnit,
-                      items: ['mg', 'mcg', 'ml', 'tablets'].map((unit) {
-                        return DropdownMenuItem(
-                          value: unit,
-                          child: Text(unit, style: GoogleFonts.inter(fontSize: 16)),
-                        );
-                      }).toList(),
-                      onChanged: (unit) {
-                        setState(() => _selectedUnit = unit);
-                      },
-                      decoration: InputDecoration(
-                        border:
-                            OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                      ),
-                    ),
+              // ── Dosage (Number) ──────────────────────────────────────
+              TextFormField(
+                controller: _dosageCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(
+                    RegExp(r'[\d.]'),
                   ),
                 ],
+                decoration: InputDecoration(
+                  labelText: 'Dosage',
+                  hintText: 'e.g. 500',
+                  border:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+                style: GoogleFonts.inter(fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+
+              // ── Unit (Full width, better for elderly) ─────────────────
+              DropdownButtonFormField<String>(
+                initialValue: _selectedUnit,
+                isDense: true,
+                items: ['mg', 'mcg', 'ml', 'tablets'].map((unit) {
+                  return DropdownMenuItem(
+                    value: unit,
+                    child: Text(unit, style: GoogleFonts.inter(fontSize: 14)),
+                  );
+                }).toList(),
+                onChanged: (unit) {
+                  setState(() => _selectedUnit = unit);
+                },
+                decoration: InputDecoration(
+                  labelText: 'Unit',
+                  hintText: 'Select a unit',
+                  border:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
               ),
               const SizedBox(height: 16),
 

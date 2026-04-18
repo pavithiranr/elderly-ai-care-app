@@ -25,7 +25,7 @@ class GeminiService {
 
   final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
   static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
   /// Generate a concise health summary for a caregiver dashboard.
   /// 
@@ -53,20 +53,21 @@ class GeminiService {
     return _validateSummary(result);
   }
 
-  /// Build a focused prompt for health summaries.
+  /// Build a focused prompt for elderly-facing health summaries.
   String _buildHealthSummaryPrompt(List<String> events) {
     final eventsList = events.join('\n• ');
-    return '''TASK: Write a 1-2 sentence health status report for a caregiver dashboard.
+    return '''TASK: Write a warm 1-2 sentence health update addressed directly to the elderly person themselves.
 STRICT RULES:
-- Start the response directly with the patient's health condition (e.g. "The patient..." or "[Name] is...")
+- Write in second person (e.g. "You're feeling..." or "Your pain level...")
 - Do NOT begin with greetings like "Good morning", "Hello", "Hi", or any salutation
+- Be warm, encouraging, and supportive in tone
 - Use only the data listed below — do not invent or assume details
-- Be factual, concise, and professional
+- End with a brief positive note or gentle reminder if relevant
 
 PATIENT DATA:
 • $eventsList
 
-HEALTH STATUS REPORT (start with patient condition, no greeting):''';
+PERSONAL HEALTH UPDATE (start directly with "You", no greeting):''';
   }
 
   /// Send a chat message as an elderly companion.
@@ -272,12 +273,80 @@ HEALTH STATUS REPORT (start with patient condition, no greeting):''';
         lower.startsWith('hello') ||
         lower.startsWith('hi ') ||
         lower.startsWith('hi,') ||
-        lower.startsWith('hi!');
-    if (startsWithGreeting || trimmed.length < 40) {
+        lower.startsWith('hi!') ||
+        lower.startsWith('great news') ||
+        lower.startsWith('i hope');
+    if (startsWithGreeting || trimmed.length < 30) {
       logger.warning('Gemini returned invalid summary (greeting or too short): "$trimmed"');
       throw Exception('Gemini returned an unusable response');
     }
     return trimmed;
+  }
+
+  /// Agentic 3-step care analysis — single API call, structured output.
+  ///
+  /// Asks Gemini to reason through all three steps in one response:
+  ///   Step 1 — Signal Extractor  : parse raw events → structured health signals
+  ///   Step 2 — Risk Assessor     : reason over signals → risk level + flags
+  ///   Step 3 — Care Planner      : synthesise risk → actionable caregiver plan
+  ///
+  /// Output is delimited by [SIGNALS], [RISK], [PLAN] tags and parsed into
+  /// [AgenticCareResult] so the UI can display the full reasoning chain.
+  Future<AgenticCareResult> generateAgenticCareAnalysis(List<String> events) async {
+    if (_apiKey.isEmpty) {
+      throw Exception('GEMINI_API_KEY not configured in .env');
+    }
+
+    final eventsList = events.join('\n• ');
+
+    logger.debug('Agentic analysis: single-call 3-step reasoning');
+    final raw = await _makeApiRequest({
+      'contents': [
+        {
+          'parts': [
+            {
+              'text': 'You are a clinical AI assistant. Analyse the patient data below using '
+                  'a 3-step reasoning chain. Output each step under its exact label.\n\n'
+                  'PATIENT DATA:\n• $eventsList\n\n'
+                  'STRICT OUTPUT FORMAT (use these exact labels, plain text only, no markdown):\n\n'
+                  '[SIGNALS]\n'
+                  'Mood: <value>\n'
+                  'Pain: <value>/10\n'
+                  'Medications taken: <X of Y>\n'
+                  'SOS alerts: <count>\n'
+                  'Key concern: <one sentence>\n\n'
+                  '[RISK]\n'
+                  'Risk Level: <LOW | MEDIUM | HIGH>\n'
+                  'Flags: <comma-separated concerns or "None">\n'
+                  'Reasoning: <one sentence>\n\n'
+                  '[PLAN]\n'
+                  '<2 sentences starting with an action verb e.g. "Monitor...", "Encourage...", "Contact...">\n\n'
+                  'RULES: Use only data provided. No greetings. No markdown. Follow the format exactly.',
+            }
+          ]
+        }
+      ],
+      'generationConfig': {'temperature': 0.3, 'maxOutputTokens': 350},
+    });
+
+    logger.debug('Agentic pipeline complete — parsing sections');
+    return _parseAgenticResult(raw);
+  }
+
+  /// Parses the [SIGNALS], [RISK], [PLAN] sections from a single Gemini response.
+  AgenticCareResult _parseAgenticResult(String raw) {
+    String extract(String tag, String next) {
+      final start = raw.indexOf('[$tag]');
+      final end = next.isNotEmpty ? raw.indexOf('[$next]') : raw.length;
+      if (start == -1) return '';
+      return raw.substring(start + tag.length + 2, end == -1 ? raw.length : end).trim();
+    }
+
+    return AgenticCareResult(
+      signals: extract('SIGNALS', 'RISK'),
+      riskAssessment: extract('RISK', 'PLAN'),
+      carePlan: extract('PLAN', ''),
+    );
   }
 
   /// Generate medication reminder text.
@@ -302,6 +371,19 @@ HEALTH STATUS REPORT (start with patient condition, no greeting):''';
       },
     });
   }
+}
+
+/// Result of the 3-step agentic care analysis pipeline.
+class AgenticCareResult {
+  final String signals;
+  final String riskAssessment;
+  final String carePlan;
+
+  AgenticCareResult({
+    required this.signals,
+    required this.riskAssessment,
+    required this.carePlan,
+  });
 }
 
 /// Custom exception for API errors to distinguish from other exceptions.

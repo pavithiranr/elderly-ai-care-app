@@ -241,6 +241,19 @@ class PatientService {
     }
   }
 
+  /// Stream of today's SOS alert count — updates in real-time.
+  Stream<int> getTodaySosCount$Stream(String patientId) {
+    final today = DateTime.now();
+    final startOfDay = DateTime(today.year, today.month, today.day);
+    return _firestore
+        .collection('elderly')
+        .doc(patientId)
+        .collection('sos_alerts')
+        .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .snapshots()
+        .map((snap) => snap.docs.length);
+  }
+
   /// Stream of today's health data — listens to the `daily_checkins` collection
   /// so the caregiver banner updates in real-time when the elderly checks in.
   Stream<PatientHealthData?> getTodayHealthData$Stream(String patientId) {

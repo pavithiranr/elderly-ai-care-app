@@ -119,7 +119,6 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            // Binding code option
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -127,25 +126,8 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
                   context.pop();
                   context.push('/caregiver/link-elderly');
                 },
-                icon: const Icon(Icons.qr_code_2_rounded),
-                label: const Text('Enter Binding Code'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryBlue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Link by Unique ID option
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  context.pop();
-                  context.push(AppConstants.routeLinkByUniqueId);
-                },
-                icon: const Icon(Icons.fingerprint_rounded),
-                label: const Text('Link by Binding ID'),
+                icon: const Icon(Icons.badge_rounded),
+                label: const Text('Link by IC Number'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryBlue,
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -233,7 +215,7 @@ class _LinkedElderlyScreenState extends State<LinkedElderlyScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Ask the elderly for their binding code\nto get started.',
+                    'Ask the elderly for their IC number\nto get started.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 14,

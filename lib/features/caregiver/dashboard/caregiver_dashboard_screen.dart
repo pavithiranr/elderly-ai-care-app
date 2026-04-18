@@ -8,9 +8,11 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../shared/services/caregiver_service.dart';
+import '../../../shared/services/firebase_alerts_service.dart';
 import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/notification_service.dart';
 import '../../../shared/services/patient_service.dart';
+import '../../../shared/services/user_session_service.dart';
 
 /// Caregiver Dashboard — MD3 card-based layout, ≥16px fonts.
 class CaregiverDashboardScreen extends StatefulWidget {
@@ -25,6 +27,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   late PageController _patientPageController;
   int _currentPatientIndex = 0;
   late Future<CaregiverProfile?> _caregiverProfileFuture;
+  String? _caregiverId;
 
   // SOS listener — fires a local notification when a new alert arrives
   final List<StreamSubscription<QuerySnapshot>> _sosSubs = [];
@@ -35,6 +38,12 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     _patientPageController = PageController(viewportFraction: 0.95);
     _caregiverProfileFuture = CaregiverService.instance.getCurrentCaregiverProfile();
     _startSosListeners();
+    _loadCaregiverId();
+  }
+
+  Future<void> _loadCaregiverId() async {
+    final id = await UserSessionService.instance.getSavedUserId();
+    if (mounted) setState(() => _caregiverId = id);
   }
 
   Future<void> _startSosListeners() async {
@@ -246,19 +255,42 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             icon: Icons.bar_chart_rounded,
             iconColor: Theme.of(context).colorScheme.primary,
             iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-            label: 'Weekly Health Report',
+            label: 'Health Report',
             sublabel: 'AI-generated summary & charts',
             onTap: () => context.push(AppConstants.routeCaregiverReports),
           ),
           const SizedBox(height: 10),
-          _QuickLink(
-            icon: Icons.notifications_active_rounded,
-            iconColor: const Color(0xFFEA580C),
-            iconBg: const Color(0xFFEA580C),
-            label: 'All Alerts',
-            sublabel: '1 warning today',
-            onTap: () => context.push(AppConstants.routeCaregiverAlerts),
-          ),
+          if (_caregiverId != null)
+            StreamBuilder<List<AlertGroup>>(
+              stream: FirebaseAlertsService.instance.getAlertsStream(_caregiverId!),
+              builder: (context, snap) {
+                final unread = snap.data
+                        ?.expand((g) => g.alerts)
+                        .where((a) => a.isUnread)
+                        .length ??
+                    0;
+                final sublabel = unread == 0
+                    ? 'No new alerts'
+                    : '$unread unread alert${unread > 1 ? 's' : ''}';
+                return _QuickLink(
+                  icon: Icons.notifications_active_rounded,
+                  iconColor: const Color(0xFFEA580C),
+                  iconBg: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                  label: 'All Alerts',
+                  sublabel: sublabel,
+                  onTap: () => context.push(AppConstants.routeCaregiverAlerts),
+                );
+              },
+            )
+          else
+            _QuickLink(
+              icon: Icons.notifications_active_rounded,
+              iconColor: const Color(0xFFEA580C),
+              iconBg: const Color(0xFFEA580C).withValues(alpha: 0.15),
+              label: 'All Alerts',
+              sublabel: 'No new alerts',
+              onTap: () => context.push(AppConstants.routeCaregiverAlerts),
+            ),
           const SizedBox(height: 20),
 
           // ── Recent activity ────────────────────────────────────────────
@@ -381,7 +413,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           },
         ),
         const SizedBox(width: 8),
-        // Alerts/Notifications button
+        // Alerts/Notifications button with live unread badge
         Stack(
           children: [
             IconButton(
@@ -392,19 +424,30 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               ),
               onPressed: () => context.push(AppConstants.routeCaregiverAlerts),
             ),
-            // Unread badge
-            Positioned(
-              right: 10,
-              top: 10,
-              child: Container(
-                width: 9,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.error,
-                  shape: BoxShape.circle,
-                ),
+            if (_caregiverId != null)
+              StreamBuilder<List<AlertGroup>>(
+                stream: FirebaseAlertsService.instance.getAlertsStream(_caregiverId!),
+                builder: (context, snap) {
+                  final unread = snap.data
+                          ?.expand((g) => g.alerts)
+                          .where((a) => a.isUnread)
+                          .length ??
+                      0;
+                  if (unread == 0) return const SizedBox.shrink();
+                  return Positioned(
+                    right: 10,
+                    top: 10,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.error,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  );
+                },
               ),
-            ),
           ],
         ),
         const SizedBox(width: 8),
@@ -699,35 +742,71 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
   }
 
   Future<String> _fetchSummary() async {
+    final patientId = widget.patientId;
+    PatientProfile? patient;
+    PatientHealthData? health;
+    int sosCount = 0;
+
+    // Step 1: fetch data — separated so fallback can use it
     try {
-      final patientId = widget.patientId;
-      
-      final patient = await PatientService.instance.getPatientById(patientId);
-      if (!mounted || _lastPatientId != patientId) return ''; // Cancel stale request
-      if (patient == null) return 'No patient data available.';
+      final results = await Future.wait([
+        PatientService.instance.getPatientById(patientId),
+        PatientService.instance.getTodayHealthData(patientId),
+        PatientService.instance.getTodaySosCount(patientId),
+      ]);
+      if (!mounted || _lastPatientId != patientId) return '';
 
-      final health = await PatientService.instance.getTodayHealthData(patientId);
-      if (!mounted || _lastPatientId != patientId) return ''; // Cancel stale request
+      patient = results[0] as PatientProfile?;
+      health = results[1] as PatientHealthData?;
+      sosCount = results[2] as int;
+    } catch (_) {
+      if (!mounted) return '';
+      return 'Unable to load patient data right now.';
+    }
 
-      final events = <String>[
-        'Patient: ${patient.name}, Age: ${patient.age}',
-        if (health != null) ...[
-          'Mood today: ${health.mood}',
-          'Pain level: ${health.painLevel}/10',
-          'Medications taken: ${health.medicationsTaken} of ${health.medicationsTotal}',
-          if (health.sosAlerts > 0) 'SOS alerts today: ${health.sosAlerts}',
-        ] else
-          'No check-in recorded today',
-      ];
+    if (patient == null) return 'No patient found.';
 
-      final summary = await GeminiService.instance.generateHealthSummary(events);
-      if (!mounted || _lastPatientId != patientId) return ''; // Cancel stale request
-      
+    final events = <String>[
+      'Patient: ${patient.name}, Age: ${patient.age}',
+      if (health != null) ...[
+        'Mood today: ${health.mood}',
+        'Pain level: ${health.painLevel}/10',
+        'Medications taken: ${health.medicationsTaken} of ${health.medicationsTotal}',
+        if (sosCount > 0) 'SOS alerts today: $sosCount',
+      ] else
+        'No check-in recorded today',
+    ];
+
+    // Step 2: call Gemini — fall back to data-based summary on any failure
+    try {
+      final summary = await GeminiService.instance.generateDailySummary(
+        patientName: patient.name,
+        events: events,
+      );
+      if (!mounted || _lastPatientId != patientId) return '';
       return summary;
     } catch (_) {
-      if (!mounted) return ''; // Widget was disposed
-      return 'Unable to generate summary right now.';
+      if (!mounted) return '';
+      return _buildFallback(patient.name, health, sosCount);
     }
+  }
+
+  String _buildFallback(String name, PatientHealthData? health, int sosCount) {
+    if (health == null) {
+      return '$name has not completed today\'s check-in yet. Consider sending them a reminder.';
+    }
+    final pain = health.painLevel.toInt();
+    final painDesc = pain <= 3
+        ? 'low pain ($pain/10)'
+        : pain <= 6
+            ? 'moderate pain ($pain/10)'
+            : 'high pain ($pain/10)';
+    final meds = health.medicationsTotal > 0
+        ? ' ${health.medicationsTaken}/${health.medicationsTotal} medications taken.'
+        : '';
+    final sos =
+        sosCount > 0 ? ' $sosCount SOS alert${sosCount > 1 ? 's' : ''} today — please check in.' : '';
+    return '$name checked in today feeling ${health.mood} with $painDesc.$meds$sos';
   }
 
   @override

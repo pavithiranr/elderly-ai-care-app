@@ -18,12 +18,14 @@ class UserSessionService {
     required String email,
     required String password,
     required String name,
+    String? phoneNumber,
   }) async {
     try {
       final uid = await _authService.caregiverSignUp(
         email: email,
         password: password,
         name: name,
+        phoneNumber: phoneNumber,
       );
 
       // Save session locally
@@ -63,34 +65,33 @@ class UserSessionService {
 
   /// Set up a new elderly profile.
   /// Saves the elderly UID locally so the session persists.
-  /// Returns the binding code to display to the user.
-  Future<String> elderlySetup({
+  Future<void> elderlySetup({
     required String name,
     required String dateOfBirth,
     required String emergencyContact,
+    required String icNumber,
   }) async {
     try {
-      final result = await _authService.elderlySetup(
+      final elderlyUid = await _authService.elderlySetup(
         name: name,
         dateOfBirth: dateOfBirth,
         emergencyContact: emergencyContact,
+        icNumber: icNumber,
       );
 
-      // Save the elderly UID locally — this is what getElderlyProfileId() reads
-      await setElderlyProfileId(result.elderlyUid);
+      await setElderlyProfileId(elderlyUid);
       await saveRole(AppConstants.roleElderly);
       await setBool(AppConstants.prefOnboardingDone, true);
-
-      return result.bindingCode;
+      await _saveElderlyIC(icNumber);
     } catch (e) {
       rethrow;
     }
   }
 
-  /// Link elderly to caregiver using binding code
-  /// Called by caregiver after scanning/entering code
-  Future<void> linkElderlyToCaregiver({
-    required String bindingCode,
+  /// Link elderly to caregiver using the elderly's IC number.
+  /// Called by caregiver after the elderly shares their IC.
+  Future<void> linkElderlyByIC({
+    required String icNumber,
   }) async {
     try {
       final caregiverUid = _authService.getCurrentUserUid();
@@ -98,8 +99,8 @@ class UserSessionService {
         throw Exception('No caregiver logged in');
       }
 
-      await _authService.linkElderlyToCaregiver(
-        bindingCode: bindingCode,
+      await _authService.linkElderlyByIC(
+        icNumber: icNumber,
         caregiverUid: caregiverUid,
       );
     } catch (e) {
@@ -157,6 +158,16 @@ class UserSessionService {
   /// Get current user's UID
   String? getCurrentUserUid() {
     return _authService.getCurrentUserUid();
+  }
+
+  Future<void> _saveElderlyIC(String icNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('elderly_ic_number', icNumber);
+  }
+
+  Future<String?> getElderlyIC() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('elderly_ic_number');
   }
 
   /// Save elderly profile ID locally (for elderly users)

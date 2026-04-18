@@ -24,8 +24,7 @@ import 'package:go_router/go_router.dart';
 import 'shake_detector_service.dart';
 import 'shake_sos_overlay.dart';
 
-mixin ShakeSosMixin<T extends StatefulWidget> on State<T> {
-  // ignore: unused_field
+mixin ShakeSosMixin {
   late ShakeDetectorService _shakeService;
   bool _sosOverlayVisible = false;
 

@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../shared/models/user_model.dart';
@@ -21,10 +20,11 @@ class AuthService {
     required String email,
     required String password,
     required String name,
+    String? phoneNumber,
   }) async {
     try {
       logger.debug('Starting caregiver signup for email: $email');
-      
+
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -33,13 +33,13 @@ class AuthService {
       final uid = userCredential.user!.uid;
       logger.success('Firebase Auth user created: $uid');
 
-      // Store caregiver profile in Firestore
       logger.info('Writing caregiver profile to Firestore...');
       await _firestore.collection('caregivers').doc(uid).set({
         'uid': uid,
         'email': email,
         'name': name,
         'role': 'caregiver',
+        if (phoneNumber != null && phoneNumber.isNotEmpty) 'phoneNumber': phoneNumber,
         'linkedElderlyIds': [],
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -76,80 +76,73 @@ class AuthService {
   // ─── Elderly Setup (No Password) ────────────────────────────────────
 
   /// Create an elderly profile (first-time setup, no password required).
-  /// Returns a record of (bindingCode, elderlyUid) so the caller can
-  /// both display the code and persist the UID locally.
-  Future<({String bindingCode, String elderlyUid})> elderlySetup({
+  /// IC number is used as the permanent link key — caregivers enter it to connect.
+  Future<String> elderlySetup({
     required String name,
     required String dateOfBirth, // e.g., "1945-03-15"
     required String emergencyContact,
+    required String icNumber, // 12 digits, stored without dashes
   }) async {
     try {
       final elderlyUid = _firestore.collection('elderly').doc().id;
-      final bindingCode = _generateBindingCode();
-      final uniqueId = _generateUniqueId();
+
+      // Check for duplicate IC number
+      final existing = await _firestore
+          .collection('elderly')
+          .where('icNumber', isEqualTo: icNumber)
+          .limit(1)
+          .get();
+      if (existing.docs.isNotEmpty) {
+        throw Exception('A profile with this IC number already exists.');
+      }
 
       await _firestore.collection('elderly').doc(elderlyUid).set({
         'uid': elderlyUid,
         'name': name,
         'dateOfBirth': dateOfBirth,
         'emergencyContact': emergencyContact,
-        'uniqueId': uniqueId,
+        'icNumber': icNumber,
         'role': 'elderly',
-        'caregiverId': null, // unified field name
-        'bindingCode': bindingCode,
-        'bindingCodeExpiresAt': DateTime.now().add(const Duration(hours: 24)),
+        'caregiverId': null,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      return (bindingCode: bindingCode, elderlyUid: elderlyUid);
+      return elderlyUid;
     } catch (e) {
       throw Exception('Failed to setup elderly profile: $e');
     }
   }
 
-  /// Verify and use a binding code to link elderly to caregiver
-  /// Called by caregiver when entering binding code
-  Future<void> linkElderlyToCaregiver({
-    required String bindingCode,
+  /// Link an elderly profile to a caregiver using the elderly's IC number.
+  /// Called by the caregiver after the elderly shares their IC.
+  Future<void> linkElderlyByIC({
+    required String icNumber,
     required String caregiverUid,
   }) async {
     try {
-      // Find elderly by binding code
       final querySnapshot = await _firestore
           .collection('elderly')
-          .where('bindingCode', isEqualTo: bindingCode)
+          .where('icNumber', isEqualTo: icNumber)
           .limit(1)
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        throw Exception('Invalid binding code');
+        throw Exception('No profile found with that IC number.');
       }
 
       final elderlyDoc = querySnapshot.docs.first;
       final elderlyUid = elderlyDoc.id;
-      final bindingCodeExpiresAt =
-          (elderlyDoc['bindingCodeExpiresAt'] as Timestamp).toDate();
 
-      // Check if binding code is expired
-      if (DateTime.now().isAfter(bindingCodeExpiresAt)) {
-        throw Exception('Binding code has expired. Please generate a new one.');
+      if (elderlyDoc['caregiverId'] != null) {
+        throw Exception('This profile is already linked to a caregiver.');
       }
 
-      // Check if already linked
-      if (elderlyDoc['linkedCaregiver'] != null) {
-        throw Exception('This elderly is already linked to a caregiver.');
-      }
-
-      // Link elderly to caregiver (unified field: caregiverId)
       await _firestore.collection('elderly').doc(elderlyUid).update({
         'caregiverId': caregiverUid,
-        'bindingCode': FieldValue.delete(),
-        'bindingCodeExpiresAt': FieldValue.delete(),
       });
 
-      // Add elderly to caregiver's linked list
       await _firestore.collection('caregivers').doc(caregiverUid).update({
-        'linkedElderlyIds': FieldValue.arrayUnion([elderlyUid])
+        'linkedElderlyIds': FieldValue.arrayUnion([elderlyUid]),
       });
     } catch (e) {
       throw Exception('Failed to link elderly: $e');
@@ -246,6 +239,24 @@ class AuthService {
     }
   }
 
+  /// Find an elderly profile by IC number (used for re-login).
+  /// Returns the elderly UID if found, null otherwise.
+  Future<String?> findElderlyByIC(String icNumber) async {
+    try {
+      final snapshot = await _firestore
+          .collection('elderly')
+          .where('icNumber', isEqualTo: icNumber)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) return null;
+      return snapshot.docs.first.id;
+    } catch (e) {
+      logger.error('Error finding elderly by IC', e);
+      return null;
+    }
+  }
+
   /// Find an elderly profile by name + date of birth (used for re-login).
   /// Returns the elderly UID if found, null otherwise.
   Future<String?> findElderlyByNameAndDOB({
@@ -289,35 +300,7 @@ class AuthService {
 
   // ─── Helper Methods ────────────────────────────────────────────────
 
-  /// Generate a random 6-character binding code
-  String _generateBindingCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = DateTime.now().microsecond;
-    String code = '';
-
-    for (int i = 0; i < 6; i++) {
-      code += chars[(random + i) % chars.length];
-    }
-
-    return code;
-  }
-
-  /// Generate an 8-character unique ID for elderly binding
-  /// Uses alphanumeric characters, excluding confusing ones (O, I, 0, 1)
-  /// Example: "A7K3M2P9" or "B4Q8N1R6"
-  String _generateUniqueId() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluded O, I, 0, 1
-    final random = Random();
-    String id = '';
-
-    for (int i = 0; i < 8; i++) {
-      id += chars[random.nextInt(chars.length)];
-    }
-
-    return id;
-  }
-
-  /// Handle Firebase Auth exceptions and return user-friendly messages
+/// Handle Firebase Auth exceptions and return user-friendly messages
   String _handleAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'weak-password':

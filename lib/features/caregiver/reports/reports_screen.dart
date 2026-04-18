@@ -8,7 +8,7 @@ import '../../../shared/services/caregiver_service.dart';
 import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/patient_service.dart';
 
-/// Weekly AI-generated health trend report for caregivers.
+/// Daily AI-generated health summary + weekly trend report for caregivers.
 /// Uses fl_chart for mood and pain bar charts. MD3 layout, ≥16px fonts.
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -69,13 +69,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       final dateStr = 'Mar ${now.day - 6} – Apr ${now.day}, ${now.year}';
       
       final reportText = '''
-📋 Weekly Health Report
+📋 Daily Health Summary
 $patientName's Health Trends
 
 Period: $dateStr
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 Weekly Summary
+📊 Today's Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✓ Check-ins: ${stats['checkins']}
@@ -98,7 +98,7 @@ healthcare providers for medical advice.
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Weekly Report'),
+            title: const Text('Health Report'),
             content: SingleChildScrollView(
               child: Text(reportText, style: const TextStyle(fontFamily: 'monospace')),
             ),
@@ -144,7 +144,7 @@ healthcare providers for medical advice.
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Weekly Report',
+          'Health Report',
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -221,7 +221,7 @@ healthcare providers for medical advice.
           const SizedBox(height: 20),
 
           // ── Weekly stats ───────────────────────────────────────────────
-          _SectionHeader(title: 'Weekly Summary'),
+          _SectionHeader(title: 'Weekly Overview'),
           const SizedBox(height: 10),
           FutureBuilder<PatientProfile?>(
             future: _patientFuture,
@@ -256,7 +256,7 @@ healthcare providers for medical advice.
           const SizedBox(height: 20),
 
           // ── Mood trend chart ───────────────────────────────────────────
-          _SectionHeader(title: 'Mood This Week'),
+          _SectionHeader(title: '7-Day Mood Trend'),
           const SizedBox(height: 4),
           Text(
             'Daily mood score (1 = bad, 5 = great)',
@@ -298,7 +298,7 @@ healthcare providers for medical advice.
           const SizedBox(height: 20),
 
           // ── Pain trend chart ───────────────────────────────────────────
-          _SectionHeader(title: 'Pain Levels This Week'),
+          _SectionHeader(title: '7-Day Pain Trend'),
           const SizedBox(height: 4),
           Text(
             'Daily reported pain (0 = none, 10 = severe)',
@@ -412,7 +412,7 @@ class _AiNarrativeLoader extends StatefulWidget {
 class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
   String? _narrative;
   bool _isLoading = true;
-  String? _lastPatientId; // Track current patient to detect changes
+  String? _lastPatientId;
 
   @override
   void initState() {
@@ -426,63 +426,89 @@ class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
     super.didUpdateWidget(old);
     if (old.patientId != widget.patientId) {
       _lastPatientId = widget.patientId;
-      _narrative = null; // Clear old data
+      _narrative = null;
       _fetchNarrative();
     }
   }
 
   Future<void> _fetchNarrative() async {
     if (!mounted) return;
-    
     setState(() => _isLoading = true);
+
+    final patientId = widget.patientId;
+    final patientName = widget.patientName;
+
+    // Step 1: fetch health data — kept outside try so fallback can use it
+    PatientHealthData? health;
+    int sosCount = 0;
     try {
-      final patientId = widget.patientId;
-      final patientName = widget.patientName;
-      
-      final stats = await PatientService.instance.getWeeklyStats(patientId);
-      if (!mounted || _lastPatientId != patientId) return; // Cancel stale request
-      
-      final trends = await PatientService.instance.getWeeklyMoodPainTrends(patientId);
-      if (!mounted || _lastPatientId != patientId) return; // Cancel stale request
-      
-      final meds = await PatientService.instance.getWeeklyMedicationCompliance(patientId);
-      if (!mounted || _lastPatientId != patientId) return; // Cancel stale request
+      final results = await Future.wait([
+        PatientService.instance.getTodayHealthData(patientId),
+        PatientService.instance.getTodaySosCount(patientId),
+      ]);
+      if (!mounted || _lastPatientId != patientId) return;
+      health = results[0] as PatientHealthData?;
+      sosCount = results[1] as int;
+    } catch (_) {
+      if (mounted && _lastPatientId == patientId) {
+        setState(() {
+          _narrative = '$patientName\'s health data could not be loaded right now.';
+          _isLoading = false;
+        });
+      }
+      return;
+    }
 
-      final moodAvg = () {
-        final list = trends['mood'] ?? [];
-        if (list.isEmpty) return 0.0;
-        return list.reduce((a, b) => a + b) / list.length;
-      }();
+    final events = [
+      'Patient: $patientName',
+      if (health != null) ...[
+        'Mood today: ${health.mood}',
+        'Pain level today: ${health.painLevel} / 10',
+        'Medications taken: ${health.medicationsTaken} of ${health.medicationsTotal}',
+        if (sosCount > 0) 'SOS alerts today: $sosCount',
+      ] else
+        'No check-in recorded yet today',
+    ];
 
-      final events = [
-        'Patient name: $patientName',
-        'Check-ins completed: ${stats['checkins'] ?? 'N/A'}',
-        'Medication adherence: ${stats['adherence'] ?? 'N/A'}',
-        'Average pain level: ${stats['avgPain'] ?? 'N/A'}',
-        'SOS alerts this week: ${stats['sosAlerts'] ?? '0'}',
-        'Average mood score (1-5): ${moodAvg.toStringAsFixed(1)}',
-        if (meds.isNotEmpty)
-          'Medications: ${meds.map((m) => '${m.name} ${m.daysTaken}/${m.daysTotal} days').join(', ')}',
-      ];
-
-      final narrative = await GeminiService.instance.generateWeeklyNarrative(
+    // Step 2: call Gemini — fall back to real data on any failure
+    try {
+      final narrative = await GeminiService.instance.generateDailySummary(
         patientName: patientName,
         events: events,
       );
       if (mounted && _lastPatientId == patientId) {
-        setState(() { 
-          _narrative = narrative; 
-          _isLoading = false; 
+        setState(() {
+          _narrative = narrative;
+          _isLoading = false;
         });
       }
     } catch (_) {
-      if (mounted && _lastPatientId == widget.patientId) {
+      if (mounted && _lastPatientId == patientId) {
         setState(() {
-          _narrative = 'Unable to generate AI summary. Please check your connection and try again.';
+          _narrative = _buildFallback(patientName, health, sosCount);
           _isLoading = false;
         });
       }
     }
+  }
+
+  String _buildFallback(String name, PatientHealthData? health, int sosCount) {
+    if (health == null) {
+      return '$name has not completed today\'s check-in yet. Remind them to log their mood and pain level.';
+    }
+    final pain = health.painLevel.toInt();
+    final painDesc = pain <= 3
+        ? 'low pain ($pain/10)'
+        : pain <= 6
+            ? 'moderate pain ($pain/10)'
+            : 'high pain ($pain/10)';
+    final meds = health.medicationsTotal > 0
+        ? ' ${health.medicationsTaken}/${health.medicationsTotal} medications taken.'
+        : '';
+    final sos = sosCount > 0
+        ? ' ⚠️ $sosCount SOS alert${sosCount > 1 ? 's' : ''} triggered today.'
+        : '';
+    return '$name checked in today feeling ${health.mood} with $painDesc.$meds$sos';
   }
 
   @override
@@ -647,6 +673,10 @@ class _WeeklyStatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sosInt = int.tryParse(sosAlerts.split('/').first.trim()) ?? 0;
+    final adherencePct = int.tryParse(adherence.replaceAll('%', '').trim()) ?? 0;
+    final avgPainVal = double.tryParse(avgPain.split('/').first.trim()) ?? 0;
+
     return Column(
       children: [
         Row(
@@ -658,20 +688,18 @@ class _WeeklyStatsGrid extends StatelessWidget {
                 iconBg: const Color(0xFFDCFCE7),
                 label: 'Check-ins',
                 value: checkins,
-                trend: '+1 vs last week',
-                trendUp: true,
+                sublabel: 'out of 7 days',
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _StatTile(
                 icon: Icons.medication_rounded,
-                iconColor: AppTheme.primaryBlue,
-                iconBg: AppTheme.primaryLight,
+                iconColor: adherencePct >= 80 ? AppTheme.accentGreen : AppTheme.accentOrange,
+                iconBg: adherencePct >= 80 ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED),
                 label: 'Med Adherence',
                 value: adherence,
-                trend: '–3% vs last week',
-                trendUp: false,
+                sublabel: adherencePct >= 80 ? 'On track' : 'Needs attention',
               ),
             ),
           ],
@@ -682,24 +710,22 @@ class _WeeklyStatsGrid extends StatelessWidget {
             Expanded(
               child: _StatTile(
                 icon: Icons.healing_rounded,
-                iconColor: AppTheme.accentGreen,
-                iconBg: const Color(0xFFDCFCE7),
+                iconColor: avgPainVal <= 4 ? AppTheme.accentGreen : AppTheme.accentOrange,
+                iconBg: avgPainVal <= 4 ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED),
                 label: 'Avg Pain',
                 value: avgPain,
-                trend: '–0.4 vs last week',
-                trendUp: true,
+                sublabel: avgPainVal <= 4 ? 'Low — stable' : 'Monitor closely',
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _StatTile(
                 icon: Icons.emergency_rounded,
-                iconColor: AppTheme.accentGreen,
-                iconBg: const Color(0xFFDCFCE7),
+                iconColor: sosInt == 0 ? AppTheme.accentGreen : AppTheme.accentRed,
+                iconBg: sosInt == 0 ? const Color(0xFFDCFCE7) : const Color(0xFFFFE4E4),
                 label: 'SOS Alerts',
                 value: sosAlerts,
-                trend: 'Same as last week',
-                trendUp: true,
+                sublabel: sosInt == 0 ? 'All clear' : 'Review required',
               ),
             ),
           ],
@@ -715,8 +741,7 @@ class _StatTile extends StatelessWidget {
   final Color iconBg;
   final String label;
   final String value;
-  final String trend;
-  final bool trendUp;
+  final String sublabel;
 
   const _StatTile({
     required this.icon,
@@ -724,8 +749,7 @@ class _StatTile extends StatelessWidget {
     required this.iconBg,
     required this.label,
     required this.value,
-    required this.trend,
-    required this.trendUp,
+    required this.sublabel,
   });
 
   @override
@@ -791,27 +815,17 @@ class _StatTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
-          Row(
-            children: [
-              Icon(
-                trendUp ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                size: 13,
-                color: trendUp ? AppTheme.accentGreen : AppTheme.accentOrange,
-              ),
-              const SizedBox(width: 3),
-              Expanded(
-                child: Text(
-                  trend,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: trendUp ? AppTheme.accentGreen : AppTheme.accentOrange,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          Text(
+            sublabel,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: isDarkMode
+                  ? Colors.white.withValues(alpha: 0.55)
+                  : AppTheme.textMid,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

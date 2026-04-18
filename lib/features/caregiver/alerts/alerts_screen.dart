@@ -294,20 +294,34 @@ class _AlertCardFirebaseState extends State<_AlertCardFirebase> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? Theme.of(context).colorScheme.surface : AppTheme.surfaceWhite;
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.1) : AppTheme.divider;
+    final titleColor = isDark ? Colors.white.withValues(alpha: 0.9) : AppTheme.textDark;
+    final bodyColor = isDark ? Colors.white.withValues(alpha: 0.65) : AppTheme.textMid;
+    final timeColor = isDark ? Colors.white.withValues(alpha: 0.4) : AppTheme.textLight;
+
+    final title = widget.alert.type.isNotEmpty ? widget.alert.type : 'Alert';
+    final body = widget.alert.body.isNotEmpty ? widget.alert.body : 'No details available.';
+
     return GestureDetector(
       onTap: _markAsRead,
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.surfaceWhite,
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border(
-            left: BorderSide(color: _style.accentColor, width: 4),
-            top: const BorderSide(color: AppTheme.divider),
-            right: const BorderSide(color: AppTheme.divider),
-            bottom: const BorderSide(color: AppTheme.divider),
-          ),
+          border: Border.all(color: borderColor),
         ),
-        child: Padding(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Stack(
+            children: [
+              // Left accent bar
+              Positioned(
+                left: 0, top: 0, bottom: 0,
+                child: Container(width: 4, color: _style.accentColor),
+              ),
+              Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,7 +330,6 @@ class _AlertCardFirebaseState extends State<_AlertCardFirebase> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Icon circle
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -326,7 +339,6 @@ class _AlertCardFirebaseState extends State<_AlertCardFirebase> {
                     child: Icon(_style.icon, color: _style.accentColor, size: 18),
                   ),
                   const SizedBox(width: 12),
-                  // Title + badge
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,11 +348,11 @@ class _AlertCardFirebaseState extends State<_AlertCardFirebase> {
                           children: [
                             Expanded(
                               child: Text(
-                                widget.alert.type,
+                                title,
                                 style: GoogleFonts.inter(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: AppTheme.textDark,
+                                  color: titleColor,
                                 ),
                               ),
                             ),
@@ -365,7 +377,7 @@ class _AlertCardFirebaseState extends State<_AlertCardFirebase> {
                               _formatTime(widget.alert.timestamp),
                               style: GoogleFonts.inter(
                                 fontSize: 12,
-                                color: AppTheme.textLight,
+                                color: timeColor,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -380,13 +392,16 @@ class _AlertCardFirebaseState extends State<_AlertCardFirebase> {
 
               // ── Body ────────────────────────────────────────────────────
               Text(
-                widget.alert.body,
+                body,
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color: AppTheme.textMid,
+                  color: bodyColor,
                   height: 1.55,
                 ),
               ),
+            ],
+          ),
+        ),
             ],
           ),
         ),

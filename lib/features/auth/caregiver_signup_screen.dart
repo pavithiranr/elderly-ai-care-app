@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
@@ -16,6 +17,7 @@ class CaregiverSignupScreen extends StatefulWidget {
 class _CaregiverSignupScreenState extends State<CaregiverSignupScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
@@ -28,6 +30,7 @@ class _CaregiverSignupScreenState extends State<CaregiverSignupScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -62,10 +65,14 @@ class _CaregiverSignupScreenState extends State<CaregiverSignupScreen> {
         throw Exception('Please agree to the Terms and Conditions');
       }
 
+      final phone = _phoneController.text.trim();
+      final fullPhone = phone.isNotEmpty ? '+60$phone' : null;
+
       final uid = await UserSessionService.instance.caregiverSignUp(
         email: email,
         password: password,
         name: name,
+        phoneNumber: fullPhone,
       );
 
       // Save FCM token so this device can receive push notifications
@@ -331,6 +338,60 @@ class _CaregiverSignupScreenState extends State<CaregiverSignupScreen> {
                     borderRadius: BorderRadius.circular(8),
                     borderSide:
                         const BorderSide(color: AppTheme.primaryBlue, width: 2),
+                  ),
+                ),
+                style: GoogleFonts.inter(fontSize: 16, color: AppTheme.textDark),
+              ),
+              const SizedBox(height: 16),
+
+              // Phone number field (optional)
+              Text(
+                'Phone Number (Optional)',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Elderly will see this as your contact number',
+                style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textLight),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _phoneController,
+                enabled: !_isLoading,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
+                decoration: InputDecoration(
+                  prefixText: '+60 ',
+                  prefixStyle: GoogleFonts.inter(
+                    fontSize: 16,
+                    color: AppTheme.primaryBlue,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  hintText: '12-3456789',
+                  hintStyle: GoogleFonts.inter(color: AppTheme.textLight),
+                  filled: true,
+                  fillColor: AppTheme.surfaceWhite,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.divider),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                        color: AppTheme.primaryBlue, width: 2),
                   ),
                 ),
                 style: GoogleFonts.inter(fontSize: 16, color: AppTheme.textDark),

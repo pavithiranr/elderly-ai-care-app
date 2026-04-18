@@ -33,14 +33,38 @@ class _SosScreenState extends State<SosScreen> {
     try {
       final patientId = await UserSessionService.instance.getSavedUserId();
       if (patientId != null) {
+        final timestamp = Timestamp.now();
+
+        // Write to elderly's own SOS subcollection (for SOS count queries)
         await FirebaseFirestore.instance
             .collection('elderly')
             .doc(patientId)
             .collection('sos_alerts')
-            .add({
-          'timestamp': Timestamp.now(),
-          'resolved': false,
-        });
+            .add({'timestamp': timestamp, 'resolved': false});
+
+        // Also write to caregiver's alerts collection so bell + All Alerts sees it
+        final elderlyDoc = await FirebaseFirestore.instance
+            .collection('elderly')
+            .doc(patientId)
+            .get();
+
+        final caregiverId = elderlyDoc.data()?['caregiverId'] as String?;
+        final elderlyName = elderlyDoc.data()?['name'] as String? ?? 'Your patient';
+
+        if (caregiverId != null) {
+          await FirebaseFirestore.instance
+              .collection('caregiver_alerts')
+              .doc(caregiverId)
+              .collection('alerts')
+              .add({
+            'severity': 'critical',
+            'type': 'SOS Emergency Alert',
+            'body': '$elderlyName has triggered an SOS emergency alert and needs immediate assistance.',
+            'timestamp': timestamp,
+            'isUnread': true,
+            'elderlyId': patientId,
+          });
+        }
       }
     } catch (e) {
       debugPrint('SOS write error: $e');

@@ -332,7 +332,8 @@ class PatientService {
     String patientId, {
     required String name,
     required String dosage,
-    required String time,
+    required List<String> times,
+    required String frequency,
     String note = '',
   }) async {
     await _firestore
@@ -342,9 +343,35 @@ class PatientService {
         .add({
       'name': name,
       'dosage': dosage,
-      'time': time,
+      'times': times,
+      'frequency': frequency,
       'note': note,
       'createdAt': Timestamp.now(),
+    });
+  }
+
+  /// Update an existing medication
+  Future<void> updateMedication(
+    String patientId,
+    String medicationId, {
+    required String name,
+    required String dosage,
+    required List<String> times,
+    required String frequency,
+    String note = '',
+  }) async {
+    await _firestore
+        .collection('elderly')
+        .doc(patientId)
+        .collection('medications')
+        .doc(medicationId)
+        .update({
+      'name': name,
+      'dosage': dosage,
+      'times': times,
+      'frequency': frequency,
+      'note': note,
+      'updatedAt': Timestamp.now(),
     });
   }
 

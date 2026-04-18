@@ -17,6 +17,7 @@ class SosScreen extends StatefulWidget {
 
 class _SosScreenState extends State<SosScreen> {
   bool _alertSent = false;
+  bool _isSending = false;
 
   Future<void> _confirmAndSend() async {
     final confirmed = await showDialog<bool>(
@@ -30,19 +31,14 @@ class _SosScreenState extends State<SosScreen> {
   }
 
   Future<void> _sendAlert() async {
+    if (mounted) setState(() => _isSending = true);
+    
     try {
       final patientId = await UserSessionService.instance.getSavedUserId();
       if (patientId != null) {
         final timestamp = Timestamp.now();
 
-        // Write to elderly's own SOS subcollection (for SOS count queries)
-        await FirebaseFirestore.instance
-            .collection('elderly')
-            .doc(patientId)
-            .collection('sos_alerts')
-            .add({'timestamp': timestamp, 'resolved': false});
-
-        // Also write to caregiver's alerts collection so bell + All Alerts sees it
+        // Get elderly document first (needed for caregiver ID and name)
         final elderlyDoc = await FirebaseFirestore.instance
             .collection('elderly')
             .doc(patientId)
@@ -51,25 +47,46 @@ class _SosScreenState extends State<SosScreen> {
         final caregiverId = elderlyDoc.data()?['caregiverId'] as String?;
         final elderlyName = elderlyDoc.data()?['name'] as String? ?? 'Your patient';
 
+        // Run both writes in parallel (they don't depend on each other)
+        final futures = <Future<void>>[
+          // Write to elderly's own SOS subcollection (for SOS count queries)
+          FirebaseFirestore.instance
+              .collection('elderly')
+              .doc(patientId)
+              .collection('sos_alerts')
+              .add({'timestamp': timestamp, 'resolved': false})
+              .then((_) {}),
+        ];
+
+        // Write to caregiver's alerts collection if caregiver exists
         if (caregiverId != null) {
-          await FirebaseFirestore.instance
-              .collection('caregiver_alerts')
-              .doc(caregiverId)
-              .collection('alerts')
-              .add({
-            'severity': 'critical',
-            'type': 'SOS Emergency Alert',
-            'body': '$elderlyName has triggered an SOS emergency alert and needs immediate assistance.',
-            'timestamp': timestamp,
-            'isUnread': true,
-            'elderlyId': patientId,
-          });
+          futures.add(
+            FirebaseFirestore.instance
+                .collection('caregiver_alerts')
+                .doc(caregiverId)
+                .collection('alerts')
+                .add({
+              'severity': 'critical',
+              'type': 'SOS Emergency Alert',
+              'body': '$elderlyName has triggered an SOS emergency alert and needs immediate assistance.',
+              'timestamp': timestamp,
+              'isUnread': true,
+              'elderlyId': patientId,
+            }).then((_) {}),
+          );
         }
+
+        await Future.wait(futures);
       }
     } catch (e) {
       debugPrint('SOS write error: $e');
     }
-    if (mounted) setState(() => _alertSent = true);
+    if (mounted) {
+      setState(() {
+        _isSending = false;
+        _alertSent = true;
+      });
+    }
   }
 
   @override
@@ -99,7 +116,9 @@ class _SosScreenState extends State<SosScreen> {
         ),
         body: _alertSent
             ? _SentView(onBack: () => context.pop())
-            : _ReadyView(onConfirm: _confirmAndSend),
+            : _isSending
+                ? _SendingView()
+                : _ReadyView(onConfirm: _confirmAndSend),
       ),
     );
   }
@@ -524,6 +543,57 @@ class _SentView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 28),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Sending View ──────────────────────────────────────────────────────────────
+
+class _SendingView extends StatelessWidget {
+  const _SendingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Spacer(),
+
+            // Loading spinner
+            const CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentRed),
+            ),
+            const SizedBox(height: 32),
+
+            Text(
+              'Alerting Caregivers...',
+              style: GoogleFonts.inter(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textDark,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 14),
+
+            Text(
+              'Sending your emergency alert\nto your caregivers now.',
+              style: GoogleFonts.inter(
+                fontSize: 22,
+                color: AppTheme.textMid,
+                height: 1.6,
+              ),
+              textAlign: TextAlign.center,
+            ),
+
+            const Spacer(),
           ],
         ),
       ),

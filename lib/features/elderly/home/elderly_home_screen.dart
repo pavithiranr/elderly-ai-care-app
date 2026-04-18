@@ -159,6 +159,12 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
               ),
               const SizedBox(height: 28),
 
+              // ── SOS button (prominent, immediately accessible) ────────
+              _SosButton(
+                onTap: () => context.push(AppConstants.routeSos),
+              ),
+              const SizedBox(height: 28),
+
               // ── AI Summary ────────────────────────────────────────────
               FutureBuilder<String?>(
                 future: UserSessionService.instance.getSavedUserId(),
@@ -205,12 +211,6 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                     onTap: () => context.push(AppConstants.routeMedication),
                   ),
                 ],
-              ),
-              const SizedBox(height: 28),
-
-              // ── SOS button ────────────────────────────────────────────
-              _SosButton(
-                onTap: () => context.push(AppConstants.routeSos),
               ),
               const SizedBox(height: 16),
             ],

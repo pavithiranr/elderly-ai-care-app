@@ -12,6 +12,7 @@ class PatientProfile {
   final String status;
   final String? caregiverId;
   final String uniqueId;
+  final String icNumber;
 
   PatientProfile({
     required this.id,
@@ -23,6 +24,7 @@ class PatientProfile {
     required this.status,
     this.caregiverId,
     required this.uniqueId,
+    this.icNumber = '',
   });
 
   /// Age computed from dateOfBirth — no need to store it separately.
@@ -54,6 +56,7 @@ class PatientProfile {
       status: data['status'] as String? ?? 'active',
       caregiverId: data['caregiverId'] as String?,
       uniqueId: data['uniqueId'] as String? ?? '',
+      icNumber: data['icNumber'] as String? ?? '',
     );
   }
 }
@@ -173,34 +176,35 @@ class PatientService {
             snapshot.docs.map((doc) => PatientProfile.fromFirestore(doc)).toList());
   }
 
-  /// Get today's health data for a patient — reads from the `checkins` collection
-  /// which is written by the elderly check-in screen.
+  /// Get today's health data for a patient — reads from the `daily_checkins` collection
+  /// which is written by CheckinService (used by the elderly check-in screen).
   Future<PatientHealthData?> getTodayHealthData(String patientId) async {
     try {
       final today = DateTime.now();
-      // saveCheckin uses 'year-month-day' as the document ID
-      final docId = '${today.year}-${today.month}-${today.day}';
+      // CheckinService uses zero-padded 'YYYY-MM-DD' as the document ID
+      final docId =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
       final doc = await _firestore
           .collection('elderly')
           .doc(patientId)
-          .collection('checkins')
+          .collection('daily_checkins')
           .doc(docId)
           .get();
 
       if (doc.exists) {
         final data = doc.data()!;
-        // Check-in screen order: 0=Great, 1=Good, 2=Okay, 3=Not Great, 4=Bad
-        const moodLabels = ['great', 'good', 'okay', 'sad', 'terrible'];
-        final moodIndex = (data['moodIndex'] as int? ?? 2).clamp(0, 4);
+        // moodScore: 1=Great, 2=Good, 3=Okay, 4=Not Great
+        final moodScore = data['moodScore'] as int? ?? 0;
+        final mood = _moodScoreToString(moodScore);
         return PatientHealthData(
           elderlyId: patientId,
-          mood: moodLabels[moodIndex],
-          painLevel: (data['painLevel'] as num?)?.toInt() ?? 0,
+          mood: mood,
+          painLevel: (data['painScore'] as num?)?.toInt() ?? 0,
           medicationsTaken: 0,
           medicationsTotal: 0,
           sosAlerts: 0,
-          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? today,
+          timestamp: (data['createdAt'] as Timestamp?)?.toDate() ?? today,
         );
       }
     } catch (e) {
@@ -208,6 +212,16 @@ class PatientService {
     }
     return null;
   }
+
+  /// Convert moodScore (1–4) from CheckinService to a mood string.
+  /// 1=Great, 2=Good, 3=Okay, 4=Not Great
+  static String _moodScoreToString(int score) => switch (score) {
+    1 => 'great',
+    2 => 'good',
+    3 => 'okay',
+    4 => 'sad',
+    _ => 'unknown',
+  };
 
   /// Count SOS alerts fired today for a patient.
   Future<int> getTodaySosCount(String patientId) async {
@@ -227,32 +241,31 @@ class PatientService {
     }
   }
 
-  /// Stream of today's health data — listens to the `checkins` collection
+  /// Stream of today's health data — listens to the `daily_checkins` collection
   /// so the caregiver banner updates in real-time when the elderly checks in.
   Stream<PatientHealthData?> getTodayHealthData$Stream(String patientId) {
     final today = DateTime.now();
-    final docId = '${today.year}-${today.month}-${today.day}';
-
-    const moodLabels = ['great', 'good', 'okay', 'sad', 'terrible'];
+    final docId =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
     return _firestore
         .collection('elderly')
         .doc(patientId)
-        .collection('checkins')
+        .collection('daily_checkins')
         .doc(docId)
         .snapshots()
         .map((doc) {
           if (!doc.exists) return null;
           final data = doc.data()!;
-          final moodIndex = (data['moodIndex'] as int? ?? 2).clamp(0, 4);
+          final moodScore = data['moodScore'] as int? ?? 0;
           return PatientHealthData(
             elderlyId: patientId,
-            mood: moodLabels[moodIndex],
-            painLevel: (data['painLevel'] as num?)?.toInt() ?? 0,
+            mood: _moodScoreToString(moodScore),
+            painLevel: (data['painScore'] as num?)?.toInt() ?? 0,
             medicationsTaken: 0,
             medicationsTotal: 0,
             sosAlerts: 0,
-            timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? today,
+            timestamp: (data['createdAt'] as Timestamp?)?.toDate() ?? today,
           );
         });
   }
@@ -433,17 +446,18 @@ class PatientService {
     }
   }
 
-  /// Get weekly mood and pain trend data for the past 7 days
+  /// Get weekly mood and pain trend data for the past 7 days.
+  /// Mood values are inverted (5 - moodScore) so higher bars = better mood in charts.
   Future<Map<String, List<double>>> getWeeklyMoodPainTrends(String patientId) async {
     try {
       final since = DateTime.now().subtract(const Duration(days: 7));
-      
+
       final snapshot = await _firestore
           .collection('elderly')
           .doc(patientId)
-          .collection('checkins')
-          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
-          .orderBy('timestamp')
+          .collection('daily_checkins')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+          .orderBy('createdAt')
           .get();
 
       // Initialize 7 days of data (0 for missing days)
@@ -453,13 +467,15 @@ class PatientService {
       // Map timestamp to day index (0 = 6 days ago, 6 = today)
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        final docTimestamp = (data['timestamp'] as Timestamp).toDate();
+        final docTimestamp = (data['createdAt'] as Timestamp).toDate();
         final daysAgo = DateTime.now().difference(docTimestamp).inDays;
 
         if (daysAgo >= 0 && daysAgo < 7) {
           final dayIndex = 6 - daysAgo; // Reverse: 6=today
-          final mood = (data['moodIndex'] as num?)?.toDouble() ?? 0;
-          final pain = (data['painLevel'] as num?)?.toDouble() ?? 0;
+          final rawMood = (data['moodScore'] as num?)?.toInt() ?? 0;
+          // Invert moodScore (1=Great→4, 4=Not Great→1) so chart bars are taller for better mood
+          final mood = rawMood > 0 ? (5 - rawMood).toDouble() : 0.0;
+          final pain = (data['painScore'] as num?)?.toDouble() ?? 0;
 
           if (dayIndex >= 0 && dayIndex < 7) {
             moodData[dayIndex] = mood > 0 ? mood : moodData[dayIndex];
@@ -490,8 +506,8 @@ class PatientService {
       final checkinsSnapshot = await _firestore
           .collection('elderly')
           .doc(patientId)
-          .collection('checkins')
-          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+          .collection('daily_checkins')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
           .get();
       
       final checkinCount = checkinsSnapshot.docs.length;
@@ -532,7 +548,7 @@ class PatientService {
       if (checkinsSnapshot.docs.isNotEmpty) {
         double totalPain = 0;
         for (final doc in checkinsSnapshot.docs) {
-          totalPain += (doc['painLevel'] as num?)?.toDouble() ?? 0;
+          totalPain += (doc['painScore'] as num?)?.toDouble() ?? 0;
         }
         avgPain = (totalPain / checkinsSnapshot.docs.length) * 10 / 10; // Round to 1 decimal
       }

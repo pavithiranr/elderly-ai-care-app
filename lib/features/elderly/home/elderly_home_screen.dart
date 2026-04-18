@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
 
@@ -111,6 +112,17 @@ class ElderlyHomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 28),
 
+              // ── AI Summary ────────────────────────────────────────────
+              FutureBuilder<String?>(
+                future: UserSessionService.instance.getSavedUserId(),
+                builder: (context, idSnap) {
+                  final userId = idSnap.data;
+                  if (userId == null) return const SizedBox.shrink();
+                  return _ElderlyAiSummary(patientId: userId);
+                },
+              ),
+              const SizedBox(height: 28),
+
               // ── Section label ─────────────────────────────────────────
               Text(
                 'What do you need?',
@@ -123,41 +135,27 @@ class ElderlyHomeScreen extends StatelessWidget {
               const SizedBox(height: 14),
 
               // ── Quick Action grid ─────────────────────────────────────
-              // Using Wrap instead of GridView for better responsiveness
-              // Buttons will flow to new lines if text grows with accessibility settings
-              Wrap(
-                spacing: 14,
-                runSpacing: 14,
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: 0.95,
                 children: [
-                  SizedBox(
-                    width: (MediaQuery.of(context).size.width - 54) / 2, // 2-column layout with padding/spacing
-                    child: _QuickAction(
-                      icon: Icons.check_circle_outline_rounded,
-                      label: 'Check In',
-                      color: Theme.of(context).colorScheme.primary,
-                      bg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                      onTap: () => context.push(AppConstants.routeElderlyCheckin),
-                    ),
+                  _QuickAction(
+                    icon: Icons.check_circle_outline_rounded,
+                    label: 'Check In',
+                    color: Theme.of(context).colorScheme.primary,
+                    bg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                    onTap: () => context.push(AppConstants.routeElderlyCheckin),
                   ),
-                  SizedBox(
-                    width: (MediaQuery.of(context).size.width - 54) / 2,
-                    child: _QuickAction(
-                      icon: Icons.medication_rounded,
-                      label: 'Medications',
-                      color: const Color(0xFFEA580C),
-                      bg: const Color(0xFFEA580C),
-                      onTap: () => context.push(AppConstants.routeMedication),
-                    ),
-                  ),
-                  SizedBox(
-                    width: (MediaQuery.of(context).size.width - 54) / 2,
-                    child: _QuickAction(
-                      icon: Icons.chat_bubble_rounded,
-                      label: 'Talk to AI',
-                      color: const Color(0xFF7C3AED),
-                      bg: const Color(0xFF7C3AED),
-                      onTap: () => context.push(AppConstants.routeElderlyChat),
-                    ),
+                  _QuickAction(
+                    icon: Icons.medication_rounded,
+                    label: 'Medications',
+                    color: const Color(0xFFEA580C),
+                    bg: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                    onTap: () => context.push(AppConstants.routeMedication),
                   ),
                 ],
               ),
@@ -420,6 +418,116 @@ class _QuickAction extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Elderly AI Summary ────────────────────────────────────────────────────────
+
+class _ElderlyAiSummary extends StatefulWidget {
+  final String patientId;
+  const _ElderlyAiSummary({required this.patientId});
+
+  @override
+  State<_ElderlyAiSummary> createState() => _ElderlyAiSummaryState();
+}
+
+class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
+  late Future<String> _summaryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _summaryFuture = _fetchSummary();
+  }
+
+  Future<String> _fetchSummary() async {
+    try {
+      final health = await PatientService.instance.getTodayHealthData(widget.patientId);
+      if (health == null) {
+        return "You haven't checked in yet today. Tap 'Check In' above to log how you're feeling!";
+      }
+
+      final events = [
+        'Mood today: ${health.mood}',
+        'Pain level: ${health.painLevel}/10',
+        'Medications taken: ${health.medicationsTaken} of ${health.medicationsTotal}',
+        if (health.sosAlerts > 0) 'SOS alerts today: ${health.sosAlerts}',
+      ];
+
+      return await GeminiService.instance.generateHealthSummary(events);
+    } catch (_) {
+      return "Great job keeping up with your health today! Remember to take your medications and stay hydrated.";
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _summaryFuture,
+      builder: (context, snap) {
+        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        final primaryColor = Theme.of(context).colorScheme.primary;
+
+        if (snap.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 100,
+            decoration: BoxDecoration(
+              color: isDarkMode
+                  ? primaryColor.withValues(alpha: 0.15)
+                  : primaryColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
+        final summary = snap.data ?? '';
+        if (summary.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? primaryColor.withValues(alpha: 0.15)
+                : primaryColor.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: primaryColor.withValues(alpha: isDarkMode ? 0.3 : 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome_rounded, color: primaryColor, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Your Health Today',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                summary,
+                style: GoogleFonts.inter(
+                  fontSize: AppTheme.elderlyBodyFontSize,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  height: 1.55,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

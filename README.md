@@ -62,9 +62,9 @@ CareSync AI is a two-sided mobile and web application designed to provide **proa
   </tr>
 </table>
 
-### 💓 Heartbeat Animation
 
-> GIF of the heartbeat/pulse animation in action (medical theme)
+
+
 
 ![Heartbeat Animation](ReadMD-pictures/Heart-Beat.gif)
 

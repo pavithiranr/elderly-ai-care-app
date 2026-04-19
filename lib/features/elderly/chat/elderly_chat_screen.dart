@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/logging_service.dart';
+import '../../../shared/services/gemini_service.dart';
 
 /// AI Chat companion for elderly users.
 /// UI shell — wire up Gemini API calls via backend team's service layer.
@@ -17,11 +19,19 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<_ChatMessage> _messages = [
     const _ChatMessage(
-      text: "Hello! I'm CareSync, your AI companion. 😊\nHow are you feeling today? You can ask me anything!",
+      text: "Hello! I'm CareSync, your AI companion.\nHow are you feeling today? You can ask me anything!",
       isAi: true,
     ),
   ];
   bool _isLoading = false;
+
+  /// Build conversation history in the format Gemini expects.
+  List<Map<String, String>> get _history {
+    return _messages.map((m) => {
+      'role': m.isAi ? 'model' : 'user',
+      'text': m.text,
+    }).toList();
+  }
 
   @override
   void dispose() {
@@ -41,15 +51,31 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
     });
     _scrollToBottom();
 
-    // TODO: call GeminiChatService.send(text) from backend integration
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _messages.add(const _ChatMessage(
-        text: "That's great to hear! Remember to take your afternoon medication at 12:00 PM. Is there anything else I can help you with?",
-        isAi: true,
-      ));
-      _isLoading = false;
-    });
+    try {
+      logger.debug('Sending chat message to Gemini API: "$text"');
+      final reply = await GeminiService.instance.sendChatMessage(
+        message: text,
+        history: _history,
+      );
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(text: reply, isAi: true));
+          _isLoading = false;
+        });
+        logger.success('Received reply from Gemini API');
+      }
+    } catch (e) {
+      logger.error('Chat API failed', e);
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(
+            text: "Sorry, I'm having trouble connecting right now. Please try again in a moment.",
+            isAi: true,
+          ));
+          _isLoading = false;
+        });
+      }
+    }
     _scrollToBottom();
   }
 
@@ -68,7 +94,6 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -79,12 +104,12 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppTheme.primaryLight,
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.smart_toy_rounded,
-                color: AppTheme.primaryBlue,
+                color: Theme.of(context).colorScheme.primary,
                 size: 18,
               ),
             ),
@@ -100,13 +125,12 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
                 Text(
                   'Your companion',
                   style: GoogleFonts.inter(
-                      fontSize: 11, color: AppTheme.accentGreen),
+                      fontSize: 11, color: const Color(0xFF10B981)),
                 ),
               ],
             ),
           ],
         ),
-        backgroundColor: AppTheme.surfaceWhite,
       ),
       body: Column(
         children: [
@@ -128,7 +152,7 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
 
           // Input row
           Container(
-            color: AppTheme.surfaceWhite,
+            color: Theme.of(context).colorScheme.surface,
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
             child: Row(
               children: [
@@ -142,14 +166,27 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
                     decoration: InputDecoration(
                       hintText: 'Type a message...',
                       hintStyle: GoogleFonts.inter(
-                          fontSize: 16, color: AppTheme.textLight),
+                          fontSize: 16,
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5) ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
                       filled: true,
-                      fillColor: AppTheme.backgroundGray,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[900]
+                          : Colors.grey[100],
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                          width: 1.5,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
@@ -160,12 +197,12 @@ class _ElderlyCharScreenState extends State<ElderlyCharScreen> {
                   child: Container(
                     width: 50,
                     height: 50,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.primaryBlue,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.send_rounded,
-                        color: Colors.white, size: 22),
+                    child: Icon(Icons.send_rounded,
+                        color: Theme.of(context).colorScheme.onPrimary, size: 22),
                   ),
                 ),
               ],
@@ -183,6 +220,7 @@ class _ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Align(
       alignment:
           message.isAi ? Alignment.centerLeft : Alignment.centerRight,
@@ -194,7 +232,9 @@ class _ChatBubble extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: message.isAi ? AppTheme.surfaceWhite : AppTheme.primaryBlue,
+          color: message.isAi
+              ? Theme.of(context).colorScheme.surface
+              : Theme.of(context).colorScheme.primary,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),
@@ -202,14 +242,23 @@ class _ChatBubble extends StatelessWidget {
             bottomRight: Radius.circular(message.isAi ? 18 : 4),
           ),
           border: message.isAi
-              ? Border.all(color: AppTheme.divider)
+              ? Border.all(
+                  color: isDarkMode
+                      ? Theme.of(context).dividerColor.withValues(alpha: 0.6)
+                      : Theme.of(context).dividerColor,
+                  width: 1.5,
+                )
               : null,
         ),
         child: Text(
           message.text,
+          softWrap: true,
+          maxLines: null,
           style: GoogleFonts.inter(
             fontSize: AppTheme.elderlyBodyFontSize,
-            color: message.isAi ? AppTheme.textDark : Colors.white,
+            color: message.isAi
+                ? Theme.of(context).colorScheme.onSurface
+                : Theme.of(context).colorScheme.onPrimary,
             height: 1.5,
           ),
         ),
@@ -230,14 +279,18 @@ class _TypingIndicator extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceWhite,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.divider),
+          border: Border.all(
+            color: Theme.of(context).dividerColor,
+            width: 1.5,
+          ),
         ),
         child: Text(
           'CareSync is typing...',
           style: GoogleFonts.inter(
-              fontSize: 14, color: AppTheme.textLight),
+              fontSize: 14,
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7) ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
         ),
       ),
     );

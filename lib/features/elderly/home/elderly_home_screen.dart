@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/services/gemini_service.dart';
@@ -31,6 +32,10 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
 
   String get _today => DateFormat('EEEE, MMMM d').format(DateTime.now());
 
+  /// Timer to rebuild only when hour changes (active hours boundary)
+  Timer? _hourChangeTimer;
+  int _lastHour = DateTime.now().hour;
+
   @override
   void initState() {
     super.initState();
@@ -42,13 +47,34 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         initInactivityMonitor(userId: userId);
       }
     });
+
+    // Check every minute if the hour changed (for active hours boundary: 8 AM or 10 PM)
+    // Only rebuild on hour change to avoid excessive rebuilds
+    _hourChangeTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final currentHour = DateTime.now().hour;
+      if (currentHour != _lastHour && mounted) {
+        _lastHour = currentHour;
+        setState(() {}); // Rebuild only when hour changes
+      }
+    });
   }
 
   @override
   void dispose() {
+    _hourChangeTimer?.cancel();
     disposeShakeSos();
     disposeInactivityMonitor();
     super.dispose();
+  }
+
+  /// Refresh callback for pull-to-refresh gesture
+  Future<void> _handleRefresh() async {
+    // Force state rebuild to refresh all getters (isWithinActiveHours, etc.)
+    if (mounted) {
+      setState(() {});
+    }
+    // Simulate a small delay for visual feedback
+    await Future.delayed(const Duration(milliseconds: 500));
   }
 
   void _showProfileMenu(BuildContext context) {
@@ -128,12 +154,14 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       body: GestureDetector(
         onTap: inactivityResetTimer,
         behavior: HitTestBehavior.translucent,
-        child: SafeArea(
-          child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: RefreshIndicator(
+          onRefresh: _handleRefresh,
+          child: SafeArea(
+            child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // ── Header ────────────────────────────────────────────────
               FutureBuilder<PatientProfile?>(
                 future: UserSessionService.instance.getSavedUserId().then(
@@ -218,6 +246,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         ),
       ),
     ),
+      ),
     );
   }
 }

@@ -114,7 +114,11 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppConstants.routeSos,
-      builder: (context, state) => const SosScreen(),
+      builder: (context, state) {
+        // Extract autoTrigger query parameter
+        final autoTrigger = state.uri.queryParameters['autoTrigger'] == 'true';
+        return SosScreen(autoTrigger: autoTrigger);
+      },
     ),
     GoRoute(
       path: AppConstants.routeElderlyChat,

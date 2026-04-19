@@ -66,12 +66,11 @@ mixin ShakeSosMixin {
   }
 
   void _onSosConfirmed(BuildContext ctx) {
-    // Navigate to SOS screen to trigger emergency flow
-    debugPrint('[ShakeSOS] ✅ SOS CONFIRMED — navigating to SOS screen');
+    // Navigate to SOS screen with auto-trigger flag to skip confirmation dialog
+    debugPrint('[ShakeSOS] ✅ SOS CONFIRMED — auto-triggering alert');
     
-    // Use GoRouter if available, otherwise use Navigator
     try {
-      ctx.push('/elderly/sos');
+      ctx.push('/elderly/sos?autoTrigger=true');
     } catch (e) {
       debugPrint('[ShakeSOS] Error navigating: $e');
       ScaffoldMessenger.of(ctx).showSnackBar(

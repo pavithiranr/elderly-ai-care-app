@@ -9,7 +9,9 @@ import '../../../shared/services/user_session_service.dart';
 /// Full-screen design with a pulsing button and a confirmation dialog
 /// before any alert is sent. Design rules: ≥22px font, ≥64px buttons, MD3.
 class SosScreen extends StatefulWidget {
-  const SosScreen({super.key});
+  final bool autoTrigger; // If true, skip confirmation and auto-send
+  
+  const SosScreen({super.key, this.autoTrigger = false});
 
   @override
   State<SosScreen> createState() => _SosScreenState();
@@ -18,6 +20,17 @@ class SosScreen extends StatefulWidget {
 class _SosScreenState extends State<SosScreen> {
   bool _alertSent = false;
   bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // If coming from shake-SOS overlay, auto-trigger without dialog
+    if (widget.autoTrigger) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) _sendAlert();
+      });
+    }
+  }
 
   Future<void> _confirmAndSend() async {
     final confirmed = await showDialog<bool>(

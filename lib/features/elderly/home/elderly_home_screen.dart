@@ -41,13 +41,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     super.initState();
     initShakeSos(context);
 
-    // Start inactivity monitor
-    UserSessionService.instance.getSavedUserId().then((userId) async {
-      if (userId != null && mounted) {
-        await initInactivityMonitor(userId: userId);
-        setState(() {}); // Rebuild SafetyStatusIndicator once monitor initializes
-      }
-    });
+    // Start inactivity monitor IMMEDIATELY on app start
+    _initializeMonitor();  // Fire and forget, but tracks initialization
 
     // Check every minute if the hour changed (for active hours boundary: 8 AM or 10 PM)
     // Only rebuild on hour change to avoid excessive rebuilds
@@ -58,6 +53,21 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
         setState(() {}); // Rebuild only when hour changes
       }
     });
+  }
+
+  /// Initialize the inactivity monitor asynchronously
+  Future<void> _initializeMonitor() async {
+    try {
+      final userId = await UserSessionService.instance.getSavedUserId();
+      if (userId != null && mounted) {
+        await initInactivityMonitor(userId: userId);
+        if (mounted) {
+          setState(() {}); // Force rebuild once tracker is truly initialized
+        }
+      }
+    } catch (e) {
+      debugPrint('[ElderlyHomeScreen] Failed to initialize monitor: $e');
+    }
   }
 
   @override

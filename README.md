@@ -1,28 +1,40 @@
 # 💖 CareSync AI
 
-> **AI-powered elderly home care companion** — Built for the **Project 2030: MyAI Future Hackathon** (Track 3: Healthcare & Wellbeing)
+**AI-Powered Elderly Care Companion**
+
+> Building peace of mind through real-time health monitoring, AI insights, and intelligent caregiving
 >
-> Connecting elderly users with family caregivers through real-time health monitoring, AI insights, and emergency response.
+> Built for the **Project 2030: MyAI Future Hackathon** — Track 3: Vital Signs (Healthcare & Wellbeing)
+> Organised by: **GDG On Campus UTM**
 
 ---
 
-## 🎯 Overview
+## 📋 Project Overview
 
-CareSync AI is a two-sided mobile and web application designed to provide **proactive health monitoring** and **peace of mind** for elderly users and their families.
+**CareSync AI** is a two-sided mobile and web application that connects elderly users with their family caregivers through real-time health monitoring, AI-generated insights, and intelligent emergency response. The app uses Gemini 2.0 Flash to analyze health patterns and provide actionable recommendations to caregivers.
 
 ### For the Elderly 👴👵
-- ✅ **Daily Health Check-ins** — Mood, pain level, medication tracking
-- 💊 **Smart Medication Reminders** — Pull-to-refresh medication status with FDA drug info
-- 🆘 **Emergency SOS Button** — One-tap crisis alerts to caregivers
-- 🤖 **AI Companion** — Chat with Gemini for health advice & support
-- 📅 **Calendar Adherence Tracking** — Visual medication history
+- ✅ **Role-Based Onboarding** — Separate flows for elderly and caregivers
+- ✅ **Daily Health Check-ins** — Track mood, pain level, and general wellness
+- 💊 **Smart Medication Tracking** — Reminder system with FDA drug information via openFDA API
+- 🆘 **Emergency SOS Button** — One-tap crisis alerts with pulsing heartbeat animation
+- 🤖 **AI Companion Chat** — Powered by Gemini 2.0 for health advice and emotional support
+- 📅 **Calendar Adherence Tracking** — Visual medication history and completion calendar
+- 👤 **Secure Re-login** — Access via Name + Date of Birth (alternative to password)
+- ♿ **Accessibility Settings** — Large text (16px+), high contrast mode, colorblind-friendly palette
 
 ### For Caregivers 👨‍⚕️👩‍⚕️
-- 📊 **Real-time Health Dashboard** — Multi-patient carousel view with live updates
-- 🚨 **Intelligent Alerts** — AI-prioritized notifications with severity levels
-- 📈 **Weekly Trend Reports** — AI-generated summaries with charts and insights
-- 🔔 **Activity Timeline** — See what matters: medication taken, check-ins, SOS alerts
-- 👥 **Multi-Patient Support** — Manage multiple elderly relatives easily
+- 📊 **Real-time Health Dashboard** — Multi-patient carousel view with live medication adherence
+- 📈 **AI-Generated Health Summary** — Gemini analyzes patient data and creates weekly summaries
+- 🔍 **3-Step AI Deep Analysis:**
+  - **Signal Extractor** — Identifies health patterns and anomalies
+  - **Risk Assessor** — Evaluates health risk levels
+  - **Care Planner** — Recommends personalized interventions
+- 🚨 **Intelligent Alerts** — Severity-coded notifications (CRITICAL/WARNING/NORMAL/INFO)
+- 📱 **Push Notifications** — Real-time alerts for SOS emergencies and critical health changes
+- 📈 **Weekly Trend Reports** — AI-generated insights with fl_chart bar charts
+- 👥 **Multi-Patient Management** — Manage multiple elderly relatives via carousel
+- 🌙 **Dark Mode Support** — Accessible, eye-friendly interface
 
 ---
 
@@ -89,14 +101,26 @@ CareSync AI is a two-sided mobile and web application designed to provide **proa
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Frontend** | Flutter 3.29 | Cross-platform UI (Android, iOS, Web) |
-| **Database** | Cloud Firestore | Real-time data sync for health metrics |
-| **AI** | Gemini 2.0 API | Health analysis & alerts |
-| **Charts** | fl_chart | Weekly trend visualization |
-| **APIs** | openFDA REST | Drug information & side effects |
-| **Auth** | Firebase Auth | Secure login |
-| **Hosting** | Firebase Hosting | Web deployment |
-| **Language** | Dart | Type-safe, fast compilation |
+| **Frontend** | Flutter 3.29 + Dart 3.7 | Cross-platform mobile & web UI (Android, iOS, Web) |
+| **Database** | Cloud Firestore | Real-time data sync for health metrics, medications, alerts |
+| **Authentication** | Firebase Auth | Secure user login & session management |
+| **AI Core** | Google Gemini 2.0 Flash | Health analysis, summaries, chat companion, deep analysis |
+| **AI Workflows** | Firebase Genkit | Agentic AI pipelines for health analysis (planned) |
+| **Deployment** | Google Cloud Run | Backend service deployment (planned for AI pipelines) |
+| **Push Notifications** | Firebase Cloud Messaging | SOS alerts, emergency notifications |
+| **Local Notifications** | flutter_local_notifications | Local reminder alerts |
+| **Charts & Analytics** | fl_chart | Weekly health trend visualization |
+| **APIs** | openFDA REST API | Drug information, side effects, indications |
+| **Navigation** | go_router | Type-safe declarative routing + role-based redirects |
+| **State Management** | Provider | Reactive state management |
+| **PDF Generation** | pdf | Generate health reports as PDF |
+| **Localization** | intl | Date formatting, internationalization |
+| **Local Storage** | shared_preferences | Persistent user preferences |
+| **Fonts** | google_fonts | Inter typeface for UI consistency |
+| **SVG Support** | flutter_svg | Vector graphics rendering |
+| **Sharing** | share_plus | Native file sharing (Android, iOS) |
+| **Input** | pinput | OTP/PIN input UI component |
+| **Sensors** | sensors_plus | Accelerometer data (gesture detection) |
 
 ---
 
@@ -111,6 +135,8 @@ Before you start, make sure you have:
 - ✅ **Git** — For version control
 - ✅ **Android Studio** or **VS Code** with Flutter extension
 - ✅ **Android Emulator** or **Physical Device** (or use Chrome for web)
+- ✅ **Firebase CLI** — `npm install -g firebase-tools` (optional, for Firebase setup)
+- ✅ **Google Gemini API Key** — From [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ### Step 1: Clone the Repository
 
@@ -122,26 +148,58 @@ cd elderly-ai-care-app
 ### Step 2: Install Dependencies
 
 ```bash
-# Get all Flutter & Dart packages
 flutter pub get
 ```
 
-### Step 3: Setup Firebase (Optional)
+### Step 3: Create .env File
 
-If you want to use your own Firebase project:
+Create a `.env` file in the project root with your Gemini API key:
 
 ```bash
-# Configure Firebase for Flutter (requires Firebase CLI)
+# .env
+GEMINI_API_KEY=your_actual_gemini_api_key_here
+```
+
+**Get your API key:**
+1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Click "Create API Key"
+3. Select your Google project or create a new one
+4. Copy the API key and paste it in `.env`
+
+### Step 4: Firebase Setup
+
+#### Option A: Use Existing Firebase Configuration (Recommended for Testing)
+The app includes pre-configured Firebase credentials. Skip to Step 5.
+
+#### Option B: Setup Your Own Firebase Project
+
+```bash
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Login to Firebase
+firebase login
+
+# Configure Flutter for your Firebase project
 flutterfire configure
 ```
 
 This will:
 - Create Firebase project in your Google Cloud Console
-- Generate `google-services.json` (Android)
-- Generate `GoogleService-Info.plist` (iOS)
+- Generate `google-services.json` (Android) → `android/app/`
+- Generate `GoogleService-Info.plist` (iOS) → `ios/Runner/`
 - Create `.firebaserc` configuration
 
-### Step 4: Run the App
+### Step 5: Add google-services.json (if using your own Firebase)
+
+```bash
+# For Android, copy google-services.json to:
+cp google-services.json android/app/
+```
+
+Verify the file exists at: `android/app/google-services.json`
+
+### Step 6: Run the App
 
 #### **On Android Emulator:**
 ```bash
@@ -155,7 +213,6 @@ flutter run
 #### **On Physical Device:**
 ```bash
 # Enable USB Debugging on your device
-# Connect device via USB
 flutter run -d <device-id>
 
 # Find device ID:
@@ -176,12 +233,40 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-### Step 5: Test Login Credentials
+### Step 7: Test Login Credentials
 
 | Role | Email | Password |
 |------|-------|----------|
 | Elderly | elderly@test.com | password123 |
 | Caregiver | caregiver@test.com | password123 |
+
+---
+
+## 📦 Packages Used
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| **flutter** | sdk | Flutter framework & widgets |
+| **go_router** | 14.6.2 | Type-safe routing + role-based redirects |
+| **provider** | 6.1.2 | Reactive state management |
+| **firebase_core** | 3.12.0 | Firebase initialization |
+| **firebase_auth** | 5.2.0 | User authentication |
+| **cloud_firestore** | 5.6.0 | Real-time database |
+| **firebase_messaging** | 15.2.5 | Push notifications (FCM) |
+| **flutter_local_notifications** | 18.0.1 | Local reminder notifications |
+| **google_fonts** | 6.2.1 | Inter font family |
+| **fl_chart** | 0.70.0 | Bar charts for health trends |
+| **http** | 1.2.2 | HTTP client for openFDA API |
+| **flutter_dotenv** | 5.2.1 | Load .env file variables |
+| **shared_preferences** | 2.3.3 | Local persistent storage |
+| **pdf** | 3.11.0 | PDF generation for reports |
+| **share_plus** | 12.0.2 | Native file sharing |
+| **pinput** | 4.0.0 | OTP/PIN input widget |
+| **flutter_svg** | 2.0.10+1 | SVG rendering |
+| **intl** | 0.20.2 | Date formatting, localization |
+| **timezone** | 0.9.4 | Timezone handling |
+| **sensors_plus** | 7.0.0 | Accelerometer, gesture detection |
+| **cupertino_icons** | 1.0.8 | iOS-style icons |
 
 ---
 
@@ -339,17 +424,35 @@ caregivers/{caregiverId}/
 ### Branching Strategy
 
 ```
-main                ← Production-ready code only
-  └── dev           ← Active development (all PRs go here)
+main                ← Stable, demo-ready code only — Never push directly
+  └── dev           ← Active development — All PRs go here
       └── feature/* ← Individual feature branches
 ```
 
+**Key Rules:**
+- ✅ **DO** push daily work to `dev`
+- ✅ **DO** create feature branches from `dev` for major features
+- ❌ **NEVER** push directly to `main` (code review required)
+- ✅ **DO** merge to `main` only for stable, tested releases
+
 **Workflow:**
-1. Create feature branch from `dev`: `git checkout -b feature/your-feature`
-2. Make changes and commit: `git commit -m "Add feature: ..."`
-3. Push to your branch: `git push origin feature/your-feature`
+1. Create feature branch from `dev`: 
+   ```bash
+   git checkout dev
+   git pull origin dev
+   git checkout -b feature/your-feature
+   ```
+2. Make changes and commit:
+   ```bash
+   git commit -m "Add feature: describe what you added"
+   ```
+3. Push to your branch:
+   ```bash
+   git push origin feature/your-feature
+   ```
 4. Open PR to `dev` (NOT `main`)
-5. After review, merge to `dev`, then to `main` for releases
+5. After peer review and testing, merge to `dev`
+6. When stable, open PR from `dev` → `main` for releases
 
 ---
 
@@ -359,26 +462,54 @@ MIT License — See LICENSE file for details
 
 ---
 
-## 👥 Team
+## 🤖 AI Tools Used
 
-Built by a passionate team during the Project 2030 Hackathon.
+This project leverages multiple AI tools to accelerate development and deliver intelligent features:
 
-- **Frontend/UI:** Flutter development & UI/UX
-- **Backend:** Firebase Firestore & Cloud infrastructure  
-- **AI:** Gemini 2.0 integration & health analysis
-- **QA:** Testing & device compatibility
+| Tool | Provider | Usage |
+|------|----------|-------|
+| **Gemini 2.0 Flash** | Google DeepMind | Core AI features within the app: health chat companion, weekly summaries, 3-step deep analysis |
+| **Claude** | Anthropic | UI scaffolding, screen development, bug fixes, Git workflow setup, code reviews |
+| **Claude Code** | Anthropic | Automated code fixes, feature implementation, refactoring |
+
+---
+
+## 👥 Team & Roles
+
+| Role | Responsibility | Expertise |
+|------|---------------|-----------|
+| **Frontend Developer** | Flutter UI, screens, navigation, accessibility, responsive design | Mobile development, UI/UX |
+| **Backend Developer** | Firebase setup, Firestore architecture, authentication, API integration | Cloud infrastructure, databases |
+| **AI Developer** | Gemini integration, AI prompt engineering, Genkit workflows, health analysis logic | Machine learning, AI/ML |
+| **QA & Testing** | Device testing, bug verification, accessibility compliance, performance | Quality assurance |
+
+---
+
+## 📝 Submission Information
+
+| Detail | Value |
+|--------|-------|
+| **Hackathon** | Project 2030 — MyAI Future Hackathon |
+| **Track** | Track 3 — Vital Signs (Healthcare & Wellbeing) |
+| **Organization** | GDG On Campus UTM |
+| **Repository** | [elderly-ai-care-app](https://github.com/pavithiranr/elderly-ai-care-app) |
+| **License** | MIT |
 
 ---
 
 ## 🎯 Future Roadmap
 
-- [ ] Video call support for telehealth
-- [ ] Wearable integration (Apple Watch, Fitbit)
-- [ ] Offline mode with sync
-- [ ] Multi-language support
-- [ ] Advanced ML predictions for health risks
-- [ ] Integration with EHR systems
+- [ ] **Video Telehealth Consultations** — Real-time video calls between elderly and healthcare providers
+- [ ] **Wearable Device Integration** — Apple Watch, Fitbit, Garmin smartwatch syncing
+- [ ] **Offline Mode with Sync** — App functionality without internet, auto-sync when online
+- [ ] **Multi-Language Support** — Localization for elderly-friendly interfaces
+- [ ] **Advanced ML Predictions** — Predictive health risk assessments using Gemini's extended analysis
+- [ ] **EHR Integration** — Connect with hospital/clinic electronic health records
+- [ ] **Voice Commands** — Hands-free interaction for accessibility
+- [ ] **Medication Photo Recognition** — AI identifies pills by image
+- [ ] **Family Video Calls** — Direct messaging and video between elderly and caregivers
+- [ ] **Therapist Integration** — Mental health support through licensed professionals
 
 ---
 
-**Made with ❤️ for Project 2030**
+**Made with ❤️ for Project 2030 — MyAI Future Hackathon**

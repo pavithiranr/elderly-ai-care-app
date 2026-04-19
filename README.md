@@ -58,19 +58,24 @@
 
 ### Caregiver Dashboard
 
-<table>
-  <tr>
-    <td align="center"><b>Dashboard Overview</b><br/><img src="ReadMD-pictures/caregiver-dashboard.png" width="250" alt="Dashboard"/></td>
-    <td align="center"><b>Patient Carousel</b><br/><img src="ReadMD-pictures/caregiver-carousel.png" width="250" alt="Patient Carousel"/></td>
-  </tr>
-</table>
+<details>
+  <summary><strong>📊 Click to expand Caregiver Dashboard</strong> (loads images on demand)</summary>
+  <br/>
+  
+  <table>
+    <tr>
+      <td align="center"><b>Dashboard Overview</b><br/><img src="ReadMD-pictures/caregiver-dashboard.png" width="250" alt="Dashboard"/></td>
+      <td align="center"><b>Patient Carousel</b><br/><img src="ReadMD-pictures/caregiver-carousel.png" width="250" alt="Patient Carousel"/></td>
+    </tr>
+  </table>
 
-<table>
-  <tr>
-    <td align="center"><b>Health Reports</b><br/><img src="ReadMD-pictures/caregiver-reports.png" width="250" alt="Reports"/></td>
-    <td align="center"><b>Alerts Feed</b><br/><img src="ReadMD-pictures/caregiver-alerts.png" width="250" alt="Alerts"/></td>
-  </tr>
-</table>
+  <table>
+    <tr>
+      <td align="center"><b>Health Reports</b><br/><img src="ReadMD-pictures/caregiver-reports.png" width="250" alt="Reports"/></td>
+      <td align="center"><b>Alerts Feed</b><br/><img src="ReadMD-pictures/caregiver-alerts.png" width="250" alt="Alerts"/></td>
+    </tr>
+  </table>
+</details>
 
 
 

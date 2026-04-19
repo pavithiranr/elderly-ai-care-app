@@ -1,0 +1,10 @@
+# .gcloud-ignore: speed up Cloud Build uploads
+.git/
+.gitignore
+build/
+.dart_tool/
+.packages
+.idea/
+.vscode/
+*.log
+node_modules/

@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
+import 'dart:async';
 
 /// Handles FCM token management and local notification display.
 ///
@@ -18,6 +18,10 @@ class NotificationService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _initialized = false;
+  
+  // Timer tracking for scheduled medication notifications
+  final Map<int, Timer> _medicationTimers = {};
 
   static const _channelId = 'caresync_alerts';
   static const _channelName = 'CareSync Alerts';
@@ -26,35 +30,79 @@ class NotificationService {
   // ── Initialise ─────────────────────────────────────────────────────────────
 
   Future<void> init() async {
-    await _initLocalNotifications();
-    await _requestPermission();
-    _listenToForegroundMessages();
+    try {
+      debugPrint('🔔 NotificationService.init() starting...');
+      
+      debugPrint('🔔 Step 1: Initialize local notifications');
+      await _initLocalNotifications();
+      
+      debugPrint('🔔 Step 2: Request permissions');
+      await _requestPermission();
+      
+      debugPrint('🔔 Step 3: Set up FCM listener');
+      _listenToForegroundMessages();
+      
+      debugPrint('🔔 Step 4: Mark as initialized');
+      _initialized = true;
+      
+      debugPrint('🔔 Step 5: Allow native plugin time to fully initialize');
+      await Future.delayed(const Duration(seconds: 2));
+      
+      debugPrint('✅ NotificationService fully initialized and ready (_initialized=$_initialized)');
+    } catch (e) {
+      debugPrint('❌ Error in NotificationService.init(): $e');
+      debugPrint('❌ Stack trace: ${StackTrace.current}');
+      rethrow;
+    }
   }
 
   Future<void> _initLocalNotifications() async {
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    await _local.initialize(
-      const InitializationSettings(android: android, iOS: ios),
-    );
+    try {
+      debugPrint('🔔 Starting _initLocalNotifications...');
+      const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const ios = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+      
+      debugPrint('🔔 Calling _local.initialize()...');
+      final success = await _local.initialize(
+        const InitializationSettings(android: android, iOS: ios),
+      );
+      
+      if (success != true) {
+        throw Exception('FlutterLocalNotificationsPlugin.initialize() returned false');
+      }
+      
+      debugPrint('✅ _local.initialize() completed successfully and returned true');
 
-    // Create the high-importance Android notification channel
-    const channel = AndroidNotificationChannel(
-      _channelId,
-      _channelName,
-      description: _channelDesc,
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-    );
-    await _local
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+      // Create the high-importance Android notification channel
+      const channel = AndroidNotificationChannel(
+        _channelId,
+        _channelName,
+        description: _channelDesc,
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+      );
+      
+      debugPrint('🔔 Creating Android notification channel...');
+      final androidPlugin = _local
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      
+      if (androidPlugin != null) {
+        await androidPlugin.createNotificationChannel(channel);
+        debugPrint('✅ Android notification channel created successfully');
+      } else {
+        debugPrint('⚠️ Android plugin not available, skipping channel creation');
+      }
+    } catch (e) {
+      debugPrint('❌ Error in _initLocalNotifications: $e');
+      debugPrint('❌ Stack trace: ${StackTrace.current}');
+      rethrow;
+    }
   }
 
   Future<void> _requestPermission() async {
@@ -190,19 +238,56 @@ class NotificationService {
     required List<String> times,
     required String frequency,
   }) async {
+    // Guard — fail fast if not initialized
+    if (!_initialized) {
+      debugPrint('⏳ Waiting for NotificationService to initialize (_initialized=$_initialized)...');
+      int waitAttempts = 0;
+      while (!_initialized && waitAttempts < 50) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        waitAttempts++;
+        if (waitAttempts % 10 == 0) {
+          debugPrint('⏳ Still waiting... attempt $waitAttempts/50 (_initialized=$_initialized)');
+        }
+      }
+      
+      if (!_initialized) {
+        debugPrint('❌ FATAL: NotificationService not initialized after 5 seconds, aborting notification scheduling');
+        return;
+      }
+    }
+    
+    debugPrint('✅ NotificationService is initialized, proceeding with scheduling');
+    
+    // ─── ENTRY LOGGING ───
+    debugPrint('🔔📍 [ENTRY] scheduleMedicationNotifications()');
+    debugPrint('   📌 medicationId="$medicationId"');
+    debugPrint('   📌 medicationName="$medicationName"');
+    debugPrint('   📌 times=$times');
+    debugPrint('   📌 frequency="$frequency"');
+    
     try {
+      debugPrint('🔔 Starting loop: times.length=${times.length}');
       for (int i = 0; i < times.length; i++) {
         final timeStr = times[i]; // "08:00" format
+        debugPrint('🔔 [LOOP i=$i] Processing timeStr="$timeStr"');
+        
         final parts = timeStr.split(':');
-        if (parts.length != 2) continue;
+        if (parts.length != 2) {
+          debugPrint('⚠️ [SKIP i=$i] Invalid time format: "$timeStr"');
+          continue;
+        }
 
         final hour = int.tryParse(parts[0]) ?? 0;
         final minute = int.tryParse(parts[1]) ?? 0;
+        debugPrint('🔔 [PARSED i=$i] hour=$hour, minute=$minute');
 
-        // Create a unique notification ID combining medication ID and time index
-        final notificationId = int.parse(medicationId.replaceAll(RegExp(r'[^0-9]'), '')) * 100 + i;
+        // Create a unique notification ID using modulo to stay within 32-bit int range
+        // Formula: (hashcode % 2000000) * 10 + i keeps max ID at ~19,999,999
+        final notificationId = ((medicationId.hashCode.abs() % 2000000) * 10) + i;
+        debugPrint('🔔 Notification ID calculated: medicationId=$medicationId → hashcode=${medicationId.hashCode} → notificationId=$notificationId');
 
         // Schedule based on frequency
+        debugPrint('🔔 [CALLING _scheduleMedicationByFrequency] ID=$notificationId, Frequency="$frequency"');
         await _scheduleMedicationByFrequency(
           notificationId: notificationId,
           medicationName: medicationName,
@@ -211,14 +296,17 @@ class NotificationService {
           minute: minute,
           frequency: frequency,
         );
+        debugPrint('🔔 [RETURNED from _scheduleMedicationByFrequency] ID=$notificationId');
       }
       debugPrint('✅ Medication notifications scheduled for $medicationName');
     } catch (e) {
       debugPrint('❌ Error scheduling medication notifications: $e');
+      debugPrint('❌ Stack trace: ${StackTrace.current}');
     }
   }
 
-  /// Internal method to schedule notifications based on frequency
+  /// Internal method to schedule notifications based on frequency using Timers
+  /// Timer-based approach avoids zonedSchedule() initialization issues
   Future<void> _scheduleMedicationByFrequency({
     required int notificationId,
     required String medicationName,
@@ -228,27 +316,6 @@ class NotificationService {
     required String frequency,
   }) async {
     try {
-      final androidDetails = AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: _channelDesc,
-        importance: Importance.max,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-        playSound: true,
-        enableVibration: true,
-        autoCancel: true,
-      );
-
-      final iosDetails = const DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      );
-
-      final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
-
-      // Convert DateTime to TZDateTime for scheduling
       final now = DateTime.now();
       DateTime scheduledDate = DateTime(
         now.year,
@@ -267,101 +334,79 @@ class NotificationService {
         debugPrint('⏭️ Time passed, moved to tomorrow: ${scheduledDate.toString()}');
       }
 
-      // Convert to TZDateTime using local timezone
-      final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
-
       const title = '💊 Medication Reminder';
       final body = 'Time for your $medicationName! Dosage: $dosage. Tap to mark as taken.';
 
       debugPrint('📅 Scheduling $frequency notification for $medicationName');
       debugPrint('   ID: $notificationId');
-      debugPrint('   Time: ${tzScheduledDate.toString()}');
+      debugPrint('   Time: ${scheduledDate.toString()}');
       debugPrint('   Title: $title');
       debugPrint('   Body: $body');
 
-      switch (frequency) {
-        case 'Daily':
-          await _local.zonedSchedule(
-            notificationId,
-            title,
-            body,
-            tzScheduledDate,
-            details,
-            androidScheduleMode: AndroidScheduleMode.exact,
-            matchDateTimeComponents: DateTimeComponents.time,
-            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          );
-          debugPrint('✅ Daily notification scheduled: ID=$notificationId');
-          break;
+      // Calculate duration until notification should fire
+      final Duration waitDuration = scheduledDate.difference(now);
+      debugPrint('⏱️ Will fire in ${waitDuration.inSeconds} seconds');
 
-        case 'Every Other Day':
-          await _local.zonedSchedule(
-            notificationId,
-            title,
-            body,
-            tzScheduledDate,
-            details,
-            androidScheduleMode: AndroidScheduleMode.exact,
-            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          );
-          // Schedule again for 2 days later
-          final nextDate = tzScheduledDate.add(const Duration(days: 2));
-          await _local.zonedSchedule(
-            notificationId + 10000,
-            title,
-            body,
-            nextDate,
-            details,
-            androidScheduleMode: AndroidScheduleMode.exact,
-            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          );
-          debugPrint('✅ Every Other Day notifications scheduled');
-          break;
+      // Cancel any existing timer for this notification ID
+      _medicationTimers[notificationId]?.cancel();
 
-        case 'Weekly':
-          // Schedule for same time next week
-          final nextWeek = tzScheduledDate.add(const Duration(days: 7));
-          await _local.zonedSchedule(
-            notificationId,
-            title,
-            body,
-            nextWeek,
-            details,
-            androidScheduleMode: AndroidScheduleMode.exact,
-            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          );
-          debugPrint('✅ Weekly notification scheduled');
-          break;
+      // Set up timer to fire the notification
+      _medicationTimers[notificationId] = Timer(waitDuration, () {
+        debugPrint('⏰ Timer fired for notification ID=$notificationId');
+        show(
+          id: notificationId,
+          title: title,
+          body: body,
+        ).then((_) {
+          debugPrint('✅ Medication notification shown: $medicationName');
+          
+          // For Daily frequency, reschedule for tomorrow at same time
+          if (frequency == 'Daily') {
+            debugPrint('📅 Rescheduling for tomorrow (Daily medication)');
+            // Schedule same medication ID for tomorrow
+            Future.delayed(const Duration(seconds: 1), () {
+              _scheduleMedicationByFrequency(
+                notificationId: notificationId,
+                medicationName: medicationName,
+                dosage: dosage,
+                hour: hour,
+                minute: minute,
+                frequency: frequency,
+              );
+            });
+          }
+        }).catchError((e) {
+          debugPrint('❌ Error showing medication notification: $e');
+        });
+      });
 
-        default:
-          // Default to daily
-          await _local.zonedSchedule(
-            notificationId,
-            title,
-            body,
-            tzScheduledDate,
-            details,
-            androidScheduleMode: AndroidScheduleMode.exact,
-            matchDateTimeComponents: DateTimeComponents.time,
-            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          );
-          debugPrint('✅ Default (daily) notification scheduled');
-      }
+      debugPrint('✅ Medication timer scheduled: ID=$notificationId, fires at ${scheduledDate.toString()}');
     } catch (e) {
       debugPrint('❌ Error in _scheduleMedicationByFrequency: $e');
+      debugPrint('❌ Stack trace: ${StackTrace.current}');
     }
   }
 
   /// Cancel medication notifications for a medication
   Future<void> cancelMedicationNotifications(String medicationId) async {
     try {
-      // Calculate possible notification IDs (based on medicationId * 100)
-      final baseId = int.tryParse(medicationId.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      // Calculate base ID using same formula as scheduling: (hashcode % 2000000) * 10
+      final baseId = ((medicationId.hashCode.abs() % 2000000) * 10);
+      int cancelledCount = 0;
+      
+      // Cancel all possible notification IDs for this medication (baseId + 0 through 9)
       for (int i = 0; i < 10; i++) {
-        await _local.cancel(baseId * 100 + i);
-        await _local.cancel(baseId * 100 + i + 10000);
+        final id = baseId + i;
+        
+        if (_medicationTimers[id] != null) {
+          _medicationTimers[id]!.cancel();
+          _medicationTimers.remove(id);
+          cancelledCount++;
+          debugPrint('  ⏱️ Cancelled timer ID=$id');
+        }
       }
-      debugPrint('✅ Medication notifications cancelled for $medicationId');
+      
+      debugPrint('✅ Medication notifications cancelled for $medicationId ($cancelledCount timers cancelled)');
     } catch (e) {
       debugPrint('❌ Error cancelling medication notifications: $e');
     }
@@ -379,10 +424,22 @@ class NotificationService {
 
   /// Test notification — shows immediately to verify system works
   Future<void> sendTestNotification() async {
-    await show(
-      id: 999,
-      title: '🧪 Test Notification',
-      body: 'If you see this, the notification system is working!',
-    );
+    if (!_initialized) {
+      debugPrint('⚠️ NotificationService not initialized, cannot send test notification');
+      return;
+    }
+    
+    debugPrint('🧪 Sending immediate test notification...');
+    try {
+      await show(
+        id: 999,
+        title: '🧪 Test Notification',
+        body: 'If you see this, the notification system is working!',
+      );
+      debugPrint('✅ Test notification sent successfully');
+    } catch (e) {
+      debugPrint('❌ Error sending test notification: $e');
+      debugPrint('❌ Stack trace: ${StackTrace.current}');
+    }
   }
 }

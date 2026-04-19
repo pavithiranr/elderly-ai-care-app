@@ -159,7 +159,10 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppConstants.routeCaregiverReports,
-      builder: (context, state) => const ReportsScreen(),
+      builder: (context, state) {
+        final patientId = state.uri.queryParameters['patientId'];
+        return ReportsScreen(patientId: patientId);
+      },
     ),
   ],
 );

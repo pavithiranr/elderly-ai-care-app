@@ -42,9 +42,9 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     initShakeSos(context);
 
     // Start inactivity monitor
-    UserSessionService.instance.getSavedUserId().then((userId) {
+    UserSessionService.instance.getSavedUserId().then((userId) async {
       if (userId != null && mounted) {
-        initInactivityMonitor(userId: userId);
+        await initInactivityMonitor(userId: userId);
         setState(() {}); // Rebuild SafetyStatusIndicator once monitor initializes
       }
     });

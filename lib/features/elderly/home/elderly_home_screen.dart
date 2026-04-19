@@ -2,14 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/gemini_service.dart';
+import '../../../shared/services/patient_service.dart';
+import '../../../shared/services/user_session_service.dart';
+import '../../sos-experiment/shake_sos_mixin.dart';
+import '../../deadman-switch/inactivity_sos_mixin.dart';
+import '../../deadman-switch/safety_status_indicator.dart';
 
 /// Elderly Home Screen.
 /// Design rules: ≥22px font, ≥64px buttons, high contrast, MD3.
-class ElderlyHomeScreen extends StatelessWidget {
+class ElderlyHomeScreen extends StatefulWidget {
   const ElderlyHomeScreen({super.key});
 
+  @override
+  State<ElderlyHomeScreen> createState() => _ElderlyHomeScreenState();
+}
+
+class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
+    with ShakeSosMixin, InactivitySosMixin {
   String get _greeting {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good Morning';
@@ -19,23 +32,175 @@ class ElderlyHomeScreen extends StatelessWidget {
 
   String get _today => DateFormat('EEEE, MMMM d').format(DateTime.now());
 
+  /// Timer to rebuild only when hour changes (active hours boundary)
+  Timer? _hourChangeTimer;
+  int _lastHour = DateTime.now().hour;
+
+  @override
+  void initState() {
+    super.initState();
+    initShakeSos(context);
+
+    // Start inactivity monitor
+    UserSessionService.instance.getSavedUserId().then((userId) {
+      if (userId != null && mounted) {
+        initInactivityMonitor(userId: userId);
+      }
+    });
+
+    // Check every minute if the hour changed (for active hours boundary: 8 AM or 10 PM)
+    // Only rebuild on hour change to avoid excessive rebuilds
+    _hourChangeTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final currentHour = DateTime.now().hour;
+      if (currentHour != _lastHour && mounted) {
+        _lastHour = currentHour;
+        setState(() {}); // Rebuild only when hour changes
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _hourChangeTimer?.cancel();
+    disposeShakeSos();
+    disposeInactivityMonitor();
+    super.dispose();
+  }
+
+  /// Refresh callback for pull-to-refresh gesture
+  Future<void> _handleRefresh() async {
+    // Force state rebuild to refresh all getters (isWithinActiveHours, etc.)
+    if (mounted) {
+      setState(() {});
+    }
+    // Simulate a small delay for visual feedback
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  void _showProfileMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.settings_rounded),
+              title: Text(
+                'Settings',
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppConstants.routeElderlySettings);
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.logout_rounded, color: AppTheme.accentRed),
+              title: Text(
+                'Sign Out',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.accentRed,
+                ),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await UserSessionService.instance.clearSession();
+                if (context.mounted) {
+                  context.go(AppConstants.routeOnboarding);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundGray,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      appBar: AppBar(
+        title: const Text('Home'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: SafetyStatusIndicator(
+                isActive: inactivityMonitorActive,
+                isWithinActiveHours: isWithinActiveHours,
+                timeSinceLastActivity: timeSinceLastActivity,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: GestureDetector(
+        onTap: inactivityResetTimer,
+        behavior: HitTestBehavior.translucent,
+        child: RefreshIndicator(
+          onRefresh: _handleRefresh,
+          child: SafeArea(
+            child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // ── Header ────────────────────────────────────────────────
-              _Header(greeting: _greeting, date: _today),
+              FutureBuilder<PatientProfile?>(
+                future: UserSessionService.instance.getSavedUserId().then(
+                      (userId) => userId != null
+                          ? PatientService.instance.getPatientById(userId)
+                          : null,
+                    ),
+                builder: (context, snapshot) {
+                  final patientName = snapshot.data?.name ?? 'Friend';
+                  return _Header(
+                    greeting: _greeting,
+                    date: _today,
+                    name: patientName,
+                    onProfileTap: () => _showProfileMenu(context),
+                  );
+                },
+              ),
               const SizedBox(height: 28),
 
               // ── Check-in banner ───────────────────────────────────────
               _CheckinBanner(
                 onTap: () => context.push(AppConstants.routeElderlyCheckin),
+              ),
+              const SizedBox(height: 28),
+
+              // ── SOS button (prominent, immediately accessible) ────────
+              _SosButton(
+                onTap: () => context.push(AppConstants.routeSos),
+              ),
+              const SizedBox(height: 28),
+
+              // ── AI Summary ────────────────────────────────────────────
+              FutureBuilder<String?>(
+                future: UserSessionService.instance.getSavedUserId(),
+                builder: (context, idSnap) {
+                  final userId = idSnap.data;
+                  if (userId == null) return const SizedBox.shrink();
+                  return _ElderlyAiSummary(patientId: userId);
+                },
               ),
               const SizedBox(height: 28),
 
@@ -45,13 +210,12 @@ class ElderlyHomeScreen extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textDark,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               const SizedBox(height: 14),
 
               // ── Quick Action grid ─────────────────────────────────────
-              // 2-column grid; childAspectRatio tuned so label text fits at 22px
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -63,43 +227,25 @@ class ElderlyHomeScreen extends StatelessWidget {
                   _QuickAction(
                     icon: Icons.check_circle_outline_rounded,
                     label: 'Check In',
-                    color: AppTheme.primaryBlue,
-                    bg: AppTheme.primaryLight,
+                    color: Theme.of(context).colorScheme.primary,
+                    bg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                     onTap: () => context.push(AppConstants.routeElderlyCheckin),
                   ),
                   _QuickAction(
                     icon: Icons.medication_rounded,
                     label: 'Medications',
-                    color: AppTheme.accentOrange,
-                    bg: const Color(0xFFFFF7ED),
+                    color: const Color(0xFFEA580C),
+                    bg: const Color(0xFFEA580C).withValues(alpha: 0.15),
                     onTap: () => context.push(AppConstants.routeMedication),
                   ),
-                  _QuickAction(
-                    icon: Icons.chat_bubble_rounded,
-                    label: 'Talk to AI',
-                    color: const Color(0xFF7C3AED),
-                    bg: const Color(0xFFF5F3FF),
-                    onTap: () => context.push(AppConstants.routeElderlyChat),
-                  ),
-                  _QuickAction(
-                    icon: Icons.settings_rounded,
-                    label: 'Settings',
-                    color: AppTheme.textMid,
-                    bg: AppTheme.divider,
-                    onTap: () {}, // TODO: settings screen
-                  ),
                 ],
-              ),
-              const SizedBox(height: 28),
-
-              // ── SOS button ────────────────────────────────────────────
-              _SosButton(
-                onTap: () => context.push(AppConstants.routeSos),
               ),
               const SizedBox(height: 16),
             ],
           ),
         ),
+      ),
+    ),
       ),
     );
   }
@@ -110,11 +256,24 @@ class ElderlyHomeScreen extends StatelessWidget {
 class _Header extends StatelessWidget {
   final String greeting;
   final String date;
+  final String name;
+  final VoidCallback? onProfileTap;
 
-  const _Header({required this.greeting, required this.date});
+  const _Header({
+    required this.greeting,
+    required this.date,
+    required this.name,
+    this.onProfileTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textMid = Theme.of(context).textTheme.bodyMedium?.color 
+      ?? (isDarkMode ? Colors.grey[400] : Colors.grey[600]);
+    final textDark = Theme.of(context).colorScheme.onSurface;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -126,18 +285,17 @@ class _Header extends StatelessWidget {
                 greeting,
                 style: GoogleFonts.inter(
                   fontSize: 22,
-                  color: AppTheme.textMid,
+                  color: textMid,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                // TODO: replace 'Margaret' with real name from Firebase Auth
-                'Margaret',
+                name,
                 style: GoogleFonts.inter(
                   fontSize: AppTheme.elderlyTitleFontSize,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
+                  color: textDark,
                   height: 1.15,
                 ),
               ),
@@ -146,7 +304,7 @@ class _Header extends StatelessWidget {
                 date,
                 style: GoogleFonts.inter(
                   fontSize: 22,
-                  color: AppTheme.textMid,
+                  color: textMid,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -154,17 +312,21 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Container(
-          width: 60,
-          height: 60,
-          decoration: const BoxDecoration(
-            color: AppTheme.primaryLight,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.person_rounded,
-            color: AppTheme.primaryBlue,
-            size: 32,
+        GestureDetector(
+          onTap: onProfileTap,
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: isDarkMode ? primaryColor.withValues(alpha: 0.2) : primaryColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+              border: isDarkMode ? Border.all(color: primaryColor, width: 1.5) : null,
+            ),
+            child: Icon(
+              Icons.person_rounded,
+              color: primaryColor,
+              size: 32,
+            ),
           ),
         ),
       ],
@@ -180,27 +342,34 @@ class _CheckinBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    // Use a darker, desaturated accent for dark mode
+    final gradientStart = isDarkMode ? primaryColor.withValues(alpha: 0.8) : primaryColor;
+    final gradientEnd = isDarkMode ? primaryColor.withValues(alpha: 0.6) : primaryColor.withAlpha(220);
+    final textColor = isDarkMode ? Colors.white : Theme.of(context).colorScheme.onPrimary;
+    
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Ink(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF2563EB), Color(0xFF4F46E5)],
+              colors: [gradientStart, gradientEnd],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.all(Radius.circular(20)),
+            borderRadius: const BorderRadius.all(Radius.circular(20)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(22),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.check_circle_outline_rounded,
-                  color: Colors.white,
+                  color: textColor,
                   size: 44,
                 ),
                 const SizedBox(width: 16),
@@ -213,7 +382,7 @@ class _CheckinBanner extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -221,16 +390,16 @@ class _CheckinBanner extends StatelessWidget {
                         'How are you feeling today?',
                         style: GoogleFonts.inter(
                           fontSize: 22,
-                          color: Colors.white.withValues(alpha: 0.85),
+                          color: textColor.withValues(alpha: 0.85),
                           fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.arrow_forward_ios_rounded,
-                  color: Colors.white,
+                  color: textColor,
                   size: 22,
                 ),
               ],
@@ -261,43 +430,64 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final dividerColor = Theme.of(context).dividerColor;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface;
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    // Adapt background color for dark mode for better contrast
+    final adaptedBg = isDarkMode ? bg.withValues(alpha: 0.15) : bg.withValues(alpha: 0.1);
+    
     return Material(
-      color: AppTheme.surfaceWhite,
+      color: surfaceColor,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Ink(
           decoration: BoxDecoration(
-            color: AppTheme.surfaceWhite,
+            color: surfaceColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.divider, width: 1.5),
+            border: Border.all(
+              color: isDarkMode ? dividerColor.withValues(alpha: 0.6) : dividerColor,
+              width: 1.5,
+            ),
           ),
-          child: Padding(
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 120),
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: bg,
+                    color: adaptedBg,
                     borderRadius: BorderRadius.circular(14),
+                    border: isDarkMode ? Border.all(color: color.withValues(alpha: 0.4), width: 1) : null,
                   ),
                   child: Icon(
                     icon,
-                    color: color,
+                    color: isDarkMode ? color.withValues(alpha: 0.9) : color,
                     size: AppTheme.elderlyIconSize,
                   ),
                 ),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: AppTheme.elderlyBodyFontSize, // 22px
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
-                    height: 1.2,
+                const SizedBox(height: 12),
+                // Wrap label in FittedBox to allow text scaling without overflow
+                // Use mainAxisSize.min to allow the Column to shrink-wrap
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topLeft,
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: AppTheme.elderlyBodyFontSize, // 22px
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                      height: 1.2,
+                    ),
                   ),
                 ),
               ],
@@ -305,6 +495,116 @@ class _QuickAction extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Elderly AI Summary ────────────────────────────────────────────────────────
+
+class _ElderlyAiSummary extends StatefulWidget {
+  final String patientId;
+  const _ElderlyAiSummary({required this.patientId});
+
+  @override
+  State<_ElderlyAiSummary> createState() => _ElderlyAiSummaryState();
+}
+
+class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
+  late Future<String> _summaryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _summaryFuture = _fetchSummary();
+  }
+
+  Future<String> _fetchSummary() async {
+    try {
+      final health = await PatientService.instance.getTodayHealthData(widget.patientId);
+      if (health == null) {
+        return "You haven't checked in yet today. Tap 'Check In' above to log how you're feeling!";
+      }
+
+      final events = [
+        'Mood today: ${health.mood}',
+        'Pain level: ${health.painLevel}/10',
+        'Medications taken: ${health.medicationsTaken} of ${health.medicationsTotal}',
+        if (health.sosAlerts > 0) 'SOS alerts today: ${health.sosAlerts}',
+      ];
+
+      return await GeminiService.instance.generateHealthSummary(events);
+    } catch (_) {
+      return "Great job keeping up with your health today! Remember to take your medications and stay hydrated.";
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _summaryFuture,
+      builder: (context, snap) {
+        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        final primaryColor = Theme.of(context).colorScheme.primary;
+
+        if (snap.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 100,
+            decoration: BoxDecoration(
+              color: isDarkMode
+                  ? primaryColor.withValues(alpha: 0.15)
+                  : primaryColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
+        final summary = snap.data ?? '';
+        if (summary.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? primaryColor.withValues(alpha: 0.15)
+                : primaryColor.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: primaryColor.withValues(alpha: isDarkMode ? 0.3 : 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome_rounded, color: primaryColor, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Your Health Today',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                summary,
+                style: GoogleFonts.inter(
+                  fontSize: AppTheme.elderlyBodyFontSize,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  height: 1.55,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -317,19 +617,20 @@ class _SosButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final errorColor = Theme.of(context).colorScheme.error;
     return SizedBox(
       width: double.infinity,
       height: AppTheme.elderlyButtonHeight + 10, // 74px — extra prominent
       child: ElevatedButton.icon(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.accentRed,
-          foregroundColor: Colors.white,
+          backgroundColor: errorColor,
+          foregroundColor: Theme.of(context).colorScheme.onError,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           elevation: 4,
-          shadowColor: AppTheme.accentRed.withValues(alpha: 0.4),
+          shadowColor: errorColor.withValues(alpha: 0.4),
           textStyle: GoogleFonts.inter(
             fontSize: 24,
             fontWeight: FontWeight.bold,

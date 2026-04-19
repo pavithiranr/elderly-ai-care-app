@@ -45,6 +45,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     UserSessionService.instance.getSavedUserId().then((userId) {
       if (userId != null && mounted) {
         initInactivityMonitor(userId: userId);
+        setState(() {}); // Rebuild SafetyStatusIndicator once monitor initializes
       }
     });
 

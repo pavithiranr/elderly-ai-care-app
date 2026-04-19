@@ -1,8 +1,26 @@
-﻿# Use pre-built Flutter web files
+﻿# Stage 1: Build Flutter web
+FROM ghcr.io/cirruslabs/flutter:latest as builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy pubspec files
+COPY pubspec.yaml pubspec.lock ./
+
+# Get dependencies
+RUN flutter pub get
+
+# Copy all source files
+COPY . .
+
+# Build web
+RUN flutter build web --release
+
+# Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-# Copy the pre-built Flutter web files
-COPY build/web /usr/share/nginx/html
+# Copy built files from builder stage
+COPY --from=builder /app/build/web /usr/share/nginx/html
 
 # Copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf

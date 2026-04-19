@@ -18,7 +18,6 @@
 - ✅ **Daily Health Check-ins** - Track mood, pain level, and general wellness
 - 💊 **Smart Medication Tracking** - Reminder system with FDA drug information via openFDA API
 - 🆘 **Emergency SOS Button** - One-tap crisis alerts with pulsing heartbeat animation
-- 🤖 **AI Companion Chat** - Powered by Gemini 2.0 for health advice and emotional support
 - 📅 **Calendar Adherence Tracking** - Visual medication history and completion calendar
 - 👤 **Secure Re-login** - Access via Name + Date of Birth (alternative to password)
 - ♿ **Accessibility Settings** - Large text (16px+), high contrast mode, colorblind-friendly palette
@@ -54,7 +53,6 @@
   <tr>
     <td align="center"><b>Med Info (FDA Data)</b><br/><img src="ReadMD-pictures/elderly-med-info.png" width="200" alt="Med Info"/></td>
     <td align="center"><b>SOS Emergency</b><br/><img src="ReadMD-pictures/elderly-sos.png" width="200" alt="SOS"/></td>
-    <td align="center"><b>AI Chat</b><br/><img src="ReadMD-pictures/elderly-chat.png" width="200" alt="Chat"/></td>
   </tr>
 </table>
 
@@ -235,10 +233,41 @@ flutter run -d <device-id>
 
 ### Step 7: Test Login Credentials
 
-| Role | Email | Password |
-|------|-------|----------|
-| Elderly | elderly@test.com | password123 |
-| Caregiver | caregiver@test.com | password123 |
+#### Elderly User
+- **IC Number:** `558013857316` (Malaysia ID for testing)
+- **Access Method:** ID-based login (no email/password required)
+
+#### Caregiver User
+- **Email:** `test@gmail.com`
+- **Password:** `123456`
+
+---
+
+### Why IC-Based Login for Elderly Users?
+
+We chose **IC (Identity Card) number as the primary authentication** for elderly users instead of email/password for these important reasons:
+
+1. **Better Accessibility & Memory**
+   - Elderly users may forget complex email addresses and passwords
+   - IC number is a document they carry with them at all times
+   - One less credential to remember = lower cognitive load
+
+2. **Easier Account Recovery**
+   - If they accidentally log out, they can simply enter their IC number again
+   - No need for password recovery emails or security questions
+   - Reduces frustration and support tickets
+
+3. **Natural & Familiar**
+   - IC is something elderly users interact with regularly (banking, healthcare, etc.)
+   - Feels natural and less intimidating than password-based systems
+   - Aligns with elderly-friendly UI principles (large text, simple steps)
+
+4. **Security Without Complexity**
+   - Still provides authentication (IC is unique per person)
+   - Paired with Firebase Auth for backend security
+   - Reduces password fatigue and weak password choices
+
+This design prioritizes **usability over traditional security paradigms**, which is essential for elderly users. ♿
 
 ---
 
@@ -305,8 +334,8 @@ elderly-ai-care-app/
 │   │   │   │   └── medication_screen.dart  # Reminder list + FDA info
 │   │   │   ├── sos/
 │   │   │   │   └── sos_screen.dart         # Emergency button
-│   │   │   └── chat/
-│   │   │       └── elderly_chat_screen.dart
+│   │   │   └── settings/
+│   │   │       └── settings_screen.dart    # Profile & app settings
 │   │   │
 │   │   └── caregiver/
 │   │       ├── dashboard/

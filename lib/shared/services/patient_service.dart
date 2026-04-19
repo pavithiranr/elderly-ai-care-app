@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 /// Model for elderly patient data
 class PatientProfile {
@@ -116,6 +118,7 @@ class PatientService {
   static final PatientService instance = PatientService._();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final http.Client _httpClient = http.Client();
 
   /// Get a specific patient profile by ID
   Future<PatientProfile?> getPatientById(String patientId) async {
@@ -197,12 +200,16 @@ class PatientService {
         // moodScore: 1=Great, 2=Good, 3=Okay, 4=Not Great
         final moodScore = data['moodScore'] as int? ?? 0;
         final mood = _moodScoreToString(moodScore);
+
+        // Count medications
+        final (medsTaken, medsTotal) = await _countTodayMedications(patientId);
+
         return PatientHealthData(
           elderlyId: patientId,
           mood: mood,
           painLevel: (data['painScore'] as num?)?.toInt() ?? 0,
-          medicationsTaken: 0,
-          medicationsTotal: 0,
+          medicationsTaken: medsTaken,
+          medicationsTotal: medsTotal,
           sosAlerts: 0,
           timestamp: (data['createdAt'] as Timestamp?)?.toDate() ?? today,
         );
@@ -211,6 +218,48 @@ class PatientService {
       debugPrint('Error fetching health data: $e');
     }
     return null;
+  }
+
+  /// Count today's medications (taken and total)
+  Future<(int taken, int total)> _countTodayMedications(String patientId) async {
+    try {
+      final today = DateTime.now();
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      final endOfDay = DateTime(today.year, today.month, today.day + 1);
+
+      // Get all medications
+      final medsSnap = await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('medications')
+          .get();
+
+      int medsTaken = 0;
+      final medsTotal = medsSnap.docs.length;
+
+      // Count how many have logs for today
+      for (final medDoc in medsSnap.docs) {
+        final logsSnap = await _firestore
+            .collection('elderly')
+            .doc(patientId)
+            .collection('medications')
+            .doc(medDoc.id)
+            .collection('logs')
+            .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+            .where('timestamp', isLessThan: Timestamp.fromDate(endOfDay))
+            .limit(1)
+            .get();
+
+        if (logsSnap.docs.isNotEmpty) {
+          medsTaken++;
+        }
+      }
+
+      return (medsTaken, medsTotal);
+    } catch (e) {
+      debugPrint('Error counting medications: $e');
+      return (0, 0);
+    }
   }
 
   /// Convert moodScore (1–4) from CheckinService to a mood string.
@@ -255,32 +304,92 @@ class PatientService {
   }
 
   /// Stream of today's health data — listens to the `daily_checkins` collection
-  /// so the caregiver banner updates in real-time when the elderly checks in.
+  /// and medications to update in real-time when medications are taken.
   Stream<PatientHealthData?> getTodayHealthData$Stream(String patientId) {
     final today = DateTime.now();
     final docId =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final startOfDay = DateTime(today.year, today.month, today.day);
+    final endOfDay = DateTime(today.year, today.month, today.day + 1);
 
-    return _firestore
-        .collection('elderly')
-        .doc(patientId)
-        .collection('daily_checkins')
-        .doc(docId)
-        .snapshots()
-        .map((doc) {
-          if (!doc.exists) return null;
-          final data = doc.data()!;
-          final moodScore = data['moodScore'] as int? ?? 0;
-          return PatientHealthData(
+    // Create a custom stream that updates when either checkins or medications change
+    return Stream.multi((controller) async {
+      // Listen to checkins
+      final checkinSub = _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('daily_checkins')
+          .doc(docId)
+          .snapshots()
+          .listen((checkinDoc) async {
+        if (!checkinDoc.exists) {
+          controller.add(null);
+          return;
+        }
+
+        // Fetch medication counts
+        final (medsTaken, medsTotal) = await _countTodayMedications(patientId);
+
+        final data = checkinDoc.data()!;
+        final moodScore = data['moodScore'] as int? ?? 0;
+
+        controller.add(
+          PatientHealthData(
             elderlyId: patientId,
             mood: _moodScoreToString(moodScore),
             painLevel: (data['painScore'] as num?)?.toInt() ?? 0,
-            medicationsTaken: 0,
-            medicationsTotal: 0,
+            medicationsTaken: medsTaken,
+            medicationsTotal: medsTotal,
             sosAlerts: 0,
             timestamp: (data['createdAt'] as Timestamp?)?.toDate() ?? today,
-          );
-        });
+          ),
+        );
+      });
+
+      // Also listen to medications changes to trigger updates
+      final medsSub = _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('medications')
+          .snapshots()
+          .listen((_) async {
+        // When medications change, re-fetch checkin and medication counts
+        final checkinDoc = await _firestore
+            .collection('elderly')
+            .doc(patientId)
+            .collection('daily_checkins')
+            .doc(docId)
+            .get();
+
+        if (!checkinDoc.exists) {
+          controller.add(null);
+          return;
+        }
+
+        final (medsTaken, medsTotal) = await _countTodayMedications(patientId);
+
+        final data = checkinDoc.data()!;
+        final moodScore = data['moodScore'] as int? ?? 0;
+
+        controller.add(
+          PatientHealthData(
+            elderlyId: patientId,
+            mood: _moodScoreToString(moodScore),
+            painLevel: (data['painScore'] as num?)?.toInt() ?? 0,
+            medicationsTaken: medsTaken,
+            medicationsTotal: medsTotal,
+            sosAlerts: 0,
+            timestamp: (data['createdAt'] as Timestamp?)?.toDate() ?? today,
+          ),
+        );
+      });
+
+      // Clean up subscriptions when stream is cancelled
+      controller.onCancel = () {
+        checkinSub.cancel();
+        medsSub.cancel();
+      };
+    });
   }
 
   /// Get activity stream for a patient
@@ -362,18 +471,28 @@ class PatientService {
     required String frequency,
     String note = '',
   }) async {
-    await _firestore
-        .collection('elderly')
-        .doc(patientId)
-        .collection('medications')
-        .add({
-      'name': name,
-      'dosage': dosage,
-      'times': times,
-      'frequency': frequency,
-      'note': note,
-      'createdAt': Timestamp.now(),
-    });
+    debugPrint('DEBUG: Adding medication to path: elderly/$patientId/medications');
+    debugPrint('DEBUG: Medication data: name=$name, dosage=$dosage, times=$times, frequency=$frequency');
+    
+    try {
+      final docRef = await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('medications')
+          .add({
+        'name': name,
+        'dosage': dosage,
+        'times': times,
+        'frequency': frequency,
+        'note': note,
+        'createdAt': Timestamp.now(),
+      });
+      
+      debugPrint('DEBUG: Medication added successfully with ID: ${docRef.id}');
+    } catch (e) {
+      debugPrint('DEBUG: Error adding medication: $e');
+      rethrow;
+    }
   }
 
   /// Update an existing medication
@@ -591,5 +710,188 @@ class PatientService {
         'sosAlerts': '0',
       };
     }
+  }
+
+  /// Fetch medication history (logs) for the past 30 days
+  Future<List<Map<String, dynamic>>> getMedicationHistory(
+    String patientId,
+    String medicationId,
+  ) async {
+    try {
+      final since = DateTime.now().subtract(const Duration(days: 30));
+
+      final logsSnapshot = await _firestore
+          .collection('elderly')
+          .doc(patientId)
+          .collection('medications')
+          .doc(medicationId)
+          .collection('logs')
+          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      return logsSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'timestamp': (data['timestamp'] as Timestamp).toDate(),
+          'taken': data['taken'] ?? true,
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching medication history: $e');
+      return [];
+    }
+  }
+
+  /// Fetch drug information from openFDA API
+  /// Returns the indications/usage info for the drug
+  /// Searches both brand_name and generic_name for better compatibility
+  Future<String> fetchDrugInfo(String drugName) async {
+    try {
+      // Search both brand_name and generic_name for better compatibility
+      final Uri url = Uri.parse(
+        'https://api.fda.gov/drug/label.json?search=(openfda.brand_name:"$drugName"+OR+openfda.generic_name:"$drugName")&limit=1',
+      );
+
+      debugPrint('🔍 Fetching drug info for: $drugName');
+      final response = await _httpClient.get(url);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final results = json['results'] as List<dynamic>?;
+
+        if (results != null && results.isNotEmpty) {
+          final firstResult = results[0] as Map<String, dynamic>;
+          final openfda = firstResult['openfda'] as Map<String, dynamic>?;
+
+          // Try to get indications_and_usage first
+          if (openfda != null) {
+            final indicationsList = openfda['indications_and_usage'] as List<dynamic>?;
+            if (indicationsList != null && indicationsList.isNotEmpty) {
+              // Get first item from list
+              var indication = indicationsList[0];
+              
+              // If it's a list, deduplicate and join it; if it's a string, use it directly
+              String indicationText;
+              if (indication is List) {
+                // Deduplicate list items (case-insensitive)
+                final uniqueItems = <String>{};
+                for (var item in indication) {
+                  final itemStr = item.toString().trim();
+                  if (itemStr.isNotEmpty) {
+                    uniqueItems.add(itemStr);
+                  }
+                }
+                indicationText = uniqueItems.join(' ');
+              } else {
+                indicationText = indication.toString();
+              }
+              
+              // Clean HTML tags and entities
+              indicationText = indicationText.replaceAll(RegExp(r'<[^>]*>'), '');
+              indicationText = indicationText.replaceAll('&nbsp;', ' ');
+              indicationText = indicationText.replaceAll('&quot;', '"');
+              indicationText = indicationText.replaceAll('&amp;', '&');
+              
+              // Remove duplicate words
+              indicationText = _removeDuplicateWords(indicationText);
+              
+              // Extract first sentence only (ends with . or \n)
+              indicationText = _extractFirstSentence(indicationText);
+              debugPrint('\u2705 Found indications_and_usage: ${indicationText.substring(0, indicationText.length > 50 ? 50 : indicationText.length)}...');
+              return indicationText;
+            }
+          }
+
+          // Fallback to purpose field
+          final purpose = firstResult['purpose'] as List<dynamic>?;
+          if (purpose != null && purpose.isNotEmpty) {
+            var purposeItem = purpose[0];
+            
+            // If it's a list, deduplicate and join it; if it's a string, use it directly
+            String purposeText;
+            if (purposeItem is List) {
+              // Deduplicate list items (case-insensitive)
+              final uniqueItems = <String>{};
+              for (var item in purposeItem) {
+                final itemStr = item.toString().trim();
+                if (itemStr.isNotEmpty) {
+                  uniqueItems.add(itemStr);
+                }
+              }
+              purposeText = uniqueItems.join(' ');
+            } else {
+              purposeText = purposeItem.toString();
+            }
+            
+            purposeText = purposeText.replaceAll(RegExp(r'<[^>]*>'), '');
+            purposeText = _removeDuplicateWords(purposeText);
+            purposeText = _extractFirstSentence(purposeText);
+            debugPrint('✅ Found purpose field: ${purposeText.substring(0, purposeText.length > 50 ? 50 : purposeText.length)}...');
+            return purposeText;
+          }
+        }
+
+        debugPrint('⚠️ No results found for drug: $drugName');
+        return 'Detailed info not found, but please follow your doctor\'s prescription.';
+      } else if (response.statusCode == 404) {
+        debugPrint('❌ Drug not found in FDA database: $drugName');
+        return 'Detailed info not found, but please follow your doctor\'s prescription.';
+      }
+
+      debugPrint('❌ API error (${response.statusCode}): Unable to fetch drug information');
+      return 'Unable to fetch information. Please follow your doctor\'s prescription.';
+    } catch (e) {
+      debugPrint('❌ Error fetching drug info: $e');
+      return 'Unable to fetch information. Please follow your doctor\'s prescription.';
+    }
+  }
+
+  /// Remove duplicate phrases and consecutive words
+  String _removeDuplicateWords(String text) {
+    // Remove common FDA headers/labels (case-insensitive)
+    text = text.replaceAll(RegExp(r'^purposes?\s+', caseSensitive: false), '');
+    text = text.replaceAll(RegExp(r'^indications?\s+', caseSensitive: false), '');
+    text = text.replaceAll(RegExp(r'^purpose[s]?:?\s*', caseSensitive: false), '');
+    
+    // First, split by common delimiters to get the first meaningful phrase
+    final delimiter = RegExp(r'[.;:\-—]');
+    final parts = text.split(delimiter);
+    final firstPart = parts.isNotEmpty ? parts[0].trim() : '';
+    
+    if (firstPart.isEmpty) {
+      return text;
+    }
+    
+    // Now remove consecutive duplicate words from the first part
+    final words = firstPart.split(RegExp(r'\s+'));
+    final uniqueWords = <String>[];
+    String? previousWord;
+    
+    for (var word in words) {
+      final cleanWord = word.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (cleanWord.isNotEmpty && cleanWord != previousWord?.toLowerCase()) {
+        uniqueWords.add(word);
+        previousWord = cleanWord;
+      }
+    }
+    
+    return uniqueWords.join(' ');
+  }
+
+  /// Extract only the first sentence from text
+  String _extractFirstSentence(String text) {
+    text = text.trim();
+    if (text.isEmpty) return text;
+
+    // Split by period or newline, take first part
+    final firstSentence = text.split(RegExp(r'[.\n]')).first.trim();
+    if (firstSentence.isEmpty) return text; // Fallback if no period found
+
+    // Add period back if it doesn't end with one
+    if (!firstSentence.endsWith('.')) {
+      return '$firstSentence.';
+    }
+    return firstSentence;
   }
 }

@@ -31,6 +31,7 @@
 //     child: yourExistingBody,
 //   )
 
+import 'package:flutter/foundation.dart';
 import 'activity_tracker_service.dart';
 import 'inactivity_notification_service.dart';
 
@@ -78,6 +79,7 @@ mixin InactivitySosMixin {
     );
 
     activityTracker.start();
+    debugPrint('[InactivityMonitor] Initialized for user: $userId, active hours: ${activityTracker.activeStartHour}-${activityTracker.activeEndHour}');
     
     // Now assign to the instance variables
     _notificationService = notificationService;
@@ -92,6 +94,6 @@ mixin InactivitySosMixin {
   }
 
   void disposeInactivityMonitor() {
-    _activityTracker?.dispose();
+    _activityTracker?.stop();
   }
 }

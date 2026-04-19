@@ -57,7 +57,7 @@ class ActivityTrackerService {
     _lastActivityTime = DateTime.now();
     _startAccelerometer();
     _startCheckTimer();
-    debugPrint('[ActivityTracker] ▶ Started — warning in ${warningDuration.inMinutes}min');
+    debugPrint('[ActivityTracker] ▶ Started — warning in ${warningDuration.inMinutes}min, active hours: $activeStartHour-$activeEndHour');
   }
 
   void stop() {

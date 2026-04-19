@@ -11,7 +11,9 @@ import '../../../shared/services/patient_service.dart';
 /// Daily AI-generated health summary + weekly trend report for caregivers.
 /// Uses fl_chart for mood and pain bar charts. MD3 layout, ≥16px fonts.
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({super.key});
+  final String? patientId;
+
+  const ReportsScreen({super.key, this.patientId});
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
@@ -27,6 +29,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
   late final Future<PatientProfile?> _patientFuture = _loadPatient();
 
   Future<PatientProfile?> _loadPatient() async {
+    // If patientId is provided via route, use it
+    if (widget.patientId != null && widget.patientId!.isNotEmpty) {
+      return await PatientService.instance.getPatientById(widget.patientId!);
+    }
+
+    // Otherwise, get the first patient assigned to this caregiver
     final profile = await CaregiverService.instance.getCurrentCaregiverProfile();
     if (profile == null) return null;
     final patients = await PatientService.instance.getPatientsByCaregiver(profile.id);

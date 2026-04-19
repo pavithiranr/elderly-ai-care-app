@@ -268,13 +268,21 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           const SizedBox(height: 20),
 
           // ── Quick links ────────────────────────────────────────────────
-          _QuickLink(
-            icon: Icons.bar_chart_rounded,
-            iconColor: Theme.of(context).colorScheme.primary,
-            iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-            label: 'Health Report',
-            sublabel: 'AI-generated summary & charts',
-            onTap: () => context.push(AppConstants.routeCaregiverReports),
+          FutureBuilder<CaregiverProfile?>(
+            future: _caregiverProfileFuture,
+            builder: (context, snap) {
+              final ids = snap.data?.linkedElderlyIds ?? [];
+              if (ids.isEmpty) return const SizedBox.shrink();
+              final patientId = ids[_currentPatientIndex.clamp(0, ids.length - 1)];
+              return _QuickLink(
+                icon: Icons.bar_chart_rounded,
+                iconColor: Theme.of(context).colorScheme.primary,
+                iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                label: 'Health Report',
+                sublabel: 'AI-generated summary & charts',
+                onTap: () => context.push('${AppConstants.routeCaregiverReports}?patientId=$patientId'),
+              );
+            },
           ),
           const SizedBox(height: 10),
           if (_caregiverId != null)

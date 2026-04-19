@@ -4,7 +4,7 @@
 
 > Building peace of mind through real-time health monitoring, AI insights, and intelligent caregiving
 >
-> Built for the **Project 2030: MyAI Future Hackathon** — Track 3: Vital Signs (Healthcare & Wellbeing)
+> Built for the **Project 2030: MyAI Future Hackathon** - Track 3: Vital Signs (Healthcare & Wellbeing)
 > Organised by: **GDG On Campus UTM**
 
 ---
@@ -14,27 +14,27 @@
 **CareSync AI** is a two-sided mobile and web application that connects elderly users with their family caregivers through real-time health monitoring, AI-generated insights, and intelligent emergency response. The app uses Gemini 2.0 Flash to analyze health patterns and provide actionable recommendations to caregivers.
 
 ### For the Elderly 👴👵
-- ✅ **Role-Based Onboarding** — Separate flows for elderly and caregivers
-- ✅ **Daily Health Check-ins** — Track mood, pain level, and general wellness
-- 💊 **Smart Medication Tracking** — Reminder system with FDA drug information via openFDA API
-- 🆘 **Emergency SOS Button** — One-tap crisis alerts with pulsing heartbeat animation
-- 🤖 **AI Companion Chat** — Powered by Gemini 2.0 for health advice and emotional support
-- 📅 **Calendar Adherence Tracking** — Visual medication history and completion calendar
-- 👤 **Secure Re-login** — Access via Name + Date of Birth (alternative to password)
-- ♿ **Accessibility Settings** — Large text (16px+), high contrast mode, colorblind-friendly palette
+- ✅ **Role-Based Onboarding** - Separate flows for elderly and caregivers
+- ✅ **Daily Health Check-ins** - Track mood, pain level, and general wellness
+- 💊 **Smart Medication Tracking** - Reminder system with FDA drug information via openFDA API
+- 🆘 **Emergency SOS Button** - One-tap crisis alerts with pulsing heartbeat animation
+- 🤖 **AI Companion Chat** - Powered by Gemini 2.0 for health advice and emotional support
+- 📅 **Calendar Adherence Tracking** - Visual medication history and completion calendar
+- 👤 **Secure Re-login** - Access via Name + Date of Birth (alternative to password)
+- ♿ **Accessibility Settings** - Large text (16px+), high contrast mode, colorblind-friendly palette
 
 ### For Caregivers 👨‍⚕️👩‍⚕️
-- 📊 **Real-time Health Dashboard** — Multi-patient carousel view with live medication adherence
-- 📈 **AI-Generated Health Summary** — Gemini analyzes patient data and creates weekly summaries
+- 📊 **Real-time Health Dashboard** - Multi-patient carousel view with live medication adherence
+- 📈 **AI-Generated Health Summary** - Gemini analyzes patient data and creates weekly summaries
 - 🔍 **3-Step AI Deep Analysis:**
-  - **Signal Extractor** — Identifies health patterns and anomalies
-  - **Risk Assessor** — Evaluates health risk levels
-  - **Care Planner** — Recommends personalized interventions
-- 🚨 **Intelligent Alerts** — Severity-coded notifications (CRITICAL/WARNING/NORMAL/INFO)
-- 📱 **Push Notifications** — Real-time alerts for SOS emergencies and critical health changes
-- 📈 **Weekly Trend Reports** — AI-generated insights with fl_chart bar charts
-- 👥 **Multi-Patient Management** — Manage multiple elderly relatives via carousel
-- 🌙 **Dark Mode Support** — Accessible, eye-friendly interface
+  - **Signal Extractor** - Identifies health patterns and anomalies
+  - **Risk Assessor** - Evaluates health risk levels
+  - **Care Planner** - Recommends personalized interventions
+- 🚨 **Intelligent Alerts** - Severity-coded notifications (CRITICAL/WARNING/NORMAL/INFO)
+- 📱 **Push Notifications** - Real-time alerts for SOS emergencies and critical health changes
+- 📈 **Weekly Trend Reports** - AI-generated insights with fl_chart bar charts
+- 👥 **Multi-Patient Management** - Manage multiple elderly relatives via carousel
+- 🌙 **Dark Mode Support** - Accessible, eye-friendly interface
 
 ---
 
@@ -130,13 +130,13 @@
 
 Before you start, make sure you have:
 
-- ✅ **Flutter 3.29+** — [Install Guide](https://docs.flutter.dev/get-started/install)
+- ✅ **Flutter 3.29+** - [Install Guide](https://docs.flutter.dev/get-started/install)
 - ✅ **Dart 3.7+** (comes with Flutter)
-- ✅ **Git** — For version control
+- ✅ **Git** - For version control
 - ✅ **Android Studio** or **VS Code** with Flutter extension
 - ✅ **Android Emulator** or **Physical Device** (or use Chrome for web)
-- ✅ **Firebase CLI** — `npm install -g firebase-tools` (optional, for Firebase setup)
-- ✅ **Google Gemini API Key** — From [Google AI Studio](https://aistudio.google.com/app/apikey)
+- ✅ **Firebase CLI** - `npm install -g firebase-tools` (optional, for Firebase setup)
+- ✅ **Google Gemini API Key** - From [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ### Step 1: Clone the Repository
 
@@ -424,8 +424,8 @@ caregivers/{caregiverId}/
 ### Branching Strategy
 
 ```
-main                ← Stable, demo-ready code only — Never push directly
-  └── dev           ← Active development — All PRs go here
+main                ← Stable, demo-ready code only - Never push directly
+  └── dev           ← Active development - All PRs go here
       └── feature/* ← Individual feature branches
 ```
 
@@ -458,7 +458,7 @@ main                ← Stable, demo-ready code only — Never push directly
 
 ## 📝 License
 
-MIT License — See LICENSE file for details
+MIT License - See LICENSE file for details
 
 ---
 
@@ -489,8 +489,8 @@ This project leverages multiple AI tools to accelerate development and deliver i
 
 | Detail | Value |
 |--------|-------|
-| **Hackathon** | Project 2030 — MyAI Future Hackathon |
-| **Track** | Track 3 — Vital Signs (Healthcare & Wellbeing) |
+| **Hackathon** | Project 2030 - MyAI Future Hackathon |
+| **Track** | Track 3 - Vital Signs (Healthcare & Wellbeing) |
 | **Organization** | GDG On Campus UTM |
 | **Repository** | [elderly-ai-care-app](https://github.com/pavithiranr/elderly-ai-care-app) |
 | **License** | MIT |
@@ -499,17 +499,17 @@ This project leverages multiple AI tools to accelerate development and deliver i
 
 ## 🎯 Future Roadmap
 
-- [ ] **Video Telehealth Consultations** — Real-time video calls between elderly and healthcare providers
-- [ ] **Wearable Device Integration** — Apple Watch, Fitbit, Garmin smartwatch syncing
-- [ ] **Offline Mode with Sync** — App functionality without internet, auto-sync when online
-- [ ] **Multi-Language Support** — Localization for elderly-friendly interfaces
-- [ ] **Advanced ML Predictions** — Predictive health risk assessments using Gemini's extended analysis
-- [ ] **EHR Integration** — Connect with hospital/clinic electronic health records
-- [ ] **Voice Commands** — Hands-free interaction for accessibility
-- [ ] **Medication Photo Recognition** — AI identifies pills by image
-- [ ] **Family Video Calls** — Direct messaging and video between elderly and caregivers
-- [ ] **Therapist Integration** — Mental health support through licensed professionals
+- [ ] **Video Telehealth Consultations** - Real-time video calls between elderly and healthcare providers
+- [ ] **Wearable Device Integration** - Apple Watch, Fitbit, Garmin smartwatch syncing
+- [ ] **Offline Mode with Sync** - App functionality without internet, auto-sync when online
+- [ ] **Multi-Language Support** - Localization for elderly-friendly interfaces
+- [ ] **Advanced ML Predictions** - Predictive health risk assessments using Gemini's extended analysis
+- [ ] **EHR Integration** - Connect with hospital/clinic electronic health records
+- [ ] **Voice Commands** - Hands-free interaction for accessibility
+- [ ] **Medication Photo Recognition** - AI identifies pills by image
+- [ ] **Family Video Calls** - Direct messaging and video between elderly and caregivers
+- [ ] **Therapist Integration** - Mental health support through licensed professionals
 
 ---
 
-**Made with ❤️ for Project 2030 — MyAI Future Hackathon**
+**Made with ❤️ for Project 2030 - MyAI Future Hackathon**

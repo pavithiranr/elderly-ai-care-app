@@ -35,7 +35,6 @@ class _MedicationScreenState extends State<MedicationScreen>
         remaining.add(med);
       }
     }
-    debugPrint('_remainingMeds: ${remaining.length} out of ${_meds.length}');
     return remaining;
   }
 
@@ -70,19 +69,15 @@ class _MedicationScreenState extends State<MedicationScreen>
     final startOfDay = DateTime(now.year, now.month, now.day);
     final endOfDay = DateTime(now.year, now.month, now.day + 1);
     final result = (start: Timestamp.fromDate(startOfDay), end: Timestamp.fromDate(endOfDay));
-    debugPrint('Date range: ${startOfDay.toIso8601String()} to ${endOfDay.toIso8601String()}');
     return result;
   }
 
   Future<void> _load() async {
     final id = await UserSessionService.instance.getSavedUserId();
     if (id == null) {
-      debugPrint('DEBUG: No user ID saved in session!');
       if (mounted) setState(() => _loading = false);
       return;
     }
-
-    debugPrint('DEBUG: Loading medications for user ID: $id');
     
     try {
       final firestore = FirebaseFirestore.instance;
@@ -99,12 +94,6 @@ class _MedicationScreenState extends State<MedicationScreen>
       final meds = medsSnap.docs
           .map((d) => Medication.fromFirestore(d.id, d.data()))
           .toList();
-
-      debugPrint('Firestore query returned ${medsSnap.docs.length} medications');
-      for (final doc in medsSnap.docs) {
-        final med = Medication.fromFirestore(doc.id, doc.data());
-        debugPrint('  - Med: ${med.name} (ID: ${med.id})');
-      }
 
       // Batch-fetch all logs for today (optimization: no N+1 queries)
       final takenToday = <String, bool>{};
@@ -138,13 +127,6 @@ class _MedicationScreenState extends State<MedicationScreen>
       }
 
       if (mounted) {
-        debugPrint('MedicationScreen loaded:');
-        debugPrint('  Total meds: ${meds.length}');
-        debugPrint('  Taken today: ${takenToday.values.where((v) => v).length}');
-        debugPrint('  Remaining: ${meds.length - takenToday.values.where((v) => v).length}');
-        for (final med in meds) {
-          debugPrint('    - ${med.name}: taken=${takenToday[med.id]}');
-        }
         setState(() {
           _patientId = id;
           _meds = meds;
@@ -154,8 +136,6 @@ class _MedicationScreenState extends State<MedicationScreen>
         });
       }
     } catch (e) {
-      debugPrint('MedicationScreen load error: $e');
-      debugPrint('Stack trace: ${StackTrace.current}');
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -301,14 +281,11 @@ class _MedicationScreenState extends State<MedicationScreen>
     required String note,
   }) async {
     final id = _patientId;
-    if (id == null) {
-      debugPrint('DEBUG: ERROR - _patientId is null when trying to add medication!');
-      return;
-    }
+    if (id == null) return;
 
     try {
-      debugPrint('DEBUG: _addMed called - patientId=$id, medName=$name');
-      await PatientService.instance.addMedication(
+      // Add medication and get the real Firestore document ID
+      final medicationId = await PatientService.instance.addMedication(
         id,
         name: name,
         dosage: dosage,
@@ -317,24 +294,18 @@ class _MedicationScreenState extends State<MedicationScreen>
         note: note,
       );
 
-      debugPrint('DEBUG: Medication added to Firestore, now reloading...');
-      
-      // Schedule notifications
+      // Schedule notifications with the REAL medication ID
       await NotificationService.instance.scheduleMedicationNotifications(
-        medicationId: '${DateTime.now().millisecondsSinceEpoch}',
+        medicationId: medicationId,
         medicationName: name,
         dosage: dosage,
         times: times,
         frequency: frequency,
       );
 
-      // Reload to get the new doc ID from Firestore
-      debugPrint('DEBUG: Calling _load() to refresh medications...');
+      // Reload to update the UI
       await _load();
-      debugPrint('DEBUG: Medications reloaded successfully');
     } catch (e) {
-      debugPrint('DEBUG: Error adding medication: $e');
-      debugPrint('DEBUG: Stack trace: ${StackTrace.current}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not add medication')),

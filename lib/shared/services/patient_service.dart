@@ -224,8 +224,6 @@ class PatientService {
   Future<(int taken, int total)> _countTodayMedications(String patientId) async {
     try {
       final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
-      final endOfDay = DateTime(today.year, today.month, today.day + 1);
 
       // Get all medications
       final medsSnap = await _firestore
@@ -245,8 +243,8 @@ class PatientService {
             .collection('medications')
             .doc(medDoc.id)
             .collection('logs')
-            .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-            .where('timestamp', isLessThan: Timestamp.fromDate(endOfDay))
+            .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(DateTime(today.year, today.month, today.day)))
+            .where('timestamp', isLessThan: Timestamp.fromDate(DateTime(today.year, today.month, today.day + 1)))
             .limit(1)
             .get();
 
@@ -309,8 +307,6 @@ class PatientService {
     final today = DateTime.now();
     final docId =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    final startOfDay = DateTime(today.year, today.month, today.day);
-    final endOfDay = DateTime(today.year, today.month, today.day + 1);
 
     // Create a custom stream that updates when either checkins or medications change
     return Stream.multi((controller) async {
@@ -463,7 +459,7 @@ class PatientService {
 
   /// Log a medication dose taken by the patient
   /// Add a new medication to the patient's medications list.
-  Future<void> addMedication(
+  Future<String> addMedication(
     String patientId, {
     required String name,
     required String dosage,
@@ -489,6 +485,7 @@ class PatientService {
       });
       
       debugPrint('DEBUG: Medication added successfully with ID: ${docRef.id}');
+      return docRef.id;
     } catch (e) {
       debugPrint('DEBUG: Error adding medication: $e');
       rethrow;

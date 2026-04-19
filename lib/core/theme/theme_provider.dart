@@ -28,11 +28,6 @@ class ThemeProvider extends ChangeNotifier {
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     _loadFromStorage();
-    debugPrint('✅ ThemeProvider initialized');
-    debugPrint('   Dark Mode: $_isDarkMode');
-    debugPrint('   High Contrast: $_isHighContrast');
-    debugPrint('   Color Blind: $_isColorBlindMode');
-    debugPrint('   Text Scale: $_textScaling');
   }
 
   /// Load settings from shared preferences
@@ -52,18 +47,13 @@ class ThemeProvider extends ChangeNotifier {
 
   /// Get the current theme based on all settings
   ThemeData get currentTheme {
-    debugPrint('═══ THEME UPDATE ═══');
-    debugPrint('Dark Mode: $_isDarkMode | High Contrast: $_isHighContrast | Color Blind: $_isColorBlindMode | Text Scale: $_textScaling');
-    
     if (_isDarkMode) {
-      debugPrint('Generating darkTheme...');
       return AppTheme.darkTheme(
         textScale: _textScaling,
         isHighContrast: _isHighContrast,
         isColorBlind: _isColorBlindMode,
       );
     } else {
-      debugPrint('Generating lightTheme...');
       return AppTheme.lightTheme(
         textScale: _textScaling,
         isHighContrast: _isHighContrast,
@@ -76,40 +66,28 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> setDarkMode(bool value) async {
     if (_isDarkMode == value) return;
-    debugPrint('🌙 Setting Dark Mode: $value');
     _isDarkMode = value;
     await _prefs.setBool(_keyDarkMode, value);
     notifyListeners();
   }
 
   Future<void> setHighContrast(bool value) async {
-    if (_isHighContrast == value) {
-      debugPrint('⚠️ High Contrast already set to $value, skipping');
-      return;
-    }
-    debugPrint('◼️ Setting High Contrast: $value');
+    if (_isHighContrast == value) return;
     _isHighContrast = value;
     await _prefs.setBool(_keyHighContrast, value);
-    debugPrint('✅ High Contrast saved, calling notifyListeners()');
     notifyListeners();
   }
 
   Future<void> setColorBlindMode(bool value) async {
-    if (_isColorBlindMode == value) {
-      debugPrint('⚠️ Color Blind Mode already set to $value, skipping');
-      return;
-    }
-    debugPrint('🎨 Setting Color Blind Mode: $value');
+    if (_isColorBlindMode == value) return;
     _isColorBlindMode = value;
     await _prefs.setBool(_keyColorBlindMode, value);
-    debugPrint('✅ Color Blind Mode saved, calling notifyListeners()');
     notifyListeners();
   }
 
   Future<void> setTextScaling(double value) async {
     final validValue = value.clamp(1.0, 2.0);
     if ((_textScaling - validValue).abs() < 0.01) return;
-    debugPrint('📝 Setting Text Scale: ${(validValue * 100).toInt()}%');
     _textScaling = validValue;
     await _prefs.setDouble(_keyTextScaling, validValue);
     notifyListeners();

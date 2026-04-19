@@ -93,6 +93,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
 // Placeholder for the demo — remove in real app
 class SafetyStatusIndicatorDemo extends StatelessWidget {
+  const SafetyStatusIndicatorDemo({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Container(

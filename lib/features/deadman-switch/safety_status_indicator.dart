@@ -54,9 +54,12 @@ class _SafetyStatusIndicatorState extends State<SafetyStatusIndicator>
   }
 
   MonitoringState get _state {
-    if (!widget.isActive) return MonitoringState.sleepHours;
-    if (!widget.isWithinActiveHours) return MonitoringState.sleepHours;
-    return MonitoringState.active;
+    // Simple logic: show "active" only during active hours, "paused" during sleep hours
+    if (widget.isWithinActiveHours) {
+      return MonitoringState.active;
+    } else {
+      return MonitoringState.sleepHours;
+    }
   }
 
   @override

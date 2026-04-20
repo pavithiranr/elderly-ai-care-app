@@ -38,7 +38,6 @@
 ---
 
 ## 🎬 Screenshots & Demos
-> **Note:** Place all screenshots and GIFs in the `ReadMD-pictures/` folder
 ### Elderly App Interface
 
 <table>
@@ -59,7 +58,7 @@
 ### Caregiver Dashboard
 
 <details>
-  <summary><strong>📊 Click to expand Caregiver Dashboard</strong> (loads images on demand)</summary>
+  <summary><strong>📊 Click to expand Caregiver Dashboard</strong></summary>
   <br/>
   
   <table>

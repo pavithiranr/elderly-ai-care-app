@@ -88,7 +88,7 @@ class ActivityTrackerService {
   /// Is the current time within the active monitoring window?
   bool get isWithinActiveHours {
     final h = DateTime.now().hour;
-    return h >= activeStartHour && h < activeEndHour;
+    return h >= activeStartHour && h <= activeEndHour;
   }
 
   bool get isRunning => _isRunning;

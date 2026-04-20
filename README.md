@@ -60,7 +60,7 @@
 <table>
   <tr>
     <td align="center"><b>Dashboard Overview</b><br/><img src="ReadMD-pictures/caregiver-dashboard.png" width="250" alt="Dashboard"/></td>
-    <td align="center"><b>Patient Carousel</b><br/><img src="ReadMD-pictures/caregiver-carousel.png" width="250" alt="Patient Carousel"/></td>
+    <td align="center"><b>Patient Carousel</b><br/><img src="ReadMD-pictures/caregiver-carousel.gif" width="250" alt="Patient Carousel"/></td>
   </tr>
 </table>
 

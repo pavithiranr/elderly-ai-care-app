@@ -51,5 +51,5 @@ timeout: '1800s'
 
 # Reference the Firebase token secret from Google Cloud Secret Manager
 secrets:
-  - versionName: projects/$PROJECT_ID/secrets/firebase-token/versions/latest
+  - versionName: projects/caresync-vertex/secrets/firebase-token/versions/latest
     env: '_FIREBASE_TOKEN'

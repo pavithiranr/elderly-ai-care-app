@@ -16,7 +16,8 @@
 //   FlutterLocalNotificationsPlugin.setPluginRegistrantCallback(...)
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    if (dart.library.html) 'dart:html' as if_web;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class InactivityNotificationService {
@@ -25,8 +26,8 @@ class InactivityNotificationService {
   static const _channelId = 'inactivity_alert';
   static const _channelName = 'Inactivity Alert';
 
-  final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin? _localNotifications =
+      !kIsWeb ? FlutterLocalNotificationsPlugin() : null;
 
   bool _initialized = false;
   final String userId; // Pass in from your auth service
@@ -36,7 +37,8 @@ class InactivityNotificationService {
   // ── Initialization ─────────────────────────────────────────────────────────
 
   Future<void> initialize() async {
-    if (_initialized) return;
+    // Skip on web - local notifications not supported
+    if (kIsWeb || _initialized) return;
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
@@ -45,7 +47,7 @@ class InactivityNotificationService {
       requestSoundPermission: true,
     );
 
-    await _localNotifications.initialize(
+    await _localNotifications?.initialize(
       const InitializationSettings(android: androidSettings, iOS: iosSettings),
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
@@ -57,6 +59,12 @@ class InactivityNotificationService {
   // ── Stage 1: Local Notification ────────────────────────────────────────────
 
   Future<void> showCheckInNotification() async {
+    // Skip on web - local notifications not supported
+    if (kIsWeb || _localNotifications == null) {
+      debugPrint('[InactivityNotification] ⚠️ Skipping check-in notification on web');
+      return;
+    }
+
     debugPrint('[InactivityNotification] 🔔 Showing check-in notification');
 
     const androidDetails = AndroidNotificationDetails(
@@ -84,7 +92,7 @@ class InactivityNotificationService {
       interruptionLevel: InterruptionLevel.critical,
     );
 
-    await _localNotifications.show(
+    await _localNotifications!.show(
       _notificationId,
       '❤️ Are you okay?',
       'Tap here to check in — your caregivers will be notified if you don\'t respond.',

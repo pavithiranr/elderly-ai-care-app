@@ -21,15 +21,13 @@ RUN dart pub global activate flutterfire_cli
 COPY . .
 
 # Generate Firebase configuration
-# For local development, this will prompt for authentication
-# For Cloud Build, ensure .firebaserc and service account are available
-RUN --mount=type=secret,id=firebase_token \
-    if [ -f /run/secrets/firebase_token ]; then \
-      export FIREBASE_TOKEN=$(cat /run/secrets/firebase_token); \
+# Accept Firebase token via build argument
+ARG FIREBASE_TOKEN=""
+RUN if [ -n "$FIREBASE_TOKEN" ]; then \
+      export FIREBASE_TOKEN="$FIREBASE_TOKEN"; \
       flutterfire configure --project=caresync-vertex --force --platforms=web,android,ios,windows || true; \
     else \
-      echo "Warning: No Firebase token provided. Skipping flutterfire configure."; \
-      echo "Ensure lib/firebase_options.dart exists locally before building."; \
+      echo "Warning: No Firebase token provided. Firebase config must exist locally."; \
     fi
 
 # Build web

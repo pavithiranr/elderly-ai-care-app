@@ -1032,7 +1032,12 @@ class _AgenticAnalysisCardState extends State<_AgenticAnalysisCard> {
       final result = await GeminiService.instance.generateAgenticCareAnalysis(events);
       if (mounted) setState(() { _result = result; _loading = false; });
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString().replaceFirst('Exception: ', ''); _loading = false; });
+      if (mounted) {
+        final errorMsg = e.toString();
+        // Show full error message for debugging, but truncate excessively long ones
+        final displayError = errorMsg.length > 200 ? '${errorMsg.substring(0, 197)}...' : errorMsg;
+        setState(() { _error = displayError; _loading = false; });
+      }
     }
   }
 

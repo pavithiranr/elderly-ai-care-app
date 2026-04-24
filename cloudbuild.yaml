@@ -1,17 +1,17 @@
 steps:
-  # Step 1: Build Docker image with Firebase token passed as build argument
+  # Step 1: Build Docker image with Firebase token from secret
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-image'
     secretEnv: ['FIREBASE_TOKEN']
+    entrypoint: 'bash'
     args:
-      - 'build'
-      - '--build-arg'
-      - 'FIREBASE_TOKEN=$FIREBASE_TOKEN'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/elderly-ai-care-app:latest'
-      - '.'
+      - '-c'
+      - |
+        docker build \
+          --build-arg FIREBASE_TOKEN="$$FIREBASE_TOKEN" \
+          -t gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA \
+          -t gcr.io/$PROJECT_ID/elderly-ai-care-app:latest \
+          .
     waitFor: ['-']
 
   # Step 2: Push image to Container Registry

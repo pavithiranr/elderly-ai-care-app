@@ -2,17 +2,16 @@ steps:
   # Step 1: Build Docker image with Firebase token passed as build argument
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-image'
+    entrypoint: 'bash'
     args:
-      - 'build'
-      - '--build-arg'
-      - 'FIREBASE_TOKEN=$FIREBASE_TOKEN'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/elderly-ai-care-app:latest'
-      - '.'
+      - '-c'
+      - |
+        docker build \
+          --build-arg FIREBASE_TOKEN="$$FIREBASE_TOKEN" \
+          -t gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA \
+          -t gcr.io/$PROJECT_ID/elderly-ai-care-app:latest \
+          .
     env:
-      - 'CLOUDBUILD_BUILD_ID=$BUILD_ID'
       - 'FIREBASE_TOKEN=$_FIREBASE_TOKEN'
     waitFor: ['-']
 

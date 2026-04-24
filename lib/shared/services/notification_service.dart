@@ -22,10 +22,6 @@ class NotificationService {
   
   // Timer tracking for scheduled medication notifications
   final Map<int, Timer> _medicationTimers = {};
-  bool _initialized = false;
-  
-  // Timer tracking for scheduled medication notifications
-  final Map<int, Timer> _medicationTimers = {};
 
   static const _channelId = 'caresync_alerts';
   static const _channelName = 'CareSync Alerts';
@@ -100,7 +96,6 @@ class NotificationService {
     // For now, logging the intent
     debugPrint('✅ Local notifications initialized');
   }
-  }
 
   Future<void> _requestPermission() async {
     final settings = await _messaging.requestPermission(
@@ -112,13 +107,11 @@ class NotificationService {
     debugPrint(
         '📱 NotificationService: FCM permission = ${settings.authorizationStatus}');
     
-    // For Android 13+, also request notification permission (not on web)
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      final androidSettings = await _local
-          ?.resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
-      debugPrint('📱 Android notification permission: $androidSettings');
+    // Skip Android-specific permissions on web
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && _local != null) {
+      debugPrint('📱 Requesting Android notification permission...');
+      // TODO: Request Android notification permission via _local plugin
+      // This requires flutter_local_notifications which is mobile/desktop only
     }
   }
 

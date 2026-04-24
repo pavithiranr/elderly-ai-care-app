@@ -5,7 +5,7 @@ steps:
     args:
       - 'build'
       - '--build-arg'
-      - 'FIREBASE_TOKEN=${_FIREBASE_TOKEN}'
+      - 'FIREBASE_TOKEN=$FIREBASE_TOKEN'
       - '-t'
       - 'gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA'
       - '-t'
@@ -13,6 +13,7 @@ steps:
       - '.'
     env:
       - 'CLOUDBUILD_BUILD_ID=$BUILD_ID'
+      - 'FIREBASE_TOKEN=$_FIREBASE_TOKEN'
     waitFor: ['-']
 
   # Step 2: Push image to Container Registry

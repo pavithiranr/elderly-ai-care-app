@@ -1,18 +1,20 @@
 steps:
-  # Step 1: Build Docker image with Firebase token from secret
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-image'
-    secretEnv: ['FIREBASE_TOKEN']
+  # Step 0: Retrieve Firebase token from Secret Manager and save to file
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'get-firebase-token'
     entrypoint: 'bash'
     args:
       - '-c'
-      - |
-        docker build \
-          --build-arg FIREBASE_TOKEN="$$FIREBASE_TOKEN" \
-          -t gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA \
-          -t gcr.io/$PROJECT_ID/elderly-ai-care-app:latest \
-          .
-    waitFor: ['-']
+      - 'gcloud secrets versions access latest --secret=firebase-token > /workspace/firebase-token.txt'
+    
+  # Step 1: Build Docker image with Firebase token
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'TOKEN=$(cat /workspace/firebase-token.txt); docker build --build-arg FIREBASE_TOKEN="$TOKEN" -t gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA -t gcr.io/$PROJECT_ID/elderly-ai-care-app:latest .'
+    waitFor: ['get-firebase-token']
 
   # Step 2: Push image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
@@ -46,8 +48,3 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 timeout: '1800s'
-
-# Reference the Firebase token secret from Google Cloud Secret Manager
-secrets:
-  - versionName: projects/caresync-vertex/secrets/firebase-token/versions/latest
-    env: 'FIREBASE_TOKEN'

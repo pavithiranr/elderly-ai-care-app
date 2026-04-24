@@ -17,13 +17,13 @@ import '../../core/services/logging_service.dart';
 /// - TODO: Move API key to backend server for production (Firebase Functions, etc.)
 /// - TIP: Link a Billing Account in Google AI Studio (even without spending) to avoid "limit: 0" errors
 class GeminiService {
-  GeminiService._() {
-    final key = dotenv.env['GEMINI_API_KEY'] ?? '';
-    logger.debug('GeminiService initialized - API key loaded: ${key.isNotEmpty ? "✅ (${key.length} chars)" : "❌ EMPTY"}');
-  }
+  GeminiService._();
   static final GeminiService instance = GeminiService._();
 
-  final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+  /// Lazy-load API key to avoid NonInitializedError from dotenv
+  /// This is accessed AFTER main() has called dotenv.load()
+  String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
+  
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
@@ -335,18 +335,32 @@ PERSONAL HEALTH UPDATE (start directly with "You", no greeting):''';
 
   /// Parses the [SIGNALS], [RISK], [PLAN] sections from a single Gemini response.
   AgenticCareResult _parseAgenticResult(String raw) {
+    logger.debug('Raw Gemini response length: ${raw.length} chars');
+    
     String extract(String tag, String next) {
       final start = raw.indexOf('[$tag]');
       final end = next.isNotEmpty ? raw.indexOf('[$next]') : raw.length;
-      if (start == -1) return '';
-      return raw.substring(start + tag.length + 2, end == -1 ? raw.length : end).trim();
+      if (start == -1) {
+        logger.warning('Tag [$tag] not found in Gemini response');
+        return '';
+      }
+      final extracted = raw.substring(start + tag.length + 2, end == -1 ? raw.length : end).trim();
+      logger.debug('Extracted [$tag]: ${extracted.length} chars');
+      return extracted;
     }
 
-    return AgenticCareResult(
+    final result = AgenticCareResult(
       signals: extract('SIGNALS', 'RISK'),
       riskAssessment: extract('RISK', 'PLAN'),
       carePlan: extract('PLAN', ''),
     );
+    
+    // Validate we got meaningful results
+    if (result.signals.isEmpty || result.riskAssessment.isEmpty || result.carePlan.isEmpty) {
+      logger.warning('⚠️ Agentic analysis returned empty sections. Raw response:\n$raw');
+    }
+    
+    return result;
   }
 
   /// Generate medication reminder text.

@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async';
+
+// Local notifications only supported on mobile/desktop platforms, not web
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    if (dart.library.html) 'dart:html' as if_web;
 
 /// Handles FCM token management and local notification display.
 ///
@@ -16,7 +19,8 @@ class NotificationService {
   static final NotificationService instance = NotificationService._();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin? _local =
+      !kIsWeb ? FlutterLocalNotificationsPlugin() : null;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _initialized = false;
   
@@ -58,6 +62,12 @@ class NotificationService {
 
   Future<void> _initLocalNotifications() async {
     try {
+      // Skip on web platform - local notifications not supported
+      if (kIsWeb) {
+        debugPrint('⚠️ Skipping local notifications initialization on web');
+        return;
+      }
+
       debugPrint('🔔 Starting _initLocalNotifications...');
       const android = AndroidInitializationSettings('@mipmap/ic_launcher');
       const ios = DarwinInitializationSettings(
@@ -67,7 +77,7 @@ class NotificationService {
       );
       
       debugPrint('🔔 Calling _local.initialize()...');
-      final success = await _local.initialize(
+      final success = await _local?.initialize(
         const InitializationSettings(android: android, iOS: ios),
       );
       
@@ -89,7 +99,7 @@ class NotificationService {
       
       debugPrint('🔔 Creating Android notification channel...');
       final androidPlugin = _local
-          .resolvePlatformSpecificImplementation<
+          ?.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
       
       if (androidPlugin != null) {
@@ -115,10 +125,10 @@ class NotificationService {
     debugPrint(
         '📱 NotificationService: FCM permission = ${settings.authorizationStatus}');
     
-    // For Android 13+, also request notification permission
-    if (defaultTargetPlatform == TargetPlatform.android) {
+    // For Android 13+, also request notification permission (not on web)
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       final androidSettings = await _local
-          .resolvePlatformSpecificImplementation<
+          ?.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
       debugPrint('📱 Android notification permission: $androidSettings');
@@ -178,8 +188,14 @@ class NotificationService {
     int id = 0,
   }) async {
     try {
+      // Skip on web - local notifications not supported
+      if (kIsWeb || _local == null) {
+        debugPrint('⚠️ Skipping local notification on web: "$title" | "$body"');
+        return;
+      }
+
       debugPrint('🔔 Attempting to show notification: "$title" | "$body" (ID: $id)');
-      await _local.show(
+      await _local!.show(
         id,
         title,
         body,

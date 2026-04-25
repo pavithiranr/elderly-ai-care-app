@@ -712,7 +712,7 @@ class _AccessibilityTile extends StatelessWidget {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeThumbColor: theme.primaryColor,
+              activeColor: theme.primaryColor,
             ),
           ],
         ),

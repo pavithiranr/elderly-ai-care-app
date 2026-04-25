@@ -10,7 +10,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../shared/services/caregiver_service.dart';
 import '../../../shared/services/firebase_alerts_service.dart';
 import '../../../shared/services/gemini_service.dart';
-import '../../../shared/services/notification_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
 
@@ -51,9 +50,6 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     if (profile == null) return;
 
     for (final patientId in profile.linkedElderlyIds) {
-      final patient = await PatientService.instance.getPatientById(patientId);
-      final name = patient?.name ?? 'Your patient';
-
       final sub = FirebaseFirestore.instance
           .collection('elderly')
           .doc(patientId)
@@ -61,11 +57,9 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           .orderBy('timestamp', descending: true)
           .limit(1)
           .snapshots()
-          .skip(1) // skip the initial snapshot — only react to NEW docs
+          .skip(1)
           .listen((snap) {
-        if (snap.docs.isNotEmpty) {
-          NotificationService.instance.showSosNotification(name);
-        }
+        // FCM notification is handled by the Cloud Function — no local notify needed
       });
 
       _sosSubs.add(sub);

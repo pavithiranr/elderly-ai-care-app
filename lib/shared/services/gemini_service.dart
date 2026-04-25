@@ -6,9 +6,9 @@ import '../../core/services/logging_service.dart';
 /// Calls Google Gemini API to generate AI summaries about elderly patient care.
 /// 
 /// Architecture Notes:
-/// - Uses Gemini 2.5 Flash model (stable free tier, 5 RPM limit)
-/// - Gemini 2.0 series was deprecated March 3, 2026 (limit set to 0 for free tier)
-/// - Gemini 3.1 Flash Lite not yet available on v1beta generateContent endpoint
+/// - Uses Gemini 1.5 Flash model (stable, free tier, v1beta endpoint)
+/// - gemini-2.0-flash deprecated March 2026; preview model names expire
+/// - Upgrade to gemini-2.5-flash once confirmed available on v1beta free tier
 /// - All API calls go through [_makeApiRequest] which enforces:
 ///   * Exponential backoff retry (1s, 2s, 4s, 8s) for 429 errors
 ///   * Response validation (checks for empty candidates list)
@@ -25,7 +25,7 @@ class GeminiService {
   String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
   
   static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent';
 
   /// Generate a concise health summary for a caregiver dashboard.
   /// 

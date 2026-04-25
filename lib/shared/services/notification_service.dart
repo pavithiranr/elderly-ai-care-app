@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async';
 
 /// Handles FCM token management and local notification display.
@@ -8,18 +9,16 @@ import 'dart:async';
 /// Flow:
 ///   1. Call [init] once at app start (before runApp).
 ///   2. After a user logs in, call [saveTokenForUser] with their Firestore UID.
-///   3. The caregiver dashboard calls [showSosNotification] when it detects
-///      a new SOS alert from Firestore — no server needed for the demo.
+///   3. Backend sends FCM push to caregiver token — received here and displayed.
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  // Note: flutter_local_notifications is mobile/desktop only; web access is guarded
-  dynamic _local;
+  final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _initialized = false;
-  
+
   // Timer tracking for scheduled medication notifications
   final Map<int, Timer> _medicationTimers = {};
 
@@ -31,70 +30,41 @@ class NotificationService {
 
   Future<void> init() async {
     try {
-      debugPrint('🔔 NotificationService.init() starting...');
-      
-      debugPrint('🔔 Step 1: Initialize local notifications');
-      await _initLocalNotifications();
-      
-      debugPrint('🔔 Step 2: Request permissions');
+      if (!kIsWeb) {
+        await _initLocalNotifications();
+      }
       await _requestPermission();
-      
-      debugPrint('🔔 Step 3: Set up FCM listener');
       _listenToForegroundMessages();
-      
-      debugPrint('🔔 Step 4: Mark as initialized');
       _initialized = true;
-      
-      debugPrint('🔔 Step 5: Allow native plugin time to fully initialize');
-      await Future.delayed(const Duration(seconds: 2));
-      
-      debugPrint('✅ NotificationService fully initialized and ready (_initialized=$_initialized)');
+      debugPrint('✅ NotificationService initialized');
     } catch (e) {
-      debugPrint('❌ Error in NotificationService.init(): $e');
-      debugPrint('❌ Stack trace: ${StackTrace.current}');
+      debugPrint('❌ NotificationService.init() error: $e');
       rethrow;
     }
   }
 
   Future<void> _initLocalNotifications() async {
-    try {
-      // Skip on web platform - local notifications not supported
-      if (kIsWeb) {
-        debugPrint('⚠️ Skipping local notifications initialization on web');
-        return;
-      }
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
+    await _local.initialize(settings);
 
-      // Only import and initialize on mobile/desktop
-      debugPrint('🔔 Starting _initLocalNotifications...');
-      
-      // Use dynamic to avoid compile errors on web
-      // On mobile/desktop, this will be properly typed at runtime
-      _initLocalNotificationsImpl();
-      
-    } catch (e) {
-      debugPrint('❌ Error in _initLocalNotifications: $e');
-      debugPrint('❌ Stack trace: ${StackTrace.current}');
-      rethrow;
-    }
-  }
-
-  // Separate method to handle mobile/desktop specific initialization
-  // This avoids type resolution issues on web
-  Future<void> _initLocalNotificationsImpl() async {
-    // This will only be called on mobile/desktop where flutter_local_notifications is available
-    // The types are resolved at runtime, not at compile time
-    debugPrint('🔔 Initializing local notifications on mobile/desktop...');
-    
-    // Skip on web - double check
-    if (kIsWeb) {
-      debugPrint('⚠️ Web detected, skipping implementation');
-      return;
-    }
-    
-    // TODO: Implement platform-specific initialization
-    // This requires flutter_local_notifications which can't be imported at class level
-    // For now, logging the intent
-    debugPrint('✅ Local notifications initialized');
+    // Create high-importance notification channel so OS shows heads-up banners
+    const channel = AndroidNotificationChannel(
+      _channelId,
+      _channelName,
+      description: _channelDesc,
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+    );
+    await _local
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
   }
 
   Future<void> _requestPermission() async {
@@ -104,14 +74,12 @@ class NotificationService {
       sound: true,
       criticalAlert: true,
     );
-    debugPrint(
-        '📱 NotificationService: FCM permission = ${settings.authorizationStatus}');
-    
-    // Skip Android-specific permissions on web
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && _local != null) {
-      debugPrint('📱 Requesting Android notification permission...');
-      // TODO: Request Android notification permission via _local plugin
-      // This requires flutter_local_notifications which is mobile/desktop only
+    debugPrint('📱 FCM permission: ${settings.authorizationStatus}');
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      await _local
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
     }
   }
 
@@ -167,39 +135,32 @@ class NotificationService {
     required String body,
     int id = 0,
   }) async {
+    if (kIsWeb) return;
     try {
-      // Skip on web - local notifications not supported
-      if (kIsWeb || _local == null) {
-        debugPrint('⚠️ Skipping local notification on web: "$title" | "$body"');
-        return;
-      }
-
-      debugPrint('🔔 Attempting to show notification: "$title" | "$body" (ID: $id)');
-      
-      // Use dynamic call to avoid type resolution on web
-      // ignore: avoid_dynamic_calls
-      await _local.show(
-        id,
-        title,
-        body,
-        _buildNotificationDetails(),
-      );
-      
-      debugPrint('✅ Notification shown successfully');
+      await _local.show(id, title, body, _buildNotificationDetails());
+      debugPrint('✅ Notification shown: "$title"');
     } catch (e) {
       debugPrint('❌ Error showing notification: $e');
     }
   }
 
-  // Helper to build notification details (abstracts type details)
-  dynamic _buildNotificationDetails() {
-    // On web, this won't be called due to early return in show()
-    // On mobile/desktop, this returns the proper NotificationDetails object
-    if (kIsWeb) return null;
-    
-    // TODO: Build proper NotificationDetails for mobile/desktop
-    // This requires flutter_local_notifications types
-    return null;
+  NotificationDetails _buildNotificationDetails() {
+    const androidDetails = AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: _channelDesc,
+      importance: Importance.max,
+      priority: Priority.max,
+      enableVibration: true,
+      playSound: true,
+      fullScreenIntent: true,
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    return const NotificationDetails(android: androidDetails, iOS: iosDetails);
   }
 
   /// Convenience: fire an SOS notification for a named patient.
@@ -409,6 +370,7 @@ class NotificationService {
 
   /// Cancel all pending notifications
   Future<void> cancelAllNotifications() async {
+    if (kIsWeb) return;
     try {
       await _local.cancelAll();
       debugPrint('✅ All notifications cancelled');

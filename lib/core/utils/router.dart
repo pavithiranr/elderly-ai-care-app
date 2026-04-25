@@ -23,7 +23,10 @@ import '../../features/caregiver/reports/reports_screen.dart';
 import '../constants/app_constants.dart';
 import '../../shared/services/user_session_service.dart';
 
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 final GoRouter appRouter = GoRouter(
+  navigatorKey: appNavigatorKey,
   initialLocation: AppConstants.routeOnboarding,
   redirect: (BuildContext context, GoRouterState state) async {
     final isDone = await UserSessionService.instance.isOnboardingDone();

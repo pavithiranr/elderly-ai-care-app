@@ -24,9 +24,9 @@ steps:
       - 'gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA'
     waitFor: ['build-image']
 
-  # Step 3: Deploy to Cloud Run (optional - adjust based on your needs)
+  # Step 3: Deploy Flutter web frontend to Cloud Run
   - name: 'gcr.io/cloud-builders/run'
-    id: 'deploy'
+    id: 'deploy-frontend'
     args:
       - 'deploy'
       - 'elderly-ai-care-app'
@@ -39,9 +39,50 @@ steps:
       - '--allow-unauthenticated'
     waitFor: ['push-image']
 
+  # Step 4: Build backend (Node.js FCM notification server)
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-backend'
+    args:
+      - 'build'
+      - '-f'
+      - 'Dockerfile.backend'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/caresync-backend:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/caresync-backend:latest'
+      - '.'
+    waitFor: ['-']
+
+  # Step 5: Push backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-backend'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/caresync-backend:$SHORT_SHA'
+    waitFor: ['build-backend']
+
+  # Step 6: Deploy backend to Cloud Run
+  - name: 'gcr.io/cloud-builders/run'
+    id: 'deploy-backend'
+    args:
+      - 'deploy'
+      - 'caresync-backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/caresync-backend:$SHORT_SHA'
+      - '--region'
+      - 'europe-west1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8081'
+    waitFor: ['push-backend']
+
 images:
   - 'gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA'
   - 'gcr.io/$PROJECT_ID/elderly-ai-care-app:latest'
+  - 'gcr.io/$PROJECT_ID/caresync-backend:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/caresync-backend:latest'
 
 options:
   machineType: 'N1_HIGHCPU_8'

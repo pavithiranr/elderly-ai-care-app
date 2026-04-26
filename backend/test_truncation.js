@@ -1,7 +1,8 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 async function testTruncation() {
-  const genAI = new GoogleGenerativeAI('AIzaSyBcHymwEDSZ3lEp4LUdMGKQjkAxc8dwqNM');
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const eventsList = "Patient reports feeling great.\\nPain level 7.\\nMedication taken: 0/8.\\nNo SOS alerts.";

@@ -1,7 +1,8 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 async function testModels() {
-  const genAI = new GoogleGenerativeAI('AIzaSyBcHymwEDSZ3lEp4LUdMGKQjkAxc8dwqNM');
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
   const modelsToTest = ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-flash-latest', 'gemma-3-1b-it'];
   
   for (const modelName of modelsToTest) {

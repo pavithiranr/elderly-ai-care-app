@@ -70,36 +70,44 @@ class InactivityNotificationService {
 
     final firestore = FirebaseFirestore.instance;
 
-    // Write alert document — caregivers' app listens to this collection
-    await firestore
-        .collection('users')
-        .doc(userId)
-        .collection('alerts')
-        .add({
-      'type': 'inactivity_alert',
-      'status': 'inactivity_alert_triggered',  // Matches your prompt spec
-      'triggeredAt': FieldValue.serverTimestamp(),
-      'resolvedAt': null,
-      'severity': 'high',
-    });
+    try {
+      // Write alert document — caregivers' app listens to this collection
+      await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('alerts')
+          .add({
+        'type': 'inactivity_alert',
+        'status': 'inactivity_alert_triggered',  // Matches your prompt spec
+        'triggeredAt': FieldValue.serverTimestamp(),
+        'resolvedAt': null,
+        'severity': 'high',
+      });
 
-    // Also update the user's top-level status for quick caregiver dashboard reads
-    await firestore.collection('users').doc(userId).update({
-      'status': 'inactivity_alert_triggered',
-      'lastAlertAt': FieldValue.serverTimestamp(),
-    });
+      // Use merge to avoid not-found errors when the user doc is missing.
+      await firestore.collection('users').doc(userId).set({
+        'status': 'inactivity_alert_triggered',
+        'lastAlertAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      debugPrint('[InactivityNotification] ❌ Firestore escalation failed: ${e.code} ${e.message}');
+    }
   }
 
   Future<void> resolveAlert() async {
     debugPrint('[InactivityNotification] ✅ Alert resolved by user');
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .update({
-      'status': 'active',
-      'lastSeenAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .set({
+        'status': 'active',
+        'lastSeenAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      debugPrint('[InactivityNotification] ❌ Resolve alert failed: ${e.code} ${e.message}');
+    }
   }
 }
 

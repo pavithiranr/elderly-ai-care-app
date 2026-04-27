@@ -103,7 +103,7 @@
 | **Authentication** | Firebase Auth | Secure user login & session management |
 | **AI Core** | Google Gemini 2.0 Flash | Health analysis, summaries, chat companion, deep analysis |
 | **AI Workflows** | Firebase Genkit | Agentic AI pipelines for health analysis (planned) |
-| **Deployment** | Google Cloud Run | Backend service deployment (planned for AI pipelines) |
+| **Deployment** | Google Cloud Run | [Live Backend](https://caresync-ai-631057330468.europe-west1.run.app/) - Backend service deployment |
 | **Push Notifications** | Firebase Cloud Messaging | SOS alerts, emergency notifications |
 | **Local Notifications** | flutter_local_notifications | Local reminder alerts |
 | **Charts & Analytics** | fl_chart | Weekly health trend visualization |
@@ -537,6 +537,12 @@ This project leverages multiple AI tools to accelerate development and deliver i
 - [ ] **Medication Photo Recognition** - AI identifies pills by image
 - [ ] **Family Video Calls** - Direct messaging and video between elderly and caregivers
 - [ ] **Therapist Integration** - Mental health support through licensed professionals
+
+---
+
+## 👨‍💻 Created By
+
+Created by [@pavithiranr](https://github.com/pavithiranr) [@macpranesh](https://github.com/macpranesh) [@ghyrry](https://github.com/ghyrry)
 
 ---
 

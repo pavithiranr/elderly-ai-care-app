@@ -89,7 +89,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     return Scaffold(
       appBar: _buildAppBar(context),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
         children: [
           // ── Greeting ──────────────────────────────────────────────────
           FutureBuilder<CaregiverProfile?>(
@@ -108,7 +108,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               );
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // ── Patient card (Swipeable Carousel) ────────────────────────
           // Fetches patient data from Firestore using linkedElderlyIds
@@ -181,7 +181,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
           // ── Today's Check-in (Real-time) ───────────────────────────────
           FutureBuilder<CaregiverProfile?>(
@@ -200,7 +200,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               return _TodayCheckinBanner(patientId: currentPatientId);
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // ── AI Summary ────────────────────────────────────────────────
           FutureBuilder<CaregiverProfile?>(
@@ -211,7 +211,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               return Column(
                 children: [
                   _AiSummaryLoader(patientId: ids[_currentPatientIndex.clamp(0, ids.length - 1)]),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                 ],
               );
             },
@@ -228,7 +228,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                   _AgenticAnalysisCard(
                     patientId: ids[_currentPatientIndex.clamp(0, ids.length - 1)],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                 ],
               );
             },
@@ -236,7 +236,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
 
           // ── Health stats ───────────────────────────────────────────────
           _SectionHeader(title: "Today's Health"),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           FutureBuilder<CaregiverProfile?>(
             future: _caregiverProfileFuture,
             builder: (context, snap) {
@@ -259,7 +259,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               );
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // ── Quick links ────────────────────────────────────────────────
           FutureBuilder<CaregiverProfile?>(
@@ -278,7 +278,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               );
             },
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           if (_caregiverId != null)
             StreamBuilder<List<AlertGroup>>(
               stream: FirebaseAlertsService.instance.getAlertsStream(_caregiverId!),
@@ -310,11 +310,11 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               sublabel: 'No new alerts',
               onTap: () => context.push(AppConstants.routeCaregiverAlerts),
             ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // ── Recent activity ────────────────────────────────────────────
           _SectionHeader(title: 'Recent Activity'),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           // Fetches activity stream from Firestore (real-time updates)
           FutureBuilder<PatientProfile?>(
             future: CaregiverService.instance

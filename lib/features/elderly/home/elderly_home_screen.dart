@@ -169,7 +169,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           onRefresh: _handleRefresh,
           child: SafeArea(
             child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -190,19 +190,19 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   );
                 },
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
               // ── Check-in banner ───────────────────────────────────────
               _CheckinBanner(
                 onTap: () => context.push(AppConstants.routeElderlyCheckin),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
               // ── SOS button (prominent, immediately accessible) ────────
               _SosButton(
                 onTap: () => context.push(AppConstants.routeSos),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
               // ── AI Summary ────────────────────────────────────────────
               FutureBuilder<String?>(
@@ -213,7 +213,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                   return _ElderlyAiSummary(patientId: userId);
                 },
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
               // ── Section label ─────────────────────────────────────────
               Text(
@@ -231,8 +231,8 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
                 crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
+                crossAxisSpacing: 18,
+                mainAxisSpacing: 18,
                 childAspectRatio: 0.95,
                 children: [
                   _QuickAction(
@@ -375,7 +375,7 @@ class _CheckinBanner extends StatelessWidget {
             borderRadius: const BorderRadius.all(Radius.circular(20)),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.all(24),
             child: Row(
               children: [
                 Icon(
@@ -465,13 +465,13 @@ class _QuickAction extends StatelessWidget {
           ),
           child: Container(
             constraints: const BoxConstraints(minHeight: 120),
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: adaptedBg,
                     borderRadius: BorderRadius.circular(14),
@@ -483,7 +483,7 @@ class _QuickAction extends StatelessWidget {
                     size: AppTheme.elderlyIconSize,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 // Wrap label in FittedBox to allow text scaling without overflow
                 // Use mainAxisSize.min to allow the Column to shrink-wrap
                 FittedBox(

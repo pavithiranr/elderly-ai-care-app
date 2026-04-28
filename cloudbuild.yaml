@@ -7,6 +7,16 @@ steps:
       - '-c'
       - 'gcloud secrets versions access latest --secret=firebase-token > /workspace/firebase-token.txt'
     
+  # Step 0b: Retrieve API keys from Secret Manager
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'get-api-keys'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud secrets versions access latest --secret=GOOGLE_API_KEY > /workspace/google-api-key.txt
+        gcloud secrets versions access latest --secret=GOOGLE_GENERATIVE_AI_API_KEY > /workspace/google-genai-key.txt
+    
   # Step 1: Build Docker image with Firebase token
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-image'
@@ -39,19 +49,23 @@ steps:
       - '--allow-unauthenticated'
     waitFor: ['push-image']
 
-  # Step 4: Build backend (Node.js FCM notification server)
+  # Step 4: Build backend (Node.js FCM notification server) with API keys
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-backend'
+    entrypoint: 'bash'
     args:
-      - 'build'
-      - '-f'
-      - 'Dockerfile.backend'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/caresync-backend:$SHORT_SHA'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/caresync-backend:latest'
-      - '.'
-    waitFor: ['-']
+      - '-c'
+      - |
+        GOOGLE_API_KEY=$(cat /workspace/google-api-key.txt)
+        GOOGLE_GENAI_KEY=$(cat /workspace/google-genai-key.txt)
+        docker build \
+          -f Dockerfile.backend \
+          --build-arg GOOGLE_API_KEY="$GOOGLE_API_KEY" \
+          --build-arg GOOGLE_GENERATIVE_AI_API_KEY="$GOOGLE_GENAI_KEY" \
+          -t gcr.io/$PROJECT_ID/caresync-backend:$SHORT_SHA \
+          -t gcr.io/$PROJECT_ID/caresync-backend:latest \
+          .
+    waitFor: ['get-api-keys']
 
   # Step 5: Push backend image
   - name: 'gcr.io/cloud-builders/docker'

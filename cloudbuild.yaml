@@ -26,7 +26,7 @@ steps:
       - 'gcloud secrets versions access latest --secret=firebase-options-dart > lib/firebase_options.dart'
 
   # Step 1: Build Flutter Web App in the Cloud
-  - name: 'ghcr.io/cirruslabs/flutter:3.24.3'
+  - name: 'ghcr.io/cirruslabs/flutter:stable'
     id: 'build-flutter-web'
     entrypoint: 'bash'
     args:

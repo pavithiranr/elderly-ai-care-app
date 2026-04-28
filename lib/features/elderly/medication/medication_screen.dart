@@ -1544,7 +1544,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
               // ── Unit ───────────────────────────────────────────────
               DropdownButtonFormField<String>(
-                value: _selectedUnit,
+                initialValue: _selectedUnit,
                 isDense: true,
                 items: ['mg', 'mcg', 'ml', 'tablets'].map((unit) {
                   return DropdownMenuItem(
@@ -1567,7 +1567,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
               // ── Frequency ─────────────────────────────────────────
               DropdownButtonFormField<String>(
-                value: _selectedFrequency,
+                initialValue: _selectedFrequency,
                 isDense: true,
                 items: ['Daily', 'Every Other Day', 'Weekly'].map((freq) {
                   return DropdownMenuItem(

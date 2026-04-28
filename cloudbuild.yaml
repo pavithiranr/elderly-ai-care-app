@@ -63,7 +63,7 @@ steps:
     waitFor: ['build-image']
 
   # Step 4: Deploy Frontend to Cloud Run
-  - name: 'gcr.io/cloud-builders/run'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-frontend'
     entrypoint: 'bash'
     args:
@@ -109,7 +109,7 @@ steps:
     waitFor: ['build-backend']
 
   # Step 7: Deploy Backend to Cloud Run
-  - name: 'gcr.io/cloud-builders/run'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-backend'
     entrypoint: 'bash'
     args:

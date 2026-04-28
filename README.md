@@ -163,31 +163,32 @@ GEMINI_API_KEY=your_actual_gemini_api_key_here
 3. Select your Google project or create a new one
 4. Copy the API key and paste it in `.env`
 
-### Step 4: Firebase Setup
+### Step 4: Generate Firebase Configuration (REQUIRED)
 
-#### Option A: Use Existing Firebase Configuration (Recommended for Testing)
-The app includes pre-configured Firebase credentials. Skip to Step 5.
-
-#### Option B: Setup Your Own Firebase Project
+⚠️ **Important:** The `lib/firebase_options.dart` file is NOT included in git for security reasons (contains API keys). You MUST generate it locally:
 
 ```bash
-# Install Firebase CLI
+# Install Firebase CLI (if not already installed)
 npm install -g firebase-tools
 
 # Login to Firebase
 firebase login
 
-# Configure Flutter for your Firebase project
-flutterfire configure
+# Generate firebase_options.dart for the caresync-vertex project
+flutterfire configure --project=caresync-vertex
 ```
 
-This will:
-- Create Firebase project in your Google Cloud Console
-- Generate `google-services.json` (Android) → `android/app/`
-- Generate `GoogleService-Info.plist` (iOS) → `ios/Runner/`
-- Create `.firebaserc` configuration
+This command will:
+- ✅ Connect to the Firebase project `caresync-vertex`
+- ✅ Detect your platform (Android, iOS, Web, Windows)
+- ✅ Generate `lib/firebase_options.dart` with valid API keys
+- ✅ This file is `.gitignore`'d and stays local on your machine
 
-### Step 5: Add google-services.json (if using your own Firebase)
+**Troubleshooting:**
+- If you get "Project not found", you may need to create your own Firebase project via [Firebase Console](https://console.firebase.google.com)
+- The file will be generated in `lib/firebase_options.dart` automatically
+
+### Step 5: Install Platform-Specific Firebase Files (Optional)
 
 ```bash
 # For Android, copy google-services.json to:

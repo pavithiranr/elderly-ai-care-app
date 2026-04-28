@@ -3,7 +3,7 @@ import 'dart:convert';
 import '../../core/services/logging_service.dart';
 
 /// Calls backend Gemini API to generate AI summaries about elderly patient care.
-/// 
+///
 /// Architecture:
 /// - All calls route through a backend server (e.g., Cloud Run, Express, Firebase Functions)
 /// - Backend uses Application Default Credentials (ADC) or service account for Gemini API access
@@ -14,14 +14,15 @@ class GeminiService {
   GeminiService._();
   static final GeminiService instance = GeminiService._();
 
-  /// Backend base URL — set to your actual backend server address
+  /// Backend base URL - set to your actual backend server address
   /// For local development: 'http://10.29.107.22:8080' (your machine IP)
   /// For production: Cloud Run endpoint (https://caresync-backend-631057330468.us-central1.run.app)
-  static const String _baseUrl = 'https://caresync-backend-631057330468.us-central1.run.app';
+  static const String _baseUrl =
+      'https://caresync-backend-631057330468.us-central1.run.app';
 
   /// Generate a concise health summary for a caregiver dashboard.
-  /// 
-  /// Takes a list of recent activities/events and returns a brief, 
+  ///
+  /// Takes a list of recent activities/events and returns a brief,
   /// AI-generated paragraph summarizing the elderly person's status.
   Future<String> generateHealthSummary(List<String> recentEvents) async {
     final response = await http.post(
@@ -53,10 +54,7 @@ class GeminiService {
     final response = await http.post(
       Uri.parse('$_baseUrl/gemini/chat'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'message': message,
-        'history': history,
-      }),
+      body: jsonEncode({'message': message, 'history': history}),
     );
 
     if (response.statusCode != 200) {
@@ -72,8 +70,6 @@ class GeminiService {
     return reply;
   }
 
-
-
   /// Generate a daily health summary for a caregiver report.
   /// Accepts pre-formatted strings from today's check-in data.
   ///
@@ -85,10 +81,7 @@ class GeminiService {
     final response = await http.post(
       Uri.parse('$_baseUrl/gemini/daily-summary'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'patientName': patientName,
-        'events': events,
-      }),
+      body: jsonEncode({'patientName': patientName, 'events': events}),
     );
 
     if (response.statusCode != 200) {
@@ -104,16 +97,18 @@ class GeminiService {
     return summary;
   }
 
-  /// Agentic 3-step care analysis — single API call, structured output.
+  /// Agentic 3-step care analysis - single API call, structured output.
   ///
   /// Asks Gemini to reason through all three steps in one response:
-  ///   Step 1 — Signal Extractor  : parse raw events → structured health signals
-  ///   Step 2 — Risk Assessor     : reason over signals → risk level + flags
-  ///   Step 3 — Care Planner      : synthesise risk → actionable caregiver plan
+  ///   Step 1 - Signal Extractor  : parse raw events → structured health signals
+  ///   Step 2 - Risk Assessor     : reason over signals → risk level + flags
+  ///   Step 3 - Care Planner      : synthesise risk → actionable caregiver plan
   ///
   /// Output is delimited by [SIGNALS], [RISK], [PLAN] tags and parsed into
   /// [AgenticCareResult] so the UI can display the full reasoning chain.
-  Future<AgenticCareResult> generateAgenticCareAnalysis(List<String> events) async {
+  Future<AgenticCareResult> generateAgenticCareAnalysis(
+    List<String> events,
+  ) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/gemini/agentic-analysis'),
       headers: {'Content-Type': 'application/json'},
@@ -121,8 +116,13 @@ class GeminiService {
     );
 
     if (response.statusCode != 200) {
-      logger.error('generateAgenticCareAnalysis failed: ${response.body}', null);
-      throw Exception('Agentic analysis request failed: ${response.statusCode}');
+      logger.error(
+        'generateAgenticCareAnalysis failed: ${response.body}',
+        null,
+      );
+      throw Exception(
+        'Agentic analysis request failed: ${response.statusCode}',
+      );
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -132,7 +132,6 @@ class GeminiService {
       carePlan: data['carePlan']?.toString() ?? '',
     );
   }
-
 }
 
 /// ─────────────────────────────────────────────────────────────────────────────

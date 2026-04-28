@@ -81,22 +81,27 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
       final icRaw = _icController.text.trim();
 
       if (name.isEmpty || dob.isEmpty || icRaw.isEmpty) {
-        throw Exception('Please fill in your name, date of birth, and IC number');
+        throw Exception(
+          'Please fill in your name, date of birth, and IC number',
+        );
       }
 
-      // Emergency contact is optional — validate only if provided
+      // Emergency contact is optional - validate only if provided
       String? fullPhone;
       if (contact.isNotEmpty) {
         fullPhone = _validateMalaysianPhone(contact);
         if (fullPhone == null) {
           throw Exception(
-              'Enter a valid Malaysian number after +60\n(e.g. 123456789 for +60123456789)');
+            'Enter a valid Malaysian number after +60\n(e.g. 123456789 for +60123456789)',
+          );
         }
       }
 
       final icNumber = _validateIC(icRaw);
       if (icNumber == null) {
-        throw Exception('IC number must be exactly 12 digits\n(e.g. 901231-14-5678)');
+        throw Exception(
+          'IC number must be exactly 12 digits\n(e.g. 901231-14-5678)',
+        );
       }
 
       await UserSessionService.instance.elderlySetup(
@@ -121,88 +126,97 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceWhite,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppTheme.accentGreen.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: AppTheme.accentGreen,
-                size: 36,
-              ),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppTheme.surfaceWhite,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Profile Created!',
-              style: GoogleFonts.inter(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDark,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Share your IC number with your caregiver so they can link to your profile.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: AppTheme.textMid,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryLight,
-                border: Border.all(color: AppTheme.primaryBlue),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.badge_rounded,
-                      color: AppTheme.primaryBlue, size: 22),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      'Your IC number is your link key',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppTheme.accentGreen,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Profile Created!',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Share your IC number with your caregiver so they can link to your profile.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: AppTheme.textMid,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 20,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryLight,
+                    border: Border.all(color: AppTheme.primaryBlue),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.badge_rounded,
                         color: AppTheme.primaryBlue,
-                        fontWeight: FontWeight.w600,
+                        size: 22,
                       ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'Your IC number is your link key',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: AppTheme.primaryBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.go(AppConstants.routeElderlyHome);
+                    },
+                    child: Text(
+                      'Continue to Home',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.go(AppConstants.routeElderlyHome);
-                },
-                child: Text(
-                  'Continue to Home',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -254,14 +268,19 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_rounded,
-                          color: AppTheme.accentRed, size: 20),
+                      const Icon(
+                        Icons.error_rounded,
+                        color: AppTheme.accentRed,
+                        size: 20,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           _errorMessage!,
                           style: GoogleFonts.inter(
-                              fontSize: 14, color: AppTheme.accentRed),
+                            fontSize: 14,
+                            color: AppTheme.accentRed,
+                          ),
                         ),
                       ),
                     ],
@@ -287,27 +306,46 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                 child: TextField(
                   controller: _dobController,
                   enabled: false,
-                  style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textDark),
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    color: AppTheme.textDark,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'YYYY-MM-DD',
-                    hintStyle: GoogleFonts.inter(fontSize: 18, color: AppTheme.textLight),
+                    hintStyle: GoogleFonts.inter(
+                      fontSize: 18,
+                      color: AppTheme.textLight,
+                    ),
                     filled: true,
                     fillColor: AppTheme.surfaceWhite,
-                    suffixIcon: const Icon(Icons.calendar_month_rounded,
-                        size: 24, color: AppTheme.primaryBlue),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    suffixIcon: const Icon(
+                      Icons.calendar_month_rounded,
+                      size: 24,
+                      color: AppTheme.primaryBlue,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppTheme.divider)),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.divider),
+                    ),
                     enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppTheme.divider)),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.divider),
+                    ),
                     disabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppTheme.divider)),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.divider),
+                    ),
                     focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2)),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primaryBlue,
+                        width: 2,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -317,7 +355,10 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
               const SizedBox(height: 4),
               Text(
                 'MyKad number (12 digits)',
-                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight),
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppTheme.textLight,
+                ),
               ),
               const SizedBox(height: 12),
               _buildTextField(
@@ -336,7 +377,10 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
               const SizedBox(height: 4),
               Text(
                 'Malaysian number only (+60)',
-                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight),
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppTheme.textLight,
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -347,25 +391,43 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(10),
                 ],
-                style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textDark),
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  color: AppTheme.textDark,
+                ),
                 decoration: InputDecoration(
                   prefixText: '+60 ',
                   prefixStyle: GoogleFonts.inter(
-                      fontSize: 18, color: AppTheme.primaryBlue, fontWeight: FontWeight.w600),
+                    fontSize: 18,
+                    color: AppTheme.primaryBlue,
+                    fontWeight: FontWeight.w600,
+                  ),
                   hintText: '12-3456789',
-                  hintStyle: GoogleFonts.inter(fontSize: 18, color: AppTheme.textLight),
+                  hintStyle: GoogleFonts.inter(
+                    fontSize: 18,
+                    color: AppTheme.textLight,
+                  ),
                   filled: true,
                   fillColor: AppTheme.surfaceWhite,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.divider)),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.divider),
+                  ),
                   enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.divider)),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.divider),
+                  ),
                   focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2)),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: AppTheme.primaryBlue,
+                      width: 2,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 40),
@@ -377,23 +439,28 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
                   onPressed: _isLoading ? null : _handleSetup,
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 28,
-                          width: 28,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            height: 28,
+                            width: 28,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : Text(
+                            'Get Started',
+                            style: GoogleFonts.inter(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        )
-                      : Text(
-                          'Get Started',
-                          style: GoogleFonts.inter(
-                              fontSize: 20, fontWeight: FontWeight.w700),
-                        ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -405,10 +472,13 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
   }
 
   Widget _buildLabel(String text) => Text(
-        text,
-        style: GoogleFonts.inter(
-            fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textDark),
-      );
+    text,
+    style: GoogleFonts.inter(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      color: AppTheme.textDark,
+    ),
+  );
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -416,38 +486,42 @@ class _ElderlySetupScreenState extends State<ElderlySetupScreen> {
     TextInputType keyboardType = TextInputType.text,
     TextCapitalization textCapitalization = TextCapitalization.none,
     List<TextInputFormatter>? inputFormatters,
-  }) =>
-      TextField(
-        controller: controller,
-        enabled: !_isLoading,
-        keyboardType: keyboardType,
-        textCapitalization: textCapitalization,
-        inputFormatters: inputFormatters,
-        style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textDark),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: GoogleFonts.inter(fontSize: 18, color: AppTheme.textLight),
-          filled: true,
-          fillColor: AppTheme.surfaceWhite,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.divider)),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.divider)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2)),
-        ),
-      );
+  }) => TextField(
+    controller: controller,
+    enabled: !_isLoading,
+    keyboardType: keyboardType,
+    textCapitalization: textCapitalization,
+    inputFormatters: inputFormatters,
+    style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textDark),
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: GoogleFonts.inter(fontSize: 18, color: AppTheme.textLight),
+      filled: true,
+      fillColor: AppTheme.surfaceWhite,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppTheme.divider),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppTheme.divider),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
+      ),
+    ),
+  );
 }
 
 /// Auto-formats IC number as XXXXXX-XX-XXXX while typing.
 class _IcNumberFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final digits = newValue.text.replaceAll('-', '');
     if (digits.length > 12) return oldValue;
 

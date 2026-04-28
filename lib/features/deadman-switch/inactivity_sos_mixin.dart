@@ -1,7 +1,7 @@
 // lib/mixins/inactivity_sos_mixin.dart
 //
 // Drop-in companion to ShakeSosMixin.
-// Both mixins can coexist on the same State class — they use separate
+// Both mixins can coexist on the same State class - they use separate
 // sensor subscriptions (sensors_plus handles multiple listeners fine).
 //
 // Usage:
@@ -41,8 +41,10 @@ mixin InactivitySosMixin {
 
   // Expose to dashboard widget for the status indicator
   bool get inactivityMonitorActive => _activityTracker?.isRunning ?? false;
-  bool get isWithinActiveHours => _activityTracker?.isWithinActiveHours ?? false;
-  Duration get timeSinceLastActivity => _activityTracker?.timeSinceLastActivity ?? Duration.zero;
+  bool get isWithinActiveHours =>
+      _activityTracker?.isWithinActiveHours ?? false;
+  Duration get timeSinceLastActivity =>
+      _activityTracker?.timeSinceLastActivity ?? Duration.zero;
 
   Future<void> initInactivityMonitor({required String userId}) async {
     final notificationService = InactivityNotificationService(userId: userId);
@@ -55,14 +57,12 @@ mixin InactivitySosMixin {
       // To switch to production timings, uncomment these lines:
       // warningDuration: const Duration(hours: 4),
       // escalationGracePeriod: const Duration(minutes: 5),
-      warningDuration: const Duration(minutes: 1),  // Demo mode
-      escalationGracePeriod: const Duration(minutes: 2),  // Demo mode
-
+      warningDuration: const Duration(minutes: 1), // Demo mode
+      escalationGracePeriod: const Duration(minutes: 2), // Demo mode
       // ── Thresholds ─────────────────────────────────────────────────
-      motionThreshold: 1.2,  // Very sensitive — any tilt resets the timer
-      activeStartHour: 8,    // 8 AM
-      activeEndHour: 22,     // 10 PM
-
+      motionThreshold: 1.2, // Very sensitive - any tilt resets the timer
+      activeStartHour: 8, // 8 AM
+      activeEndHour: 22, // 10 PM
       // ── Stage 1: Local notification ────────────────────────────────
       onWarning: () async {
         await notificationService.showCheckInNotification();
@@ -79,14 +79,16 @@ mixin InactivitySosMixin {
     );
 
     activityTracker.start();
-    debugPrint('[InactivityMonitor] Initialized for user: $userId, active hours: ${activityTracker.activeStartHour}-${activityTracker.activeEndHour}');
-    
+    debugPrint(
+      '[InactivityMonitor] Initialized for user: $userId, active hours: ${activityTracker.activeStartHour}-${activityTracker.activeEndHour}',
+    );
+
     // Now assign to the instance variables
     _notificationService = notificationService;
     _activityTracker = activityTracker;
   }
 
-  /// Call this from any user tap — reset the inactivity timer.
+  /// Call this from any user tap - reset the inactivity timer.
   void inactivityResetTimer() {
     _activityTracker?.resetTimer();
     _notificationService?.cancelCheckInNotification();

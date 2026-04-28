@@ -59,14 +59,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final isHighContrast = _themeProvider.isHighContrast;
         final isColorBlindMode = _themeProvider.isColorBlindMode;
         final textScale = _themeProvider.textScaling;
-        
+
         // Get colors from current theme
         final theme = Theme.of(context);
         final bgColor = theme.scaffoldBackgroundColor;
         final surfaceColor = theme.cardColor;
         final primaryColor = theme.primaryColor;
         final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
-        final secondaryTextColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+        final secondaryTextColor =
+            theme.textTheme.bodyMedium?.color ?? Colors.grey;
         final dividerColor = theme.dividerColor;
 
         return Scaffold(
@@ -92,12 +93,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               // ── Accessibility Section ──────────────────────────────────
               _SectionLabel(
-                'Accessibility & Display', 
+                'Accessibility & Display',
                 textScale: textScale,
                 textColor: textColor,
               ),
               const SizedBox(height: 12),
-              
+
               // Dark Mode Toggle
               _AccessibilityTile(
                 icon: Icons.dark_mode_rounded,
@@ -109,7 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 theme: theme,
               ),
               const SizedBox(height: 8),
-              
+
               // High Contrast Toggle
               _AccessibilityTile(
                 icon: Icons.contrast_rounded,
@@ -121,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 theme: theme,
               ),
               const SizedBox(height: 8),
-              
+
               // Color Blind Mode Toggle
               _AccessibilityTile(
                 icon: Icons.palette_rounded,
@@ -133,7 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 theme: theme,
               ),
               const SizedBox(height: 12),
-              
+
               // Text Scaling Slider
               Container(
                 padding: const EdgeInsets.all(16),
@@ -147,9 +148,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.text_fields_rounded, 
-                          color: primaryColor, 
-                          size: 28 * textScale),
+                        Icon(
+                          Icons.text_fields_rounded,
+                          color: primaryColor,
+                          size: 28 * textScale,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -212,7 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               // ── Account Section ────────────────────────────────────────
               _SectionLabel(
-                'Your Account', 
+                'Your Account',
                 textScale: textScale,
                 textColor: textColor,
               ),
@@ -243,18 +246,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 textColor: textColor,
               ),
               const SizedBox(height: 12),
-              _UniqueIdTile(
-                textScale: textScale,
-                theme: theme,
-              ),
+              _UniqueIdTile(textScale: textScale, theme: theme),
               const SizedBox(height: 32),
 
               // ── App Section ────────────────────────────────────────────
-              _SectionLabel(
-                'App', 
-                textScale: textScale,
-                textColor: textColor,
-              ),
+              _SectionLabel('App', textScale: textScale, textColor: textColor),
               const SizedBox(height: 12),
               _SettingsTile(
                 icon: Icons.info_rounded,
@@ -306,43 +302,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showProfileInfo(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Your Profile',
-          style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w600),
-        ),
-        content: FutureBuilder<Map<String, String>?>(
-          future: _getUserProfile(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              'Your Profile',
+              style: GoogleFonts.inter(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: FutureBuilder<Map<String, String>?>(
+              future: _getUserProfile(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            final profile = snapshot.data;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (profile != null) ...[
-                  _ProfileRow(label: 'Name', value: profile['name'] ?? 'N/A'),
-                  const SizedBox(height: 16),
-                  _ProfileRow(label: 'Date of Birth', value: profile['dob'] ?? 'N/A'),
-                ] else
-                  Text(
-                    'No profile information available.',
-                    style: GoogleFonts.inter(fontSize: 22, color: AppTheme.textMid),
-                  ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Close'),
+                final profile = snapshot.data;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (profile != null) ...[
+                      _ProfileRow(
+                        label: 'Name',
+                        value: profile['name'] ?? 'N/A',
+                      ),
+                      const SizedBox(height: 16),
+                      _ProfileRow(
+                        label: 'Date of Birth',
+                        value: profile['dob'] ?? 'N/A',
+                      ),
+                    ] else
+                      Text(
+                        'No profile information available.',
+                        style: GoogleFonts.inter(
+                          fontSize: 22,
+                          color: AppTheme.textMid,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => context.pop(),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -355,7 +364,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return {
         'name': profile.name,
         'dob': profile.dateOfBirth.isNotEmpty ? profile.dateOfBirth : 'Not set',
-        'emergencyContact': profile.emergencyContact.isNotEmpty ? profile.emergencyContact : 'Not set',
+        'emergencyContact':
+            profile.emergencyContact.isNotEmpty
+                ? profile.emergencyContact
+                : 'Not set',
       };
     } catch (e) {
       debugPrint('Error loading profile: $e');
@@ -366,50 +378,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showCaregiverInfo(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Emergency Contact',
-          style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w600),
-        ),
-        content: FutureBuilder<CaregiverProfile?>(
-          future: _getLinkedCaregiver(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 80,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              'Emergency Contact',
+              style: GoogleFonts.inter(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: FutureBuilder<CaregiverProfile?>(
+              future: _getLinkedCaregiver(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 80,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
 
-            final caregiver = snapshot.data;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (caregiver != null) ...[
-                  _ProfileRow(label: 'Name', value: caregiver.name),
-                  const SizedBox(height: 16),
-                  _ProfileRow(label: 'Email', value: caregiver.email),
-                  if (caregiver.phoneNumber != null && caregiver.phoneNumber!.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _ProfileRow(label: 'Phone', value: caregiver.phoneNumber!),
+                final caregiver = snapshot.data;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (caregiver != null) ...[
+                      _ProfileRow(label: 'Name', value: caregiver.name),
+                      const SizedBox(height: 16),
+                      _ProfileRow(label: 'Email', value: caregiver.email),
+                      if (caregiver.phoneNumber != null &&
+                          caregiver.phoneNumber!.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _ProfileRow(
+                          label: 'Phone',
+                          value: caregiver.phoneNumber!,
+                        ),
+                      ],
+                    ] else
+                      Text(
+                        'No caregiver linked yet.',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          color: AppTheme.textMid,
+                        ),
+                      ),
                   ],
-                ] else
-                  Text(
-                    'No caregiver linked yet.',
-                    style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textMid),
-                  ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Close'),
+                );
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => context.pop(),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -429,63 +452,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showAbout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('About CareSync AI'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'CareSync AI v1.0.0',
-              style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w600),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('About CareSync AI'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'CareSync AI v1.0.0',
+                  style: GoogleFonts.inter(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Care. Connect. Protect.',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    color: AppTheme.textMid,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Your trusted companion for health and safety.',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    color: AppTheme.textMid,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Care. Connect. Protect.',
-              style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textMid, height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Your trusted companion for health and safety.',
-              style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textMid, height: 1.5),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Close'),
+            actions: [
+              TextButton(
+                onPressed: () => context.pop(),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   void _showHelp(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Help & Support'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Frequently Asked Questions',
-              style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w600),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Help & Support'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Frequently Asked Questions',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildFaqItem(
+                  'How do I report an emergency?',
+                  'Tap the SOS button on the home screen.',
+                ),
+                _buildFaqItem(
+                  'Can I change my caregiver?',
+                  'Contact support for assistance.',
+                ),
+                _buildFaqItem(
+                  'How do I update my medications?',
+                  'Go to the Medications tab and add or update entries.',
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            _buildFaqItem('How do I report an emergency?', 'Tap the SOS button on the home screen.'),
-            _buildFaqItem('Can I change my caregiver?', 'Contact support for assistance.'),
-            _buildFaqItem('How do I update my medications?', 'Go to the Medications tab and add or update entries.'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Close'),
+            actions: [
+              TextButton(
+                onPressed: () => context.pop(),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -495,12 +543,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         Text(
           question,
-          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textDark),
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textDark,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           answer,
-          style: GoogleFonts.inter(fontSize: 16, color: AppTheme.textMid, height: 1.5),
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            color: AppTheme.textMid,
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: 12),
       ],
@@ -510,25 +566,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showLogoutConfirm(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out?'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Sign Out?'),
+            content: const Text('Are you sure you want to sign out?'),
+            actions: [
+              TextButton(
+                onPressed: () => context.pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await UserSessionService.instance.clearSession();
+                  if (context.mounted) {
+                    context.go(AppConstants.routeRoleSelect);
+                  }
+                },
+                child: const Text(
+                  'Sign Out',
+                  style: TextStyle(color: Color(0xFFEF4444)),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () async {
-              await UserSessionService.instance.clearSession();
-              if (context.mounted) {
-                context.go(AppConstants.routeRoleSelect);
-              }
-            },
-            child: const Text('Sign Out', style: TextStyle(color: Color(0xFFEF4444))),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -636,7 +696,10 @@ class _SettingsTile extends StatelessWidget {
         ),
         trailing: Icon(Icons.arrow_forward_ios_rounded, size: 20 * textScale),
         onTap: onTap,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16 * textScale, vertical: 12 * textScale),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 16 * textScale,
+          vertical: 12 * textScale,
+        ),
       ),
     );
   }
@@ -675,7 +738,10 @@ class _AccessibilityTile extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16 * textScale, vertical: 14 * textScale),
+        padding: EdgeInsets.symmetric(
+          horizontal: 16 * textScale,
+          vertical: 14 * textScale,
+        ),
         child: Row(
           children: [
             Container(
@@ -684,7 +750,11 @@ class _AccessibilityTile extends StatelessWidget {
                 color: theme.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: theme.primaryColor, size: 24 * textScale),
+              child: Icon(
+                icon,
+                color: theme.primaryColor,
+                size: 24 * textScale,
+              ),
             ),
             SizedBox(width: 12 * textScale),
             Expanded(
@@ -727,10 +797,7 @@ class _UniqueIdTile extends StatefulWidget {
   final double textScale;
   final ThemeData theme;
 
-  const _UniqueIdTile({
-    required this.textScale,
-    required this.theme,
-  });
+  const _UniqueIdTile({required this.textScale, required this.theme});
 
   @override
   State<_UniqueIdTile> createState() => _UniqueIdTileState();
@@ -755,10 +822,15 @@ class _UniqueIdTileState extends State<_UniqueIdTile> {
 
   Future<void> _loadIC() async {
     try {
-      // Read from SharedPreferences first — instant, no network call
+      // Read from SharedPreferences first - instant, no network call
       final cached = await UserSessionService.instance.getElderlyIC();
       if (cached != null && cached.isNotEmpty) {
-        if (mounted) setState(() { _icNumber = cached; _loading = false; });
+        if (mounted) {
+          setState(() {
+            _icNumber = cached;
+            _loading = false;
+          });
+        }
         return;
       }
 
@@ -768,7 +840,8 @@ class _UniqueIdTileState extends State<_UniqueIdTile> {
         final profile = await PatientService.instance.getPatientById(elderlyId);
         if (mounted) {
           setState(() {
-            _icNumber = profile?.icNumber.isNotEmpty == true ? profile!.icNumber : null;
+            _icNumber =
+                profile?.icNumber.isNotEmpty == true ? profile!.icNumber : null;
             _loading = false;
           });
         }
@@ -823,49 +896,52 @@ class _UniqueIdTileState extends State<_UniqueIdTile> {
               ),
             )
           else
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: widget.theme.scaffoldBackgroundColor,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: widget.theme.dividerColor),
-                  ),
-                  child: Text(
-                    _formatIC(_icNumber!),
-                    style: GoogleFonts.inter(
-                      fontSize: 20 * widget.textScale,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                      color: widget.theme.primaryColor,
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                height: 48 * widget.textScale,
-                width: 48 * widget.textScale,
-                child: ElevatedButton(
-                  onPressed: _copyToClipboard,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: widget.theme.primaryColor,
-                    shape: RoundedRectangleBorder(
+                    decoration: BoxDecoration(
+                      color: widget.theme.scaffoldBackgroundColor,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: widget.theme.dividerColor),
                     ),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Icon(
-                    _copied ? Icons.check : Icons.copy,
-                    color: Colors.white,
-                    size: 20 * widget.textScale,
+                    child: Text(
+                      _formatIC(_icNumber!),
+                      style: GoogleFonts.inter(
+                        fontSize: 20 * widget.textScale,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                        color: widget.theme.primaryColor,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  height: 48 * widget.textScale,
+                  width: 48 * widget.textScale,
+                  child: ElevatedButton(
+                    onPressed: _copyToClipboard,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.theme.primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: Icon(
+                      _copied ? Icons.check : Icons.copy,
+                      color: Colors.white,
+                      size: 20 * widget.textScale,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 12),
           Text(
             'Share this ID with your caregiver to link your accounts. They can enter it in the app to connect with you.',
@@ -880,4 +956,3 @@ class _UniqueIdTileState extends State<_UniqueIdTile> {
     );
   }
 }
-

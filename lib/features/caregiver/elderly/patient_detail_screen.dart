@@ -23,9 +23,13 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   void initState() {
     super.initState();
     _profileFuture = PatientService.instance.getPatientById(widget.patientId);
-    _healthFuture = PatientService.instance.getTodayHealthData(widget.patientId);
+    _healthFuture = PatientService.instance.getTodayHealthData(
+      widget.patientId,
+    );
     _statsFuture = PatientService.instance.getWeeklyStats(widget.patientId);
-    _trendsFuture = PatientService.instance.getWeeklyMoodPainTrends(widget.patientId);
+    _trendsFuture = PatientService.instance.getWeeklyMoodPainTrends(
+      widget.patientId,
+    );
   }
 
   @override
@@ -52,8 +56,10 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           final patient = snap.data;
           if (patient == null) {
             return Center(
-              child: Text('Unable to load patient profile',
-                  style: GoogleFonts.inter(color: AppTheme.textMid)),
+              child: Text(
+                'Unable to load patient profile',
+                style: GoogleFonts.inter(color: AppTheme.textMid),
+              ),
             );
           }
           return _buildBody(patient);
@@ -84,14 +90,16 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   child: _StatusCard(
                     icon: Icons.mood_rounded,
                     label: 'Mood',
-                    value: loading
-                        ? '—'
-                        : health == null
+                    value:
+                        loading
+                            ? '-'
+                            : health == null
                             ? 'No check-in'
                             : _capitalize(health.mood),
-                    valueColor: health == null
-                        ? AppTheme.textLight
-                        : _moodColor(health.mood),
+                    valueColor:
+                        health == null
+                            ? AppTheme.textLight
+                            : _moodColor(health.mood),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -99,14 +107,16 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   child: _StatusCard(
                     icon: Icons.healing_rounded,
                     label: 'Pain Level',
-                    value: loading
-                        ? '—'
-                        : health == null
+                    value:
+                        loading
+                            ? '-'
+                            : health == null
                             ? 'No check-in'
                             : '${health.painLevel} / 10',
-                    valueColor: health == null
-                        ? AppTheme.textLight
-                        : health.painLevel <= 3
+                    valueColor:
+                        health == null
+                            ? AppTheme.textLight
+                            : health.painLevel <= 3
                             ? AppTheme.accentGreen
                             : AppTheme.accentOrange,
                   ),
@@ -121,21 +131,38 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         _SectionTitle('Information'),
         const SizedBox(height: 10),
         Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 0,
           color: AppTheme.surfaceWhite,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _InfoRow(icon: Icons.cake_rounded, label: 'Age',
-                    value: patient.age > 0 ? '${patient.age} years' : '—'),
+                _InfoRow(
+                  icon: Icons.cake_rounded,
+                  label: 'Age',
+                  value: patient.age > 0 ? '${patient.age} years' : '-',
+                ),
                 const Divider(height: 20, color: AppTheme.divider),
-                _InfoRow(icon: Icons.calendar_today_rounded, label: 'Date of Birth',
-                    value: patient.dateOfBirth.isNotEmpty ? patient.dateOfBirth : '—'),
+                _InfoRow(
+                  icon: Icons.calendar_today_rounded,
+                  label: 'Date of Birth',
+                  value:
+                      patient.dateOfBirth.isNotEmpty
+                          ? patient.dateOfBirth
+                          : '-',
+                ),
                 const Divider(height: 20, color: AppTheme.divider),
-                _InfoRow(icon: Icons.phone_rounded, label: 'Emergency Contact',
-                    value: patient.emergencyContact.isNotEmpty ? patient.emergencyContact : '—'),
+                _InfoRow(
+                  icon: Icons.phone_rounded,
+                  label: 'Emergency Contact',
+                  value:
+                      patient.emergencyContact.isNotEmpty
+                          ? patient.emergencyContact
+                          : '-',
+                ),
               ],
             ),
           ),
@@ -151,26 +178,32 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
             final s = snap.data ?? {};
             return Row(
               children: [
-                Expanded(child: _StatChip(
-                  icon: Icons.check_circle_rounded,
-                  color: AppTheme.accentGreen,
-                  label: 'Check-ins',
-                  value: s['checkins'] ?? '— / 7',
-                )),
+                Expanded(
+                  child: _StatChip(
+                    icon: Icons.check_circle_rounded,
+                    color: AppTheme.accentGreen,
+                    label: 'Check-ins',
+                    value: s['checkins'] ?? '- / 7',
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: _StatChip(
-                  icon: Icons.medication_rounded,
-                  color: AppTheme.primaryBlue,
-                  label: 'Adherence',
-                  value: s['adherence'] ?? '—',
-                )),
+                Expanded(
+                  child: _StatChip(
+                    icon: Icons.medication_rounded,
+                    color: AppTheme.primaryBlue,
+                    label: 'Adherence',
+                    value: s['adherence'] ?? '-',
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: _StatChip(
-                  icon: Icons.emergency_rounded,
-                  color: AppTheme.accentOrange,
-                  label: 'SOS',
-                  value: s['sosAlerts'] ?? '0',
-                )),
+                Expanded(
+                  child: _StatChip(
+                    icon: Icons.emergency_rounded,
+                    color: AppTheme.accentOrange,
+                    label: 'SOS',
+                    value: s['sosAlerts'] ?? '0',
+                  ),
+                ),
               ],
             );
           },
@@ -180,15 +213,19 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         // ── Mood Trend ────────────────────────────────────────────────
         _SectionTitle('Mood This Week'),
         const SizedBox(height: 4),
-        Text('Daily mood (1 = bad, 5 = great)',
-            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMid)),
+        Text(
+          'Daily mood (1 = bad, 5 = great)',
+          style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMid),
+        ),
         const SizedBox(height: 10),
         FutureBuilder<Map<String, List<double>>>(
           future: _trendsFuture,
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
-              return const SizedBox(height: 160,
-                  child: Center(child: CircularProgressIndicator()));
+              return const SizedBox(
+                height: 160,
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
             return _TrendChart(
               data: snap.data?['mood'] ?? List.filled(7, 0),
@@ -204,15 +241,19 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         // ── Pain Trend ────────────────────────────────────────────────
         _SectionTitle('Pain Levels This Week'),
         const SizedBox(height: 4),
-        Text('Daily pain (0 = none, 10 = severe)',
-            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMid)),
+        Text(
+          'Daily pain (0 = none, 10 = severe)',
+          style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMid),
+        ),
         const SizedBox(height: 10),
         FutureBuilder<Map<String, List<double>>>(
           future: _trendsFuture,
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
-              return const SizedBox(height: 160,
-                  child: Center(child: CircularProgressIndicator()));
+              return const SizedBox(
+                height: 160,
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
             return _TrendChart(
               data: snap.data?['pain'] ?? List.filled(7, 0),
@@ -246,10 +287,13 @@ class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.title);
   @override
   Widget build(BuildContext context) => Text(
-        title,
-        style: GoogleFonts.inter(
-            fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textDark),
-      );
+    title,
+    style: GoogleFonts.inter(
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+      color: AppTheme.textDark,
+    ),
+  );
 }
 
 class _ProfileHeader extends StatelessWidget {
@@ -278,9 +322,10 @@ class _ProfileHeader extends StatelessWidget {
               child: Text(
                 patient.name.isNotEmpty ? patient.name[0].toUpperCase() : '?',
                 style: GoogleFonts.inter(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue),
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryBlue,
+                ),
               ),
             ),
           ),
@@ -289,30 +334,41 @@ class _ProfileHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(patient.name,
-                    style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textDark)),
+                Text(
+                  patient.name,
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   patient.age > 0 ? '${patient.age} years old' : 'Age unknown',
                   style: GoogleFonts.inter(
-                      fontSize: 14, color: AppTheme.textMid),
+                    fontSize: 14,
+                    color: AppTheme.textMid,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.accentGreen.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    patient.status.isNotEmpty ? _capitalize(patient.status) : 'Active',
+                    patient.status.isNotEmpty
+                        ? _capitalize(patient.status)
+                        : 'Active',
                     style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.accentGreen),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.accentGreen,
+                    ),
                   ),
                 ),
               ],
@@ -353,14 +409,19 @@ class _StatusCard extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: AppTheme.textMid),
           const SizedBox(height: 8),
-          Text(label,
-              style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMid)),
+          Text(
+            label,
+            style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMid),
+          ),
           const SizedBox(height: 4),
-          Text(value,
-              style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: valueColor ?? AppTheme.textDark)),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: valueColor ?? AppTheme.textDark,
+            ),
+          ),
         ],
       ),
     );
@@ -393,11 +454,18 @@ class _StatChip extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: color),
           const SizedBox(height: 6),
-          Text(value,
-              style: GoogleFonts.inter(
-                  fontSize: 16, fontWeight: FontWeight.w700, color: color)),
-          Text(label,
-              style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMid)),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMid),
+          ),
         ],
       ),
     );
@@ -408,7 +476,11 @@ class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _InfoRow({required this.icon, required this.label, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -419,17 +491,23 @@ class _InfoRow extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppTheme.textMid,
-                    fontWeight: FontWeight.w500)),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: AppTheme.textMid,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(value,
-                style: GoogleFonts.inter(
-                    fontSize: 15,
-                    color: AppTheme.textDark,
-                    fontWeight: FontWeight.w600)),
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                color: AppTheme.textDark,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ],
@@ -474,13 +552,15 @@ class _TrendChart extends StatelessWidget {
             barTouchData: BarTouchData(
               touchTooltipData: BarTouchTooltipData(
                 getTooltipColor: (_) => AppTheme.textDark,
-                getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-                  '${rod.toY.toStringAsFixed(0)}$tooltipSuffix',
-                  GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600),
-                ),
+                getTooltipItem:
+                    (group, _, rod, __) => BarTooltipItem(
+                      '${rod.toY.toStringAsFixed(0)}$tooltipSuffix',
+                      GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
               ),
             ),
             titlesData: FlTitlesData(
@@ -490,56 +570,71 @@ class _TrendChart extends StatelessWidget {
                   reservedSize: 24,
                   getTitlesWidget: (v, _) {
                     final i = v.toInt();
-                    if (i < 0 || i >= _days.length) return const SizedBox.shrink();
+                    if (i < 0 || i >= _days.length) {
+                      return const SizedBox.shrink();
+                    }
                     return Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: Text(_days[i],
-                          style: GoogleFonts.inter(
-                              fontSize: 12, color: AppTheme.textMid)),
+                      child: Text(
+                        _days[i],
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppTheme.textMid,
+                        ),
+                      ),
                     );
                   },
                 ),
               ),
               leftTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false)),
+                sideTitles: SideTitles(showTitles: false),
+              ),
               topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false)),
+                sideTitles: SideTitles(showTitles: false),
+              ),
               rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false)),
+                sideTitles: SideTitles(showTitles: false),
+              ),
             ),
             gridData: FlGridData(
               drawVerticalLine: false,
               horizontalInterval: maxY <= 5 ? 1 : 2,
-              getDrawingHorizontalLine: (_) => const FlLine(
-                  color: AppTheme.divider, strokeWidth: 1, dashArray: [4, 4]),
+              getDrawingHorizontalLine:
+                  (_) => const FlLine(
+                    color: AppTheme.divider,
+                    strokeWidth: 1,
+                    dashArray: [4, 4],
+                  ),
             ),
             borderData: FlBorderData(show: false),
-            barGroups: data.asMap().entries.map((e) {
-              return BarChartGroupData(
-                x: e.key,
-                barRods: [
-                  BarChartRodData(
-                    toY: e.value,
-                    width: 16,
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(5)),
-                    gradient: LinearGradient(
-                      colors: [
-                        barColor.withValues(alpha: 0.7),
-                        gradientEnd,
-                      ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                    ),
-                    backDrawRodData: BackgroundBarChartRodData(
-                      show: true,
-                      toY: maxY,
-                      color: AppTheme.backgroundGray,
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
+            barGroups:
+                data.asMap().entries.map((e) {
+                  return BarChartGroupData(
+                    x: e.key,
+                    barRods: [
+                      BarChartRodData(
+                        toY: e.value,
+                        width: 16,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(5),
+                        ),
+                        gradient: LinearGradient(
+                          colors: [
+                            barColor.withValues(alpha: 0.7),
+                            gradientEnd,
+                          ],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                        ),
+                        backDrawRodData: BackgroundBarChartRodData(
+                          show: true,
+                          toY: maxY,
+                          color: AppTheme.backgroundGray,
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
           ),
         ),
       ),

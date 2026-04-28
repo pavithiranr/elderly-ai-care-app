@@ -45,7 +45,7 @@ async function sendFcmToCaregiver(caregiverId, title, body, data = {}) {
 }
 
 // ── Function 1: onSOSAlert ────────────────────────────────────────────────────
-// Triggers when elderly taps SOS — elderly/{elderlyId}/sos_alerts/{alertId}
+// Triggers when elderly taps SOS - elderly/{elderlyId}/sos_alerts/{alertId}
 
 exports.onSOSAlert = functions.firestore
   .document('elderly/{elderlyId}/sos_alerts/{alertId}')
@@ -66,14 +66,14 @@ exports.onSOSAlert = functions.firestore
 
     await sendFcmToCaregiver(
       caregiverId,
-      `🚨 SOS Alert — ${name}`,
+      `🚨 SOS Alert - ${name}`,
       `${name} needs help immediately!`,
       { type: 'sos', elderlyId },
     );
   });
 
 // ── Function 2: onConcerningCheckin ──────────────────────────────────────────
-// Triggers on daily_checkins — fires if pain >= 7/10 OR moodScore >= 4 (Not Great)
+// Triggers on daily_checkins - fires if pain >= 7/10 OR moodScore >= 4 (Not Great)
 
 exports.onConcerningCheckin = functions.firestore
   .document('elderly/{elderlyId}/daily_checkins/{checkinId}')
@@ -104,7 +104,7 @@ exports.onConcerningCheckin = functions.firestore
 
     await sendFcmToCaregiver(
       caregiverId,
-      `⚠️ Health Alert — ${name}`,
+      `⚠️ Health Alert - ${name}`,
       body,
       { type: 'checkin', elderlyId },
     );

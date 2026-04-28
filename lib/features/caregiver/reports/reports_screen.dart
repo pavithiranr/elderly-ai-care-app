@@ -24,7 +24,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   bool _isGeneratingPDF = false;
 
-  /// Cached patient future — shared by all FutureBuilders so Firestore is
+  /// Cached patient future - shared by all FutureBuilders so Firestore is
   /// only queried once per screen load.
   late final Future<PatientProfile?> _patientFuture = _loadPatient();
 
@@ -35,9 +35,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
 
     // Otherwise, get the first patient assigned to this caregiver
-    final profile = await CaregiverService.instance.getCurrentCaregiverProfile();
+    final profile =
+        await CaregiverService.instance.getCurrentCaregiverProfile();
     if (profile == null) return null;
-    final patients = await PatientService.instance.getPatientsByCaregiver(profile.id);
+    final patients = await PatientService.instance.getPatientsByCaregiver(
+      profile.id,
+    );
     return patients.isNotEmpty ? patients.first : null;
   }
 
@@ -45,8 +48,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final now = DateTime.now();
     final start = now.subtract(const Duration(days: 6));
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     if (start.month == now.month) {
       return '${months[start.month - 1]} ${start.day} – ${now.day}, ${now.year}';
@@ -75,7 +88,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       // Generate text report
       final now = DateTime.now();
       final dateStr = 'Mar ${now.day - 6} – Apr ${now.day}, ${now.year}';
-      
+
       final reportText = '''
 📋 Daily Health Summary
 $patientName's Health Trends
@@ -105,36 +118,42 @@ healthcare providers for medical advice.
       if (mounted) {
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Health Report'),
-            content: SingleChildScrollView(
-              child: Text(reportText, style: const TextStyle(fontFamily: 'monospace')),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Health Report'),
+                content: SingleChildScrollView(
+                  child: Text(
+                    reportText,
+                    style: const TextStyle(fontFamily: 'monospace'),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: reportText));
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Report copied to clipboard'),
+                        ),
+                      );
+                    },
+                    child: const Text('Copy'),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: reportText));
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Report copied to clipboard')),
-                  );
-                },
-                child: const Text('Copy'),
-              ),
-            ],
-          ),
         );
       }
     } catch (e) {
       debugPrint('Error generating report: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     } finally {
       if (mounted) {
@@ -162,9 +181,14 @@ healthcare providers for medical advice.
         actions: [
           TextButton.icon(
             onPressed: _isGeneratingPDF ? null : _generateAndSharePDF,
-            icon: _isGeneratingPDF
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.ios_share_rounded, size: 16),
+            icon:
+                _isGeneratingPDF
+                    ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.ios_share_rounded, size: 16),
             label: Text(
               _isGeneratingPDF ? 'Generating...' : 'Share',
               style: GoogleFonts.inter(
@@ -240,8 +264,10 @@ healthcare providers for medical advice.
               final patient = patientSnap.data;
               if (patient == null) {
                 return const _WeeklyStatsGrid(
-                  checkins: '0 / 7', adherence: '0%',
-                  avgPain: '0 / 10', sosAlerts: '0',
+                  checkins: '0 / 7',
+                  adherence: '0%',
+                  avgPain: '0 / 10',
+                  sosAlerts: '0',
                 );
               }
               return FutureBuilder<Map<String, dynamic>>(
@@ -280,24 +306,39 @@ healthcare providers for medical advice.
               final patient = patientSnap.data;
               if (patient == null) {
                 return _BarChartCard(
-                  data: List.filled(7, 0), dayLabels: _dayLabels, maxY: 5,
+                  data: List.filled(7, 0),
+                  dayLabels: _dayLabels,
+                  maxY: 5,
                   barColor: AppTheme.accentGreen,
-                  gradientColors: [AppTheme.accentGreen, const Color(0xFF4ADE80)],
-                  tooltipSuffix: '/5', yAxisLabel: _moodYLabel,
+                  gradientColors: [
+                    AppTheme.accentGreen,
+                    const Color(0xFF4ADE80),
+                  ],
+                  tooltipSuffix: '/5',
+                  yAxisLabel: _moodYLabel,
                 );
               }
               return FutureBuilder<Map<String, List<double>>>(
-                future: PatientService.instance.getWeeklyMoodPainTrends(patient.id),
+                future: PatientService.instance.getWeeklyMoodPainTrends(
+                  patient.id,
+                ),
                 builder: (context, trendsSnap) {
                   if (trendsSnap.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final moodData = trendsSnap.data?['mood'] ?? List.filled(7, 0);
+                  final moodData =
+                      trendsSnap.data?['mood'] ?? List.filled(7, 0);
                   return _BarChartCard(
-                    data: moodData, dayLabels: _dayLabels, maxY: 5,
+                    data: moodData,
+                    dayLabels: _dayLabels,
+                    maxY: 5,
                     barColor: AppTheme.accentGreen,
-                    gradientColors: [AppTheme.accentGreen, const Color(0xFF4ADE80)],
-                    tooltipSuffix: '/5', yAxisLabel: _moodYLabel,
+                    gradientColors: [
+                      AppTheme.accentGreen,
+                      const Color(0xFF4ADE80),
+                    ],
+                    tooltipSuffix: '/5',
+                    yAxisLabel: _moodYLabel,
                   );
                 },
               );
@@ -322,24 +363,39 @@ healthcare providers for medical advice.
               final patient = patientSnap.data;
               if (patient == null) {
                 return _BarChartCard(
-                  data: List.filled(7, 0), dayLabels: _dayLabels, maxY: 10,
+                  data: List.filled(7, 0),
+                  dayLabels: _dayLabels,
+                  maxY: 10,
                   barColor: AppTheme.accentOrange,
-                  gradientColors: [AppTheme.accentOrange, const Color(0xFFFB923C)],
-                  tooltipSuffix: '/10', yAxisLabel: _painYLabel,
+                  gradientColors: [
+                    AppTheme.accentOrange,
+                    const Color(0xFFFB923C),
+                  ],
+                  tooltipSuffix: '/10',
+                  yAxisLabel: _painYLabel,
                 );
               }
               return FutureBuilder<Map<String, List<double>>>(
-                future: PatientService.instance.getWeeklyMoodPainTrends(patient.id),
+                future: PatientService.instance.getWeeklyMoodPainTrends(
+                  patient.id,
+                ),
                 builder: (context, trendsSnap) {
                   if (trendsSnap.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final painData = trendsSnap.data?['pain'] ?? List.filled(7, 0);
+                  final painData =
+                      trendsSnap.data?['pain'] ?? List.filled(7, 0);
                   return _BarChartCard(
-                    data: painData, dayLabels: _dayLabels, maxY: 10,
+                    data: painData,
+                    dayLabels: _dayLabels,
+                    maxY: 10,
                     barColor: AppTheme.accentOrange,
-                    gradientColors: [AppTheme.accentOrange, const Color(0xFFFB923C)],
-                    tooltipSuffix: '/10', yAxisLabel: _painYLabel,
+                    gradientColors: [
+                      AppTheme.accentOrange,
+                      const Color(0xFFFB923C),
+                    ],
+                    tooltipSuffix: '/10',
+                    yAxisLabel: _painYLabel,
                   );
                 },
               );
@@ -359,7 +415,9 @@ healthcare providers for medical advice.
               final patient = patientSnap.data;
               if (patient == null) return const SizedBox.shrink();
               return FutureBuilder<List<MedicationComplianceData>>(
-                future: PatientService.instance.getWeeklyMedicationCompliance(patient.id),
+                future: PatientService.instance.getWeeklyMedicationCompliance(
+                  patient.id,
+                ),
                 builder: (context, medSnap) {
                   return _MedicationAdherenceCard(meds: medSnap.data ?? []);
                 },
@@ -411,7 +469,10 @@ healthcare providers for medical advice.
 class _AiNarrativeLoader extends StatefulWidget {
   final String patientId;
   final String patientName;
-  const _AiNarrativeLoader({required this.patientId, required this.patientName});
+  const _AiNarrativeLoader({
+    required this.patientId,
+    required this.patientName,
+  });
 
   @override
   State<_AiNarrativeLoader> createState() => _AiNarrativeLoaderState();
@@ -446,7 +507,7 @@ class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
     final patientId = widget.patientId;
     final patientName = widget.patientName;
 
-    // Step 1: fetch health data — kept outside try so fallback can use it
+    // Step 1: fetch health data - kept outside try so fallback can use it
     PatientHealthData? health;
     int sosCount = 0;
     try {
@@ -460,7 +521,8 @@ class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
     } catch (_) {
       if (mounted && _lastPatientId == patientId) {
         setState(() {
-          _narrative = '$patientName\'s health data could not be loaded right now.';
+          _narrative =
+              '$patientName\'s health data could not be loaded right now.';
           _isLoading = false;
         });
       }
@@ -478,7 +540,7 @@ class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
         'No check-in recorded yet today',
     ];
 
-    // Step 2: call Gemini — fall back to real data on any failure
+    // Step 2: call Gemini - fall back to real data on any failure
     try {
       final narrative = await GeminiService.instance.generateDailySummary(
         patientName: patientName,
@@ -505,17 +567,20 @@ class _AiNarrativeLoaderState extends State<_AiNarrativeLoader> {
       return '$name has not completed today\'s check-in yet. Remind them to log their mood and pain level.';
     }
     final pain = health.painLevel.toInt();
-    final painDesc = pain <= 3
-        ? 'low pain ($pain/10)'
-        : pain <= 6
+    final painDesc =
+        pain <= 3
+            ? 'low pain ($pain/10)'
+            : pain <= 6
             ? 'moderate pain ($pain/10)'
             : 'high pain ($pain/10)';
-    final meds = health.medicationsTotal > 0
-        ? ' ${health.medicationsTaken}/${health.medicationsTotal} medications taken.'
-        : '';
-    final sos = sosCount > 0
-        ? ' ⚠️ $sosCount SOS alert${sosCount > 1 ? 's' : ''} triggered today.'
-        : '';
+    final meds =
+        health.medicationsTotal > 0
+            ? ' ${health.medicationsTaken}/${health.medicationsTotal} medications taken.'
+            : '';
+    final sos =
+        sosCount > 0
+            ? ' ⚠️ $sosCount SOS alert${sosCount > 1 ? 's' : ''} triggered today.'
+            : '';
     return '$name checked in today feeling ${health.mood} with $painDesc.$meds$sos';
   }
 
@@ -576,8 +641,10 @@ class _AiNarrativeCard extends StatelessWidget {
                 _GeminiSparkle(),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
@@ -586,8 +653,18 @@ class _AiNarrativeCard extends StatelessWidget {
                     () {
                       final now = DateTime.now();
                       const months = [
-                        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+                        'Jan',
+                        'Feb',
+                        'Mar',
+                        'Apr',
+                        'May',
+                        'Jun',
+                        'Jul',
+                        'Aug',
+                        'Sep',
+                        'Oct',
+                        'Nov',
+                        'Dec',
                       ];
                       return '${months[now.month - 1]} ${now.day}, ${now.year}';
                     }(),
@@ -615,8 +692,11 @@ class _AiNarrativeCard extends StatelessWidget {
             // Footer
             Row(
               children: [
-                const Icon(Icons.auto_awesome_rounded,
-                    color: Colors.white, size: 13),
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 13,
+                ),
                 const SizedBox(width: 5),
                 Text(
                   'Generated by Gemini 2.0',
@@ -682,7 +762,8 @@ class _WeeklyStatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sosInt = int.tryParse(sosAlerts.split('/').first.trim()) ?? 0;
-    final adherencePct = int.tryParse(adherence.replaceAll('%', '').trim()) ?? 0;
+    final adherencePct =
+        int.tryParse(adherence.replaceAll('%', '').trim()) ?? 0;
     final avgPainVal = double.tryParse(avgPain.split('/').first.trim()) ?? 0;
 
     return Column(
@@ -703,8 +784,14 @@ class _WeeklyStatsGrid extends StatelessWidget {
             Expanded(
               child: _StatTile(
                 icon: Icons.medication_rounded,
-                iconColor: adherencePct >= 80 ? AppTheme.accentGreen : AppTheme.accentOrange,
-                iconBg: adherencePct >= 80 ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED),
+                iconColor:
+                    adherencePct >= 80
+                        ? AppTheme.accentGreen
+                        : AppTheme.accentOrange,
+                iconBg:
+                    adherencePct >= 80
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFFFFF7ED),
                 label: 'Med Adherence',
                 value: adherence,
                 sublabel: adherencePct >= 80 ? 'On track' : 'Needs attention',
@@ -718,19 +805,29 @@ class _WeeklyStatsGrid extends StatelessWidget {
             Expanded(
               child: _StatTile(
                 icon: Icons.healing_rounded,
-                iconColor: avgPainVal <= 4 ? AppTheme.accentGreen : AppTheme.accentOrange,
-                iconBg: avgPainVal <= 4 ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED),
+                iconColor:
+                    avgPainVal <= 4
+                        ? AppTheme.accentGreen
+                        : AppTheme.accentOrange,
+                iconBg:
+                    avgPainVal <= 4
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFFFFF7ED),
                 label: 'Avg Pain',
                 value: avgPain,
-                sublabel: avgPainVal <= 4 ? 'Low — stable' : 'Monitor closely',
+                sublabel: avgPainVal <= 4 ? 'Low - stable' : 'Monitor closely',
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _StatTile(
                 icon: Icons.emergency_rounded,
-                iconColor: sosInt == 0 ? AppTheme.accentGreen : AppTheme.accentRed,
-                iconBg: sosInt == 0 ? const Color(0xFFDCFCE7) : const Color(0xFFFFE4E4),
+                iconColor:
+                    sosInt == 0 ? AppTheme.accentGreen : AppTheme.accentRed,
+                iconBg:
+                    sosInt == 0
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFFFFE4E4),
                 label: 'SOS Alerts',
                 value: sosAlerts,
                 sublabel: sosInt == 0 ? 'All clear' : 'Review required',
@@ -766,22 +863,27 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDarkMode 
-          ? Theme.of(context).colorScheme.surface 
-          : AppTheme.surfaceWhite,
+        color:
+            isDarkMode
+                ? Theme.of(context).colorScheme.surface
+                : AppTheme.surfaceWhite,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDarkMode 
-            ? Colors.white.withValues(alpha: 0.1)
-            : AppTheme.divider,
+          color:
+              isDarkMode
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : AppTheme.divider,
         ),
-        boxShadow: isDarkMode ? [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ] : [],
+        boxShadow:
+            isDarkMode
+                ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+                : [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -790,8 +892,10 @@ class _StatTile extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(7),
-                decoration:
-                    BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Icon(icon, color: iconColor, size: 16),
               ),
               const SizedBox(width: 8),
@@ -800,9 +904,10 @@ class _StatTile extends StatelessWidget {
                   label,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: isDarkMode 
-                      ? Colors.white.withValues(alpha: 0.7)
-                      : AppTheme.textMid,
+                    color:
+                        isDarkMode
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : AppTheme.textMid,
                     fontWeight: FontWeight.w500,
                   ),
                   maxLines: 1,
@@ -817,9 +922,10 @@ class _StatTile extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: isDarkMode 
-                ? Colors.white.withValues(alpha: 0.87)
-                : AppTheme.textDark,
+              color:
+                  isDarkMode
+                      ? Colors.white.withValues(alpha: 0.87)
+                      : AppTheme.textDark,
             ),
           ),
           const SizedBox(height: 3),
@@ -827,9 +933,10 @@ class _StatTile extends StatelessWidget {
             sublabel,
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: isDarkMode
-                  ? Colors.white.withValues(alpha: 0.55)
-                  : AppTheme.textMid,
+              color:
+                  isDarkMode
+                      ? Colors.white.withValues(alpha: 0.55)
+                      : AppTheme.textMid,
               fontWeight: FontWeight.w500,
             ),
             maxLines: 1,
@@ -875,22 +982,27 @@ class _BarChartCardState extends State<_BarChartCard> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       decoration: BoxDecoration(
-        color: isDarkMode 
-          ? Theme.of(context).colorScheme.surface 
-          : AppTheme.surfaceWhite,
+        color:
+            isDarkMode
+                ? Theme.of(context).colorScheme.surface
+                : AppTheme.surfaceWhite,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDarkMode 
-            ? Colors.white.withValues(alpha: 0.1)
-            : AppTheme.divider,
+          color:
+              isDarkMode
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : AppTheme.divider,
         ),
-        boxShadow: isDarkMode ? [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ] : [],
+        boxShadow:
+            isDarkMode
+                ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+                : [],
       ),
       child: SizedBox(
         height: 180,
@@ -912,9 +1024,11 @@ class _BarChartCardState extends State<_BarChartCard> {
                 });
               },
               touchTooltipData: BarTouchTooltipData(
-                getTooltipColor: (_) => isDarkMode 
-                  ? Colors.white.withValues(alpha: 0.87)
-                  : AppTheme.textDark,
+                getTooltipColor:
+                    (_) =>
+                        isDarkMode
+                            ? Colors.white.withValues(alpha: 0.87)
+                            : AppTheme.textDark,
                 tooltipRoundedRadius: 8,
                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
                   return BarTooltipItem(
@@ -948,9 +1062,8 @@ class _BarChartCardState extends State<_BarChartCard> {
                           fontSize: 13,
                           fontWeight:
                               isToday ? FontWeight.w700 : FontWeight.w400,
-                          color: isToday
-                              ? AppTheme.primaryBlue
-                              : AppTheme.textMid,
+                          color:
+                              isToday ? AppTheme.primaryBlue : AppTheme.textMid,
                         ),
                       ),
                     );
@@ -979,58 +1092,65 @@ class _BarChartCardState extends State<_BarChartCard> {
                   },
                 ),
               ),
-              topTitles:
-                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles:
-                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
             ),
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
               horizontalInterval: widget.maxY <= 5 ? 1 : 2,
-              getDrawingHorizontalLine: (_) => const FlLine(
-                color: AppTheme.divider,
-                strokeWidth: 1,
-                dashArray: [4, 4],
-              ),
+              getDrawingHorizontalLine:
+                  (_) => const FlLine(
+                    color: AppTheme.divider,
+                    strokeWidth: 1,
+                    dashArray: [4, 4],
+                  ),
             ),
             borderData: FlBorderData(show: false),
-            barGroups: widget.data.asMap().entries.map((entry) {
-              final i = entry.key;
-              final value = entry.value;
-              final isTouched = i == _touchedIndex;
+            barGroups:
+                widget.data.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final value = entry.value;
+                  final isTouched = i == _touchedIndex;
 
-              return BarChartGroupData(
-                x: i,
-                barRods: [
-                  BarChartRodData(
-                    toY: value,
-                    width: isTouched ? 22 : 18,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(6),
-                    ),
-                    gradient: LinearGradient(
-                      colors: isTouched
-                          ? [
-                              widget.gradientColors[1],
-                              widget.gradientColors[0],
-                            ]
-                          : [
-                              widget.gradientColors[0].withValues(alpha: 0.7),
-                              widget.gradientColors[1],
-                            ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                    ),
-                    backDrawRodData: BackgroundBarChartRodData(
-                      show: true,
-                      toY: widget.maxY,
-                      color: AppTheme.backgroundGray,
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
+                  return BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: value,
+                        width: isTouched ? 22 : 18,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(6),
+                        ),
+                        gradient: LinearGradient(
+                          colors:
+                              isTouched
+                                  ? [
+                                    widget.gradientColors[1],
+                                    widget.gradientColors[0],
+                                  ]
+                                  : [
+                                    widget.gradientColors[0].withValues(
+                                      alpha: 0.7,
+                                    ),
+                                    widget.gradientColors[1],
+                                  ],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                        ),
+                        backDrawRodData: BackgroundBarChartRodData(
+                          show: true,
+                          toY: widget.maxY,
+                          color: AppTheme.backgroundGray,
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
           ),
         ),
       ),
@@ -1173,8 +1293,10 @@ class _MedProgressRow extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),

@@ -111,7 +111,7 @@ STRICT RULES:
 - Write in second person (e.g. "You're feeling..." or "Your pain level...")
 - Do NOT begin with greetings like "Good morning", "Hello", "Hi", or any salutation
 - Be warm, encouraging, and supportive in tone
-- Use only the data listed below — do not invent or assume details
+- Use only the data listed below - do not invent or assume details
 - End with a brief positive note or gentle reminder if relevant
 
 PATIENT DATA:
@@ -160,7 +160,7 @@ STRICT RULES:
 - Do NOT begin with greetings, salutations, or "Good morning/afternoon/evening"
 - Mention mood, pain level, and medication adherence from the data provided
 - Flag any SOS alerts if present
-- Use only the data below — do not invent or assume anything
+- Use only the data below - do not invent or assume anything
 
 PATIENT DATA FOR TODAY:
 • ${eventsList}

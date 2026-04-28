@@ -13,7 +13,7 @@ import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
 
-/// Caregiver Dashboard — MD3 card-based layout, ≥16px fonts.
+/// Caregiver Dashboard - MD3 card-based layout, ≥16px fonts.
 class CaregiverDashboardScreen extends StatefulWidget {
   const CaregiverDashboardScreen({super.key});
 
@@ -28,14 +28,15 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   late Future<CaregiverProfile?> _caregiverProfileFuture;
   String? _caregiverId;
 
-  // SOS listener — fires a local notification when a new alert arrives
+  // SOS listener - fires a local notification when a new alert arrives
   final List<StreamSubscription<QuerySnapshot>> _sosSubs = [];
 
   @override
   void initState() {
     super.initState();
     _patientPageController = PageController(viewportFraction: 0.95);
-    _caregiverProfileFuture = CaregiverService.instance.getCurrentCaregiverProfile();
+    _caregiverProfileFuture =
+        CaregiverService.instance.getCurrentCaregiverProfile();
     _startSosListeners();
     _loadCaregiverId();
   }
@@ -59,8 +60,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           .snapshots()
           .skip(1)
           .listen((snap) {
-        // FCM notification is handled by the Cloud Function — no local notify needed
-      });
+            // FCM notification is handled by the Cloud Function - no local notify needed
+          });
 
       _sosSubs.add(sub);
     }
@@ -104,7 +105,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                 date: _today,
                 caregiverName: caregiverName,
                 caregiverInitial: caregiverInitial,
-                onProfileTap: () => context.push(AppConstants.routeCaregiverSettings),
+                onProfileTap:
+                    () => context.push(AppConstants.routeCaregiverSettings),
               );
             },
           ),
@@ -115,10 +117,11 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           FutureBuilder<CaregiverProfile?>(
             future: _caregiverProfileFuture,
             builder: (context, caregiverSnapshot) {
-              if (caregiverSnapshot.connectionState == ConnectionState.waiting) {
+              if (caregiverSnapshot.connectionState ==
+                  ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              
+
               final caregiver = caregiverSnapshot.data;
               if (caregiver == null || caregiver.linkedElderlyIds.isEmpty) {
                 return const _PatientCardPlaceholder();
@@ -139,18 +142,25 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                       itemCount: elderlyIds.length,
                       itemBuilder: (context, index) {
                         return FutureBuilder<PatientProfile?>(
-                          future: PatientService.instance.getPatientById(elderlyIds[index]),
+                          future: PatientService.instance.getPatientById(
+                            elderlyIds[index],
+                          ),
                           builder: (context, patientSnapshot) {
-                            if (patientSnapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
+                            if (patientSnapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
                             }
-                            
+
                             final patient = patientSnapshot.data;
                             return patient != null
                                 ? Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                                    child: _PatientCard(patient: patient),
-                                  )
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  child: _PatientCard(patient: patient),
+                                )
                                 : const SizedBox.shrink();
                           },
                         );
@@ -169,9 +179,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                           width: _currentPatientIndex == index ? 24 : 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: _currentPatientIndex == index
-                                ? Theme.of(context).primaryColor
-                                : Theme.of(context).dividerColor,
+                            color:
+                                _currentPatientIndex == index
+                                    ? Theme.of(context).primaryColor
+                                    : Theme.of(context).dividerColor,
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -187,16 +198,20 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           FutureBuilder<CaregiverProfile?>(
             future: CaregiverService.instance.getCurrentCaregiverProfile(),
             builder: (context, caregiverSnapshot) {
-              if (caregiverSnapshot.connectionState == ConnectionState.waiting) {
+              if (caregiverSnapshot.connectionState ==
+                  ConnectionState.waiting) {
                 return const SizedBox.shrink();
               }
 
               final caregiver = caregiverSnapshot.data;
-              if (caregiver == null || caregiver.linkedElderlyIds.isEmpty || _currentPatientIndex >= caregiver.linkedElderlyIds.length) {
+              if (caregiver == null ||
+                  caregiver.linkedElderlyIds.isEmpty ||
+                  _currentPatientIndex >= caregiver.linkedElderlyIds.length) {
                 return const SizedBox.shrink();
               }
 
-              final currentPatientId = caregiver.linkedElderlyIds[_currentPatientIndex];
+              final currentPatientId =
+                  caregiver.linkedElderlyIds[_currentPatientIndex];
               return _TodayCheckinBanner(patientId: currentPatientId);
             },
           ),
@@ -210,7 +225,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               if (ids.isEmpty) return const SizedBox.shrink();
               return Column(
                 children: [
-                  _AiSummaryLoader(patientId: ids[_currentPatientIndex.clamp(0, ids.length - 1)]),
+                  _AiSummaryLoader(
+                    patientId:
+                        ids[_currentPatientIndex.clamp(0, ids.length - 1)],
+                  ),
                   const SizedBox(height: 24),
                 ],
               );
@@ -226,7 +244,8 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               return Column(
                 children: [
                   _AgenticAnalysisCard(
-                    patientId: ids[_currentPatientIndex.clamp(0, ids.length - 1)],
+                    patientId:
+                        ids[_currentPatientIndex.clamp(0, ids.length - 1)],
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -241,13 +260,20 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             future: _caregiverProfileFuture,
             builder: (context, snap) {
               final ids = snap.data?.linkedElderlyIds ?? [];
-              if (ids.isEmpty) return const _StatsGrid(health: null, sosCount: 0);
-              final patientId = ids[_currentPatientIndex.clamp(0, ids.length - 1)];
+              if (ids.isEmpty) {
+                return const _StatsGrid(health: null, sosCount: 0);
+              }
+              final patientId =
+                  ids[_currentPatientIndex.clamp(0, ids.length - 1)];
               return StreamBuilder<PatientHealthData?>(
-                stream: PatientService.instance.getTodayHealthData$Stream(patientId),
+                stream: PatientService.instance.getTodayHealthData$Stream(
+                  patientId,
+                ),
                 builder: (context, healthSnap) {
                   return StreamBuilder<int>(
-                    stream: PatientService.instance.getTodaySosCount$Stream(patientId),
+                    stream: PatientService.instance.getTodaySosCount$Stream(
+                      patientId,
+                    ),
                     builder: (context, sosSnap) {
                       return _StatsGrid(
                         health: healthSnap.data,
@@ -267,30 +293,40 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             builder: (context, snap) {
               final ids = snap.data?.linkedElderlyIds ?? [];
               if (ids.isEmpty) return const SizedBox.shrink();
-              final patientId = ids[_currentPatientIndex.clamp(0, ids.length - 1)];
+              final patientId =
+                  ids[_currentPatientIndex.clamp(0, ids.length - 1)];
               return _QuickLink(
                 icon: Icons.bar_chart_rounded,
                 iconColor: Theme.of(context).colorScheme.primary,
-                iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                iconBg: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.15),
                 label: 'Health Report',
                 sublabel: 'AI-generated summary & charts',
-                onTap: () => context.push('${AppConstants.routeCaregiverReports}?patientId=$patientId'),
+                onTap:
+                    () => context.push(
+                      '${AppConstants.routeCaregiverReports}?patientId=$patientId',
+                    ),
               );
             },
           ),
           const SizedBox(height: 12),
           if (_caregiverId != null)
             StreamBuilder<List<AlertGroup>>(
-              stream: FirebaseAlertsService.instance.getAlertsStream(_caregiverId!),
+              stream: FirebaseAlertsService.instance.getAlertsStream(
+                _caregiverId!,
+              ),
               builder: (context, snap) {
-                final unread = snap.data
+                final unread =
+                    snap.data
                         ?.expand((g) => g.alerts)
                         .where((a) => a.isUnread)
                         .length ??
                     0;
-                final sublabel = unread == 0
-                    ? 'No new alerts'
-                    : '$unread unread alert${unread > 1 ? 's' : ''}';
+                final sublabel =
+                    unread == 0
+                        ? 'No new alerts'
+                        : '$unread unread alert${unread > 1 ? 's' : ''}';
                 return _QuickLink(
                   icon: Icons.notifications_active_rounded,
                   iconColor: const Color(0xFFEA580C),
@@ -317,14 +353,17 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           const SizedBox(height: 12),
           // Fetches activity stream from Firestore (real-time updates)
           FutureBuilder<PatientProfile?>(
-            future: CaregiverService.instance
-                .getCurrentCaregiverProfile()
-                .then((profile) => profile != null
-                    ? PatientService.instance
-                        .getPatientsByCaregiver(profile.id)
-                        .then((patients) =>
-                            patients.isNotEmpty ? patients.first : null)
-                    : null),
+            future: CaregiverService.instance.getCurrentCaregiverProfile().then(
+              (profile) =>
+                  profile != null
+                      ? PatientService.instance
+                          .getPatientsByCaregiver(profile.id)
+                          .then(
+                            (patients) =>
+                                patients.isNotEmpty ? patients.first : null,
+                          )
+                      : null,
+            ),
             builder: (context, patientSnapshot) {
               if (patientSnapshot.connectionState == ConnectionState.waiting) {
                 return const Padding(
@@ -361,7 +400,11 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                         child: Text(
                           'No recent activity',
                           style: GoogleFonts.inter(
-                            color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color ??
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                       ),
@@ -369,11 +412,14 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                   }
 
                   return Column(
-                    children: activities
-                        .take(10)
-                        .map((activity) =>
-                            _ActivityTileFromMap(activityData: activity))
-                        .toList(),
+                    children:
+                        activities
+                            .take(10)
+                            .map(
+                              (activity) =>
+                                  _ActivityTileFromMap(activityData: activity),
+                            )
+                            .toList(),
                   );
                 },
               );
@@ -445,9 +491,12 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             ),
             if (_caregiverId != null)
               StreamBuilder<List<AlertGroup>>(
-                stream: FirebaseAlertsService.instance.getAlertsStream(_caregiverId!),
+                stream: FirebaseAlertsService.instance.getAlertsStream(
+                  _caregiverId!,
+                ),
                 builder: (context, snap) {
-                  final unread = snap.data
+                  final unread =
+                      snap.data
                           ?.expand((g) => g.alerts)
                           .where((a) => a.isUnread)
                           .length ??
@@ -506,7 +555,9 @@ class _GreetingHeader extends StatelessWidget {
                 date,
                 style: GoogleFonts.inter(
                   fontSize: 13,
-                  color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface,
+                  color:
+                      Theme.of(context).textTheme.bodyMedium?.color ??
+                      Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.2,
                 ),
@@ -519,7 +570,11 @@ class _GreetingHeader extends StatelessWidget {
                       text: '$greeting, ',
                       style: GoogleFonts.inter(
                         fontSize: 22,
-                        color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        color:
+                            Theme.of(context).textTheme.bodyMedium?.color ??
+                            Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.7),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -541,7 +596,9 @@ class _GreetingHeader extends StatelessWidget {
           onTap: onProfileTap,
           child: CircleAvatar(
             radius: 22,
-            backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.15),
             child: Text(
               caregiverInitial,
               style: GoogleFonts.inter(
@@ -572,7 +629,10 @@ class _PatientCard extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDarkMode ? Theme.of(context).dividerColor.withValues(alpha: 0.6) : Theme.of(context).dividerColor,
+          color:
+              isDarkMode
+                  ? Theme.of(context).dividerColor.withValues(alpha: 0.6)
+                  : Theme.of(context).dividerColor,
           width: 1.5,
         ),
       ),
@@ -582,9 +642,17 @@ class _PatientCard extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
-              border: isDarkMode ? Border.all(color: Theme.of(context).colorScheme.primary, width: 1.5) : null,
+              border:
+                  isDarkMode
+                      ? Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 1.5,
+                      )
+                      : null,
             ),
             child: Icon(
               Icons.elderly_rounded,
@@ -610,13 +678,20 @@ class _PatientCard extends StatelessWidget {
                   '${patient.age} years old  ·  Last seen: ${_formatLastSeen(patient.lastSeen)}',
                   style: GoogleFonts.inter(
                     fontSize: 13,
-                    color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    color:
+                        Theme.of(context).textTheme.bodyMedium?.color ??
+                        Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
             ),
           ),
-          _StatusBadge(label: patient.status.capitalize(), color: _statusColor(patient.status)),
+          _StatusBadge(
+            label: patient.status.capitalize(),
+            color: _statusColor(patient.status),
+          ),
         ],
       ),
     );
@@ -667,7 +742,11 @@ class _PatientCardPlaceholder extends StatelessWidget {
           children: [
             Icon(
               Icons.person_off_rounded,
-              color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+              color:
+                  Theme.of(context).textTheme.bodyMedium?.color ??
+                  Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
               size: 40,
             ),
             const SizedBox(height: 8),
@@ -675,7 +754,11 @@ class _PatientCardPlaceholder extends StatelessWidget {
               'No patients assigned',
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: Theme.of(context).textTheme.bodyMedium?.color ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                color:
+                    Theme.of(context).textTheme.bodyMedium?.color ??
+                    Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -750,7 +833,7 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
       // Clear old data and reset summary
       _lastPatientId = widget.patientId;
       final newSummaryFuture = _fetchSummary();
-      
+
       // Use setState only to update the future reference, NOT async
       if (mounted) {
         setState(() {
@@ -766,7 +849,7 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
     PatientHealthData? health;
     int sosCount = 0;
 
-    // Step 1: fetch data — separated so fallback can use it
+    // Step 1: fetch data - separated so fallback can use it
     try {
       final results = await Future.wait([
         PatientService.instance.getPatientById(patientId),
@@ -796,7 +879,7 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
         'No check-in recorded today',
     ];
 
-    // Step 2: call Gemini — fall back to data-based summary on any failure
+    // Step 2: call Gemini - fall back to data-based summary on any failure
     try {
       final summary = await GeminiService.instance.generateDailySummary(
         patientName: patient.name,
@@ -815,16 +898,20 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
       return '$name has not completed today\'s check-in yet. Consider sending them a reminder.';
     }
     final pain = health.painLevel.toInt();
-    final painDesc = pain <= 3
-        ? 'low pain ($pain/10)'
-        : pain <= 6
+    final painDesc =
+        pain <= 3
+            ? 'low pain ($pain/10)'
+            : pain <= 6
             ? 'moderate pain ($pain/10)'
             : 'high pain ($pain/10)';
-    final meds = health.medicationsTotal > 0
-        ? ' ${health.medicationsTaken}/${health.medicationsTotal} medications taken.'
-        : '';
+    final meds =
+        health.medicationsTotal > 0
+            ? ' ${health.medicationsTaken}/${health.medicationsTotal} medications taken.'
+            : '';
     final sos =
-        sosCount > 0 ? ' $sosCount SOS alert${sosCount > 1 ? 's' : ''} today — please check in.' : '';
+        sosCount > 0
+            ? ' $sosCount SOS alert${sosCount > 1 ? 's' : ''} today - please check in.'
+            : '';
     return '$name checked in today feeling ${health.mood} with $painDesc.$meds$sos';
   }
 
@@ -845,7 +932,10 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Center(
-              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
             ),
           );
         }
@@ -869,22 +959,21 @@ class _AiSummaryBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    
+
     // In dark mode, use a darker shade with lower opacity for less glare
-    final bannerPrimary = isDarkMode 
-      ? primaryColor.withValues(alpha: 0.8)  // Darker/more transparent
-      : primaryColor;
-    final bannerSecondary = isDarkMode
-      ? primaryColor.withValues(alpha: 0.5)
-      : primaryColor.withValues(alpha: 0.7);
-    
+    final bannerPrimary =
+        isDarkMode
+            ? primaryColor.withValues(alpha: 0.8) // Darker/more transparent
+            : primaryColor;
+    final bannerSecondary =
+        isDarkMode
+            ? primaryColor.withValues(alpha: 0.5)
+            : primaryColor.withValues(alpha: 0.7);
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            bannerPrimary,
-            bannerSecondary,
-          ],
+          colors: [bannerPrimary, bannerSecondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -906,16 +995,29 @@ class _AiSummaryBanner extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: isDarkMode ? 0.12 : 0.18),
+                    color: Colors.white.withValues(
+                      alpha: isDarkMode ? 0.12 : 0.18,
+                    ),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: isDarkMode ? 0.15 : 0.25)),
+                    border: Border.all(
+                      color: Colors.white.withValues(
+                        alpha: isDarkMode ? 0.15 : 0.25,
+                      ),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 14),
+                      const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      ),
                       const SizedBox(width: 5),
                       Text(
                         'Summary',
@@ -930,17 +1032,23 @@ class _AiSummaryBanner extends StatelessWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: isDarkMode ? 0.1 : 0.15),
+                    color: Colors.white.withValues(
+                      alpha: isDarkMode ? 0.1 : 0.15,
+                    ),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     'Just now',
                     style: GoogleFonts.inter(
                       fontSize: 12,
-                      color: Colors.white.withValues(alpha: isDarkMode ? 0.65 : 0.75),
+                      color: Colors.white.withValues(
+                        alpha: isDarkMode ? 0.65 : 0.75,
+                      ),
                     ),
                   ),
                 ),
@@ -972,7 +1080,9 @@ class _AiSummaryBanner extends StatelessWidget {
                   'Powered by Gemini 2.0 Flash',
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: Colors.white.withValues(alpha: isDarkMode ? 0.55 : 0.65),
+                    color: Colors.white.withValues(
+                      alpha: isDarkMode ? 0.55 : 0.65,
+                    ),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -1001,7 +1111,11 @@ class _AgenticAnalysisCardState extends State<_AgenticAnalysisCard> {
   String? _error;
 
   Future<void> _runAnalysis() async {
-    setState(() { _loading = true; _error = null; _result = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+      _result = null;
+    });
     try {
       final results = await Future.wait([
         PatientService.instance.getPatientById(widget.patientId),
@@ -1023,14 +1137,27 @@ class _AgenticAnalysisCardState extends State<_AgenticAnalysisCard> {
           'No check-in recorded today',
       ];
 
-      final result = await GeminiService.instance.generateAgenticCareAnalysis(events);
-      if (mounted) setState(() { _result = result; _loading = false; });
+      final result = await GeminiService.instance.generateAgenticCareAnalysis(
+        events,
+      );
+      if (mounted) {
+        setState(() {
+          _result = result;
+          _loading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString();
         // Show full error message for debugging, but truncate excessively long ones
-        final displayError = errorMsg.length > 200 ? '${errorMsg.substring(0, 197)}...' : errorMsg;
-        setState(() { _error = displayError; _loading = false; });
+        final displayError =
+            errorMsg.length > 200
+                ? '${errorMsg.substring(0, 197)}...'
+                : errorMsg;
+        setState(() {
+          _error = displayError;
+          _loading = false;
+        });
       }
     }
   }
@@ -1038,8 +1165,10 @@ class _AgenticAnalysisCardState extends State<_AgenticAnalysisCard> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? Theme.of(context).colorScheme.surface : AppTheme.surfaceWhite;
-    final border = isDark ? Colors.white.withValues(alpha: 0.1) : AppTheme.divider;
+    final surface =
+        isDark ? Theme.of(context).colorScheme.surface : AppTheme.surfaceWhite;
+    final border =
+        isDark ? Colors.white.withValues(alpha: 0.1) : AppTheme.divider;
 
     return Container(
       decoration: BoxDecoration(
@@ -1060,15 +1189,32 @@ class _AgenticAnalysisCardState extends State<_AgenticAnalysisCard> {
                   color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.psychology_rounded, color: Color(0xFF7C3AED), size: 18),
+                child: const Icon(
+                  Icons.psychology_rounded,
+                  color: Color(0xFF7C3AED),
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('AI Deep Analysis', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
-                    Text('3-step agentic reasoning', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF7C3AED))),
+                    Text(
+                      'AI Deep Analysis',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      '3-step agentic reasoning',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: const Color(0xFF7C3AED),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1076,10 +1222,19 @@ class _AgenticAnalysisCardState extends State<_AgenticAnalysisCard> {
                 FilledButton.icon(
                   onPressed: _runAnalysis,
                   icon: const Icon(Icons.auto_awesome_rounded, size: 15),
-                  label: Text('Analyse', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                  label: Text(
+                    'Analyse',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF7C3AED),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -1101,25 +1256,62 @@ class _AgenticAnalysisCardState extends State<_AgenticAnalysisCard> {
             Row(
               children: [
                 const SizedBox(width: 2),
-                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF7C3AED))),
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFF7C3AED),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Text('Running 3-step analysis…', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF7C3AED))),
+                Text(
+                  'Running 3-step analysis…',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: const Color(0xFF7C3AED),
+                  ),
+                ),
               ],
             ),
           ],
 
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!, style: GoogleFonts.inter(fontSize: 13, color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
           ],
 
           if (_result != null) ...[
             const SizedBox(height: 16),
-            _AgenticStep(step: 1, label: 'Signals Extracted', icon: Icons.search_rounded, color: const Color(0xFF0EA5E9), content: _result!.signals),
+            _AgenticStep(
+              step: 1,
+              label: 'Signals Extracted',
+              icon: Icons.search_rounded,
+              color: const Color(0xFF0EA5E9),
+              content: _result!.signals,
+            ),
             const SizedBox(height: 10),
-            _AgenticStep(step: 2, label: 'Risk Assessment', icon: Icons.assessment_rounded, color: const Color(0xFFEA580C), content: _result!.riskAssessment),
+            _AgenticStep(
+              step: 2,
+              label: 'Risk Assessment',
+              icon: Icons.assessment_rounded,
+              color: const Color(0xFFEA580C),
+              content: _result!.riskAssessment,
+            ),
             const SizedBox(height: 10),
-            _AgenticStep(step: 3, label: 'Care Plan', icon: Icons.medical_services_rounded, color: const Color(0xFF10B981), content: _result!.carePlan),
+            _AgenticStep(
+              step: 3,
+              label: 'Care Plan',
+              icon: Icons.medical_services_rounded,
+              color: const Color(0xFF10B981),
+              content: _result!.carePlan,
+            ),
           ],
         ],
       ),
@@ -1133,7 +1325,13 @@ class _AgenticStep extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String content;
-  const _AgenticStep({required this.step, required this.label, required this.icon, required this.color, required this.content});
+  const _AgenticStep({
+    required this.step,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.content,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1151,8 +1349,20 @@ class _AgenticStep extends StatelessWidget {
           Container(
             width: 28,
             height: 28,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-            child: Center(child: Text('$step', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: color))),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '$step',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1163,11 +1373,27 @@ class _AgenticStep extends StatelessWidget {
                   children: [
                     Icon(icon, size: 13, color: color),
                     const SizedBox(width: 4),
-                    Text(label, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+                    Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(content, style: GoogleFonts.inter(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85), height: 1.5)),
+                Text(
+                  content,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.85),
+                    height: 1.5,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1188,26 +1414,48 @@ class _StatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Mood
-    const moodLabels = ['Terrible 😢', 'Sad 😟', 'Okay 😐', 'Good 🙂', 'Great 😊'];
-    final moodIndex = health?.mood == 'terrible' ? 0
-        : health?.mood == 'sad' ? 1
-        : health?.mood == 'okay' ? 2
-        : health?.mood == 'good' ? 3
-        : health?.mood == 'great' ? 4
-        : -1;
-    final moodLabel = health == null ? 'No check-in' : (moodIndex >= 0 ? moodLabels[moodIndex] : health!.mood);
+    const moodLabels = [
+      'Terrible 😢',
+      'Sad 😟',
+      'Okay 😐',
+      'Good 🙂',
+      'Great 😊',
+    ];
+    final moodIndex =
+        health?.mood == 'terrible'
+            ? 0
+            : health?.mood == 'sad'
+            ? 1
+            : health?.mood == 'okay'
+            ? 2
+            : health?.mood == 'good'
+            ? 3
+            : health?.mood == 'great'
+            ? 4
+            : -1;
+    final moodLabel =
+        health == null
+            ? 'No check-in'
+            : (moodIndex >= 0 ? moodLabels[moodIndex] : health!.mood);
     final moodGood = moodIndex >= 3;
 
     // Pain
     final pain = health?.painLevel ?? 0;
-    final painLabel = health == null ? '— / 10' : '$pain / 10';
+    final painLabel = health == null ? '- / 10' : '$pain / 10';
     final painGood = pain <= 3;
-    final painSub = pain == 0 ? 'None reported' : pain <= 3 ? 'Low — stable' : pain <= 6 ? 'Moderate' : 'High — check in';
+    final painSub =
+        pain == 0
+            ? 'None reported'
+            : pain <= 3
+            ? 'Low - stable'
+            : pain <= 6
+            ? 'Moderate'
+            : 'High - check in';
 
     // Meds
     final medsTaken = health?.medicationsTaken ?? 0;
     final medsTotal = health?.medicationsTotal ?? 0;
-    final medsLabel = health == null ? '— / —' : '$medsTaken / $medsTotal';
+    final medsLabel = health == null ? '- / -' : '$medsTaken / $medsTotal';
     final medsGood = medsTotal == 0 || medsTaken >= medsTotal;
 
     // SOS
@@ -1221,24 +1469,54 @@ class _StatsGrid extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 icon: Icons.mood_rounded,
-                iconColor: health == null ? AppTheme.textLight : (moodGood ? AppTheme.accentGreen : AppTheme.accentOrange),
-                iconBg: health == null ? AppTheme.backgroundGray : (moodGood ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED)),
+                iconColor:
+                    health == null
+                        ? AppTheme.textLight
+                        : (moodGood
+                            ? AppTheme.accentGreen
+                            : AppTheme.accentOrange),
+                iconBg:
+                    health == null
+                        ? AppTheme.backgroundGray
+                        : (moodGood
+                            ? const Color(0xFFDCFCE7)
+                            : const Color(0xFFFFF7ED)),
                 label: 'Mood Today',
                 value: moodLabel,
                 sub: health == null ? 'No check-in yet' : 'Reported today',
-                subColor: health == null ? AppTheme.textLight : (moodGood ? AppTheme.accentGreen : AppTheme.accentOrange),
+                subColor:
+                    health == null
+                        ? AppTheme.textLight
+                        : (moodGood
+                            ? AppTheme.accentGreen
+                            : AppTheme.accentOrange),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _StatCard(
                 icon: Icons.healing_rounded,
-                iconColor: health == null ? AppTheme.textLight : (painGood ? AppTheme.accentGreen : AppTheme.accentOrange),
-                iconBg: health == null ? AppTheme.backgroundGray : (painGood ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED)),
+                iconColor:
+                    health == null
+                        ? AppTheme.textLight
+                        : (painGood
+                            ? AppTheme.accentGreen
+                            : AppTheme.accentOrange),
+                iconBg:
+                    health == null
+                        ? AppTheme.backgroundGray
+                        : (painGood
+                            ? const Color(0xFFDCFCE7)
+                            : const Color(0xFFFFF7ED)),
                 label: 'Pain Level',
                 value: painLabel,
                 sub: health == null ? 'No check-in yet' : painSub,
-                subColor: health == null ? AppTheme.textLight : (painGood ? AppTheme.accentGreen : AppTheme.accentOrange),
+                subColor:
+                    health == null
+                        ? AppTheme.textLight
+                        : (painGood
+                            ? AppTheme.accentGreen
+                            : AppTheme.accentOrange),
               ),
             ),
           ],
@@ -1249,12 +1527,22 @@ class _StatsGrid extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 icon: Icons.medication_rounded,
-                iconColor: medsGood ? AppTheme.accentGreen : AppTheme.accentOrange,
-                iconBg: medsGood ? const Color(0xFFDCFCE7) : const Color(0xFFFFF7ED),
+                iconColor:
+                    medsGood ? AppTheme.accentGreen : AppTheme.accentOrange,
+                iconBg:
+                    medsGood
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFFFFF7ED),
                 label: 'Meds Taken',
                 value: medsLabel,
-                sub: medsTotal == 0 ? 'No meds scheduled' : (medsGood ? 'All taken' : '${medsTotal - medsTaken} remaining'),
-                subColor: medsGood ? AppTheme.accentGreen : AppTheme.accentOrange,
+                sub:
+                    medsTotal == 0
+                        ? 'No meds scheduled'
+                        : (medsGood
+                            ? 'All taken'
+                            : '${medsTotal - medsTaken} remaining'),
+                subColor:
+                    medsGood ? AppTheme.accentGreen : AppTheme.accentOrange,
               ),
             ),
             const SizedBox(width: 12),
@@ -1262,7 +1550,8 @@ class _StatsGrid extends StatelessWidget {
               child: _StatCard(
                 icon: Icons.emergency_rounded,
                 iconColor: sosGood ? AppTheme.accentGreen : AppTheme.accentRed,
-                iconBg: sosGood ? const Color(0xFFDCFCE7) : const Color(0xFFFFE4E4),
+                iconBg:
+                    sosGood ? const Color(0xFFDCFCE7) : const Color(0xFFFFE4E4),
                 label: 'SOS Alerts',
                 value: sosLabel,
                 sub: sosGood ? 'All clear today' : 'Needs attention',
@@ -1301,22 +1590,27 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDarkMode 
-          ? Theme.of(context).colorScheme.surface 
-          : AppTheme.surfaceWhite,
+        color:
+            isDarkMode
+                ? Theme.of(context).colorScheme.surface
+                : AppTheme.surfaceWhite,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDarkMode 
-            ? Colors.white.withValues(alpha: 0.1)
-            : AppTheme.divider,
+          color:
+              isDarkMode
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : AppTheme.divider,
         ),
-        boxShadow: isDarkMode ? [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ] : [],
+        boxShadow:
+            isDarkMode
+                ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+                : [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1337,9 +1631,10 @@ class _StatCard extends StatelessWidget {
                   label,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: isDarkMode 
-                      ? Colors.white.withValues(alpha: 0.7)
-                      : AppTheme.textMid,
+                    color:
+                        isDarkMode
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : AppTheme.textMid,
                     fontWeight: FontWeight.w500,
                   ),
                   maxLines: 1,
@@ -1354,9 +1649,10 @@ class _StatCard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: isDarkMode 
-                ? Colors.white.withValues(alpha: 0.87)
-                : AppTheme.textDark,
+              color:
+                  isDarkMode
+                      ? Colors.white.withValues(alpha: 0.87)
+                      : AppTheme.textDark,
             ),
           ),
           const SizedBox(height: 3),
@@ -1397,9 +1693,10 @@ class _QuickLink extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: isDarkMode 
-        ? Theme.of(context).colorScheme.surface 
-        : AppTheme.surfaceWhite,
+      color:
+          isDarkMode
+              ? Theme.of(context).colorScheme.surface
+              : AppTheme.surfaceWhite,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -1408,17 +1705,21 @@ class _QuickLink extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isDarkMode 
-                ? Colors.white.withValues(alpha: 0.1)
-                : AppTheme.divider,
+              color:
+                  isDarkMode
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : AppTheme.divider,
             ),
-            boxShadow: isDarkMode ? [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ] : [],
+            boxShadow:
+                isDarkMode
+                    ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                    : [],
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1442,18 +1743,20 @@ class _QuickLink extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: isDarkMode 
-                            ? Colors.white.withValues(alpha: 0.87)
-                            : AppTheme.textDark,
+                          color:
+                              isDarkMode
+                                  ? Colors.white.withValues(alpha: 0.87)
+                                  : AppTheme.textDark,
                         ),
                       ),
                       Text(
                         sublabel,
                         style: GoogleFonts.inter(
                           fontSize: 13,
-                          color: isDarkMode 
-                            ? Colors.white.withValues(alpha: 0.6)
-                            : AppTheme.textMid,
+                          color:
+                              isDarkMode
+                                  ? Colors.white.withValues(alpha: 0.6)
+                                  : AppTheme.textMid,
                         ),
                       ),
                     ],
@@ -1461,7 +1764,13 @@ class _QuickLink extends StatelessWidget {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5) ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  color:
+                      Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.color?.withValues(alpha: 0.5) ??
+                      Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                   size: 22,
                 ),
               ],
@@ -1583,10 +1892,7 @@ class _ActivityTileFromMap extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             _formatTime(dateTime),
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: AppTheme.textLight,
-            ),
+            style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textLight),
           ),
         ],
       ),
@@ -1627,23 +1933,23 @@ class _TodayCheckinBanner extends StatelessWidget {
   // mood is stored as a string: 'great','good','okay','sad','terrible'
   String _moodEmoji(String mood) {
     return switch (mood) {
-      'great'    => '😊',
-      'good'     => '🙂',
-      'okay'     => '😐',
-      'sad'      => '😟',
+      'great' => '😊',
+      'good' => '🙂',
+      'okay' => '😐',
+      'sad' => '😟',
       'terrible' => '😢',
-      _          => '❓',
+      _ => '❓',
     };
   }
 
   String _moodLabel(String mood) {
     return switch (mood) {
-      'great'    => 'Great',
-      'good'     => 'Good',
-      'okay'     => 'Okay',
-      'sad'      => 'Not Great',
+      'great' => 'Great',
+      'good' => 'Good',
+      'okay' => 'Okay',
+      'sad' => 'Not Great',
       'terrible' => 'Bad',
-      _          => 'Unknown',
+      _ => 'Unknown',
     };
   }
 
@@ -1665,7 +1971,9 @@ class _TodayCheckinBanner extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             child: const SizedBox(
               height: 80,
-              child: Center(child: CircularProgressIndicator(color: Colors.white)),
+              child: Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
             ),
           );
         }
@@ -1689,16 +1997,25 @@ class _TodayCheckinBanner extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.info_rounded, color: AppTheme.primaryBlue, size: 14),
+                          const Icon(
+                            Icons.info_rounded,
+                            color: AppTheme.primaryBlue,
+                            size: 14,
+                          ),
                           const SizedBox(width: 5),
                           Text(
                             'Check-in',
@@ -1755,16 +2072,25 @@ class _TodayCheckinBanner extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 14),
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
                           const SizedBox(width: 5),
                           Text(
                             'Today\'s Check-in',
@@ -1810,11 +2136,16 @@ class _TodayCheckinBanner extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: Text(
                         'Submitted',
@@ -1841,5 +2172,6 @@ class _TodayCheckinBanner extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────────────────────
 
 extension StringExtension on String {
-  String capitalize() => isNotEmpty ? '${this[0].toUpperCase()}${substring(1).toLowerCase()}' : '';
+  String capitalize() =>
+      isNotEmpty ? '${this[0].toUpperCase()}${substring(1).toLowerCase()}' : '';
 }

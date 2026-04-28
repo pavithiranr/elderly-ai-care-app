@@ -10,7 +10,7 @@ import '../../../shared/services/user_session_service.dart';
 /// before any alert is sent. Design rules: ≥22px font, ≥64px buttons, MD3.
 class SosScreen extends StatefulWidget {
   final bool autoTrigger; // If true, skip confirmation and auto-send
-  
+
   const SosScreen({super.key, this.autoTrigger = false});
 
   @override
@@ -45,20 +45,22 @@ class _SosScreenState extends State<SosScreen> {
 
   Future<void> _sendAlert() async {
     if (mounted) setState(() => _isSending = true);
-    
+
     try {
       final patientId = await UserSessionService.instance.getSavedUserId();
       if (patientId != null) {
         final timestamp = Timestamp.now();
 
         // Get elderly document first (needed for caregiver ID and name)
-        final elderlyDoc = await FirebaseFirestore.instance
-            .collection('elderly')
-            .doc(patientId)
-            .get();
+        final elderlyDoc =
+            await FirebaseFirestore.instance
+                .collection('elderly')
+                .doc(patientId)
+                .get();
 
         final caregiverId = elderlyDoc.data()?['caregiverId'] as String?;
-        final elderlyName = elderlyDoc.data()?['name'] as String? ?? 'Your patient';
+        final elderlyName =
+            elderlyDoc.data()?['name'] as String? ?? 'Your patient';
 
         // Run both writes in parallel (they don't depend on each other)
         final futures = <Future<void>>[
@@ -79,13 +81,15 @@ class _SosScreenState extends State<SosScreen> {
                 .doc(caregiverId)
                 .collection('alerts')
                 .add({
-              'severity': 'critical',
-              'type': 'SOS Emergency Alert',
-              'body': '$elderlyName has triggered an SOS emergency alert and needs immediate assistance.',
-              'timestamp': timestamp,
-              'isUnread': true,
-              'elderlyId': patientId,
-            }).then((_) {}),
+                  'severity': 'critical',
+                  'type': 'SOS Emergency Alert',
+                  'body':
+                      '$elderlyName has triggered an SOS emergency alert and needs immediate assistance.',
+                  'timestamp': timestamp,
+                  'isUnread': true,
+                  'elderlyId': patientId,
+                })
+                .then((_) {}),
           );
         }
 
@@ -111,12 +115,13 @@ class _SosScreenState extends State<SosScreen> {
         backgroundColor:
             _alertSent ? const Color(0xFFFEF2F2) : AppTheme.backgroundGray,
         appBar: AppBar(
-          leading: _alertSent
-              ? const SizedBox.shrink()
-              : IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, size: 28),
-                  onPressed: () => context.pop(),
-                ),
+          leading:
+              _alertSent
+                  ? const SizedBox.shrink()
+                  : IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, size: 28),
+                    onPressed: () => context.pop(),
+                  ),
           title: Text(
             'Emergency SOS',
             style: GoogleFonts.inter(
@@ -127,9 +132,10 @@ class _SosScreenState extends State<SosScreen> {
           ),
           toolbarHeight: 64,
         ),
-        body: _alertSent
-            ? _SentView(onBack: () => context.pop())
-            : _isSending
+        body:
+            _alertSent
+                ? _SentView(onBack: () => context.pop())
+                : _isSending
                 ? _SendingView()
                 : _ReadyView(onConfirm: _confirmAndSend),
       ),
@@ -210,7 +216,7 @@ class _ConfirmDialog extends StatelessWidget {
                   ),
                   elevation: 0,
                 ),
-                child: const Text('Yes — Send Alert'),
+                child: const Text('Yes - Send Alert'),
               ),
             ),
             const SizedBox(height: 12),
@@ -232,7 +238,7 @@ class _ConfirmDialog extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                child: const Text("No — I'm Fine"),
+                child: const Text("No - I'm Fine"),
               ),
             ),
           ],
@@ -279,12 +285,12 @@ class _ReadyView extends StatelessWidget {
 
             const Spacer(flex: 2),
 
-            // Pulsing SOS button — fills most of the screen width
+            // Pulsing SOS button - fills most of the screen width
             _PulsingSOSButton(onTap: onConfirm),
 
             const Spacer(flex: 2),
 
-            // Cancel link — still a full-height tappable area for safety
+            // Cancel link - still a full-height tappable area for safety
             SizedBox(
               width: double.infinity,
               height: AppTheme.elderlyButtonHeight,
@@ -301,7 +307,7 @@ class _ReadyView extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                child: const Text("I'm Fine — Go Back"),
+                child: const Text("I'm Fine - Go Back"),
               ),
             ),
 
@@ -382,8 +388,9 @@ class _PulsingSOSButtonState extends State<_PulsingSOSButton>
                   height: size,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppTheme.accentRed
-                        .withValues(alpha: _ringOpacityAnim.value),
+                    color: AppTheme.accentRed.withValues(
+                      alpha: _ringOpacityAnim.value,
+                    ),
                   ),
                 ),
               ),
@@ -397,16 +404,21 @@ class _PulsingSOSButtonState extends State<_PulsingSOSButton>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppTheme.accentRed.withValues(
-                      alpha: Tween<double>(begin: 0.5, end: 0.0).evaluate(
-                        CurvedAnimation(
-                          parent: _controller,
-                          curve: const Interval(0.0, 1.0, curve: Curves.easeOut),
-                        ),
-                      ) *
+                      alpha:
+                          Tween<double>(begin: 0.5, end: 0.0).evaluate(
+                            CurvedAnimation(
+                              parent: _controller,
+                              curve: const Interval(
+                                0.0,
+                                1.0,
+                                curve: Curves.easeOut,
+                              ),
+                            ),
+                          ) *
                           (1 -
-                              ((_controller.value + 0.5) % 1.0) /
-                                  (_controller.value + 0.5) %
-                                  1.0)
+                                  ((_controller.value + 0.5) % 1.0) /
+                                      (_controller.value + 0.5) %
+                                      1.0)
                               .clamp(0.0, 1.0),
                     ),
                   ),

@@ -1,6 +1,6 @@
 {
   "name": "caresync-functions",
-  "description": "CareSync AI — Firebase Cloud Functions",
+  "description": "CareSync AI - Firebase Cloud Functions",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",

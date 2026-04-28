@@ -9,13 +9,14 @@ import 'dart:async';
 /// Flow:
 ///   1. Call [init] once at app start (before runApp).
 ///   2. After a user logs in, call [saveTokenForUser] with their Firestore UID.
-///   3. Backend sends FCM push to caregiver token — received here and displayed.
+///   3. Backend sends FCM push to caregiver token - received here and displayed.
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _local =
+      FlutterLocalNotificationsPlugin();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _initialized = false;
 
@@ -44,13 +45,18 @@ class NotificationService {
   }
 
   Future<void> _initLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-    const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
+    const settings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
     await _local.initialize(settings);
 
     // Create high-importance notification channel so OS shows heads-up banners
@@ -63,7 +69,9 @@ class NotificationService {
       enableVibration: true,
     );
     await _local
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
   }
 
@@ -78,14 +86,16 @@ class NotificationService {
 
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       await _local
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
     }
   }
 
   /// Listen to FCM messages while the app is in the foreground.
   /// (Background/terminated messages are handled by FCM automatically
-  /// once a server sends them — infrastructure is already wired.)
+  /// once a server sends them - infrastructure is already wired.)
   void _listenToForegroundMessages() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notification = message.notification;
@@ -104,7 +114,10 @@ class NotificationService {
   /// Save the device FCM token to Firestore under the user's profile.
   /// Call this right after a successful caregiver login / elderly setup.
   /// [collection] is either 'caregivers' or 'elderly'.
-  Future<void> saveTokenForUser(String uid, {String collection = 'caregivers'}) async {
+  Future<void> saveTokenForUser(
+    String uid, {
+    String collection = 'caregivers',
+  }) async {
     try {
       final token = await _messaging.getToken();
       if (token == null) return;
@@ -123,7 +136,7 @@ class NotificationService {
         });
       });
     } catch (e) {
-      debugPrint('NotificationService: failed to save token — $e');
+      debugPrint('NotificationService: failed to save token - $e');
     }
   }
 
@@ -165,22 +178,23 @@ class NotificationService {
 
   /// Convenience: fire an SOS notification for a named patient.
   Future<void> showSosNotification(String patientName) => show(
-        id: 911,
-        title: '🚨 SOS Alert — $patientName',
-        body: '$patientName has triggered an emergency alert. Please respond immediately.',
-      );
+    id: 911,
+    title: '🚨 SOS Alert - $patientName',
+    body:
+        '$patientName has triggered an emergency alert. Please respond immediately.',
+  );
 
   /// Convenience: fire a missed check-in reminder.
   Future<void> showMissedCheckinNotification(String patientName) => show(
-        id: 100,
-        title: 'Missed Check-in — $patientName',
-        body: '$patientName has not completed today\'s check-in. Please follow up.',
-      );
+    id: 100,
+    title: 'Missed Check-in - $patientName',
+    body: '$patientName has not completed today\'s check-in. Please follow up.',
+  );
 
   // ── Medication Notifications ───────────────────────────────────────────────
 
   /// Schedule recurring medication notifications for each time.
-  /// 
+  ///
   /// Parameters:
   /// - [medicationId]: Unique identifier for the medication (used as notification ID base)
   /// - [medicationName]: Name of the medication
@@ -194,39 +208,47 @@ class NotificationService {
     required List<String> times,
     required String frequency,
   }) async {
-    // Guard — fail fast if not initialized
+    // Guard - fail fast if not initialized
     if (!_initialized) {
-      debugPrint('⏳ Waiting for NotificationService to initialize (_initialized=$_initialized)...');
+      debugPrint(
+        '⏳ Waiting for NotificationService to initialize (_initialized=$_initialized)...',
+      );
       int waitAttempts = 0;
       while (!_initialized && waitAttempts < 50) {
         await Future.delayed(const Duration(milliseconds: 100));
         waitAttempts++;
         if (waitAttempts % 10 == 0) {
-          debugPrint('⏳ Still waiting... attempt $waitAttempts/50 (_initialized=$_initialized)');
+          debugPrint(
+            '⏳ Still waiting... attempt $waitAttempts/50 (_initialized=$_initialized)',
+          );
         }
       }
-      
+
       if (!_initialized) {
-        debugPrint('❌ FATAL: NotificationService not initialized after 5 seconds, aborting notification scheduling');
+        debugPrint(
+          '❌ FATAL: NotificationService not initialized after 5 seconds, aborting notification scheduling',
+        );
         return;
       }
     }
-    
-    debugPrint('✅ NotificationService is initialized, proceeding with scheduling');
-    
+
+    debugPrint(
+      '✅ NotificationService is initialized, proceeding with scheduling',
+    );
+
     // ─── ENTRY LOGGING ───
     debugPrint('🔔📍 [ENTRY] scheduleMedicationNotifications()');
     debugPrint('   📌 medicationId="$medicationId"');
     debugPrint('   📌 medicationName="$medicationName"');
     debugPrint('   📌 times=$times');
     debugPrint('   📌 frequency="$frequency"');
-    
+
     try {
       debugPrint('🔔 Starting loop: times.length=${times.length}');
       for (int i = 0; i < times.length; i++) {
         final timeStr = times[i]; // "08:00" format
         debugPrint('🔔 [LOOP i=$i] Processing timeStr="$timeStr"');
-        
+
         final parts = timeStr.split(':');
         if (parts.length != 2) {
           debugPrint('⚠️ [SKIP i=$i] Invalid time format: "$timeStr"');
@@ -239,11 +261,16 @@ class NotificationService {
 
         // Create a unique notification ID using modulo to stay within 32-bit int range
         // Formula: (hashcode % 2000000) * 10 + i keeps max ID at ~19,999,999
-        final notificationId = ((medicationId.hashCode.abs() % 2000000) * 10) + i;
-        debugPrint('🔔 Notification ID calculated: medicationId=$medicationId → hashcode=${medicationId.hashCode} → notificationId=$notificationId');
+        final notificationId =
+            ((medicationId.hashCode.abs() % 2000000) * 10) + i;
+        debugPrint(
+          '🔔 Notification ID calculated: medicationId=$medicationId → hashcode=${medicationId.hashCode} → notificationId=$notificationId',
+        );
 
         // Schedule based on frequency
-        debugPrint('🔔 [CALLING _scheduleMedicationByFrequency] ID=$notificationId, Frequency="$frequency"');
+        debugPrint(
+          '🔔 [CALLING _scheduleMedicationByFrequency] ID=$notificationId, Frequency="$frequency"',
+        );
         await _scheduleMedicationByFrequency(
           notificationId: notificationId,
           medicationName: medicationName,
@@ -252,7 +279,9 @@ class NotificationService {
           minute: minute,
           frequency: frequency,
         );
-        debugPrint('🔔 [RETURNED from _scheduleMedicationByFrequency] ID=$notificationId');
+        debugPrint(
+          '🔔 [RETURNED from _scheduleMedicationByFrequency] ID=$notificationId',
+        );
       }
       debugPrint('✅ Medication notifications scheduled for $medicationName');
     } catch (e) {
@@ -287,11 +316,14 @@ class NotificationService {
       // If the time has already passed today, schedule for tomorrow
       if (scheduledDate.isBefore(now)) {
         scheduledDate = scheduledDate.add(const Duration(days: 1));
-        debugPrint('⏭️ Time passed, moved to tomorrow: ${scheduledDate.toString()}');
+        debugPrint(
+          '⏭️ Time passed, moved to tomorrow: ${scheduledDate.toString()}',
+        );
       }
 
       const title = '💊 Medication Reminder';
-      final body = 'Time for your $medicationName! Dosage: $dosage. Tap to mark as taken.';
+      final body =
+          'Time for your $medicationName! Dosage: $dosage. Tap to mark as taken.';
 
       debugPrint('📅 Scheduling $frequency notification for $medicationName');
       debugPrint('   ID: $notificationId');
@@ -309,34 +341,34 @@ class NotificationService {
       // Set up timer to fire the notification
       _medicationTimers[notificationId] = Timer(waitDuration, () {
         debugPrint('⏰ Timer fired for notification ID=$notificationId');
-        show(
-          id: notificationId,
-          title: title,
-          body: body,
-        ).then((_) {
-          debugPrint('✅ Medication notification shown: $medicationName');
-          
-          // For Daily frequency, reschedule for tomorrow at same time
-          if (frequency == 'Daily') {
-            debugPrint('📅 Rescheduling for tomorrow (Daily medication)');
-            // Schedule same medication ID for tomorrow
-            Future.delayed(const Duration(seconds: 1), () {
-              _scheduleMedicationByFrequency(
-                notificationId: notificationId,
-                medicationName: medicationName,
-                dosage: dosage,
-                hour: hour,
-                minute: minute,
-                frequency: frequency,
-              );
+        show(id: notificationId, title: title, body: body)
+            .then((_) {
+              debugPrint('✅ Medication notification shown: $medicationName');
+
+              // For Daily frequency, reschedule for tomorrow at same time
+              if (frequency == 'Daily') {
+                debugPrint('📅 Rescheduling for tomorrow (Daily medication)');
+                // Schedule same medication ID for tomorrow
+                Future.delayed(const Duration(seconds: 1), () {
+                  _scheduleMedicationByFrequency(
+                    notificationId: notificationId,
+                    medicationName: medicationName,
+                    dosage: dosage,
+                    hour: hour,
+                    minute: minute,
+                    frequency: frequency,
+                  );
+                });
+              }
+            })
+            .catchError((e) {
+              debugPrint('❌ Error showing medication notification: $e');
             });
-          }
-        }).catchError((e) {
-          debugPrint('❌ Error showing medication notification: $e');
-        });
       });
 
-      debugPrint('✅ Medication timer scheduled: ID=$notificationId, fires at ${scheduledDate.toString()}');
+      debugPrint(
+        '✅ Medication timer scheduled: ID=$notificationId, fires at ${scheduledDate.toString()}',
+      );
     } catch (e) {
       debugPrint('❌ Error in _scheduleMedicationByFrequency: $e');
       debugPrint('❌ Stack trace: ${StackTrace.current}');
@@ -349,11 +381,11 @@ class NotificationService {
       // Calculate base ID using same formula as scheduling: (hashcode % 2000000) * 10
       final baseId = ((medicationId.hashCode.abs() % 2000000) * 10);
       int cancelledCount = 0;
-      
+
       // Cancel all possible notification IDs for this medication (baseId + 0 through 9)
       for (int i = 0; i < 10; i++) {
         final id = baseId + i;
-        
+
         if (_medicationTimers[id] != null) {
           _medicationTimers[id]!.cancel();
           _medicationTimers.remove(id);
@@ -361,8 +393,10 @@ class NotificationService {
           debugPrint('  ⏱️ Cancelled timer ID=$id');
         }
       }
-      
-      debugPrint('✅ Medication notifications cancelled for $medicationId ($cancelledCount timers cancelled)');
+
+      debugPrint(
+        '✅ Medication notifications cancelled for $medicationId ($cancelledCount timers cancelled)',
+      );
     } catch (e) {
       debugPrint('❌ Error cancelling medication notifications: $e');
     }
@@ -379,13 +413,15 @@ class NotificationService {
     }
   }
 
-  /// Test notification — shows immediately to verify system works
+  /// Test notification - shows immediately to verify system works
   Future<void> sendTestNotification() async {
     if (!_initialized) {
-      debugPrint('⚠️ NotificationService not initialized, cannot send test notification');
+      debugPrint(
+        '⚠️ NotificationService not initialized, cannot send test notification',
+      );
       return;
     }
-    
+
     debugPrint('🧪 Sending immediate test notification...');
     try {
       await show(

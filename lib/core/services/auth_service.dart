@@ -39,7 +39,8 @@ class AuthService {
         'email': email,
         'name': name,
         'role': 'caregiver',
-        if (phoneNumber != null && phoneNumber.isNotEmpty) 'phoneNumber': phoneNumber,
+        if (phoneNumber != null && phoneNumber.isNotEmpty)
+          'phoneNumber': phoneNumber,
         'linkedElderlyIds': [],
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -76,7 +77,7 @@ class AuthService {
   // ─── Elderly Setup (No Password) ────────────────────────────────────
 
   /// Create an elderly profile (first-time setup, no password required).
-  /// IC number is used as the permanent link key — caregivers enter it to connect.
+  /// IC number is used as the permanent link key - caregivers enter it to connect.
   Future<String> elderlySetup({
     required String name,
     required String dateOfBirth, // e.g., "1945-03-15"
@@ -87,11 +88,12 @@ class AuthService {
       final elderlyUid = _firestore.collection('elderly').doc().id;
 
       // Check for duplicate IC number
-      final existing = await _firestore
-          .collection('elderly')
-          .where('icNumber', isEqualTo: icNumber)
-          .limit(1)
-          .get();
+      final existing =
+          await _firestore
+              .collection('elderly')
+              .where('icNumber', isEqualTo: icNumber)
+              .limit(1)
+              .get();
       if (existing.docs.isNotEmpty) {
         throw Exception('A profile with this IC number already exists.');
       }
@@ -120,11 +122,12 @@ class AuthService {
     required String caregiverUid,
   }) async {
     try {
-      final querySnapshot = await _firestore
-          .collection('elderly')
-          .where('icNumber', isEqualTo: icNumber)
-          .limit(1)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection('elderly')
+              .where('icNumber', isEqualTo: icNumber)
+              .limit(1)
+              .get();
 
       if (querySnapshot.docs.isEmpty) {
         throw Exception('No profile found with that IC number.');
@@ -221,11 +224,12 @@ class AuthService {
   Future<String?> verifyElderlySetupCode(String bindingCode) async {
     try {
       // Look up elderly by binding code
-      final querySnapshot = await _firestore
-          .collection('elderly')
-          .where('bindingCode', isEqualTo: bindingCode.toUpperCase())
-          .limit(1)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection('elderly')
+              .where('bindingCode', isEqualTo: bindingCode.toUpperCase())
+              .limit(1)
+              .get();
 
       if (querySnapshot.docs.isEmpty) {
         return null;
@@ -243,11 +247,12 @@ class AuthService {
   /// Returns the elderly UID if found, null otherwise.
   Future<String?> findElderlyByIC(String icNumber) async {
     try {
-      final snapshot = await _firestore
-          .collection('elderly')
-          .where('icNumber', isEqualTo: icNumber)
-          .limit(1)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('elderly')
+              .where('icNumber', isEqualTo: icNumber)
+              .limit(1)
+              .get();
 
       if (snapshot.docs.isEmpty) return null;
       return snapshot.docs.first.id;
@@ -265,10 +270,11 @@ class AuthService {
   }) async {
     try {
       // Query by DOB first (narrow the set), then match name in memory
-      final snapshot = await _firestore
-          .collection('elderly')
-          .where('dateOfBirth', isEqualTo: dateOfBirth)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('elderly')
+              .where('dateOfBirth', isEqualTo: dateOfBirth)
+              .get();
 
       final nameLower = name.trim().toLowerCase();
       for (final doc in snapshot.docs) {
@@ -300,7 +306,7 @@ class AuthService {
 
   // ─── Helper Methods ────────────────────────────────────────────────
 
-/// Handle Firebase Auth exceptions and return user-friendly messages
+  /// Handle Firebase Auth exceptions and return user-friendly messages
   String _handleAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'weak-password':

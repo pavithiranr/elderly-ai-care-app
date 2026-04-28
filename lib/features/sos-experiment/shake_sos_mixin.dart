@@ -1,6 +1,6 @@
 // lib/mixins/shake_sos_mixin.dart
 //
-// Usage — add to any StatefulWidget screen (e.g. DashboardScreen):
+// Usage - add to any StatefulWidget screen (e.g. DashboardScreen):
 //
 //   class _DashboardScreenState extends State<DashboardScreen>
 //       with ShakeSosMixin {
@@ -42,40 +42,43 @@ mixin ShakeSosMixin {
     _sosOverlayVisible = true;
     _shakeService.setSosActive(true);
 
-    Navigator.of(ctx, rootNavigator: true).push(
-      PageRouteBuilder(
-        opaque: false,
-        barrierDismissible: false,
-        pageBuilder: (_, __, ___) => ShakeSosOverlay(
-          countdownSeconds: 5,
-          onConfirm: () {
-            Navigator.of(ctx, rootNavigator: true).pop();
-            _onSosConfirmed(ctx);
-          },
-          onCancel: () {
-            Navigator.of(ctx, rootNavigator: true).pop();
-            _onSosCancelled();
-          },
-        ),
-      ),
-    ).then((_) {
-      // Cleanup when overlay closes for any reason
-      _sosOverlayVisible = false;
-      _shakeService.setSosActive(false);
-    });
+    Navigator.of(ctx, rootNavigator: true)
+        .push(
+          PageRouteBuilder(
+            opaque: false,
+            barrierDismissible: false,
+            pageBuilder:
+                (_, __, ___) => ShakeSosOverlay(
+                  countdownSeconds: 5,
+                  onConfirm: () {
+                    Navigator.of(ctx, rootNavigator: true).pop();
+                    _onSosConfirmed(ctx);
+                  },
+                  onCancel: () {
+                    Navigator.of(ctx, rootNavigator: true).pop();
+                    _onSosCancelled();
+                  },
+                ),
+          ),
+        )
+        .then((_) {
+          // Cleanup when overlay closes for any reason
+          _sosOverlayVisible = false;
+          _shakeService.setSosActive(false);
+        });
   }
 
   void _onSosConfirmed(BuildContext ctx) {
     // Navigate to SOS screen with auto-trigger flag to skip confirmation dialog
-    debugPrint('[ShakeSOS] ✅ SOS CONFIRMED — auto-triggering alert');
-    
+    debugPrint('[ShakeSOS] ✅ SOS CONFIRMED - auto-triggering alert');
+
     try {
       ctx.push('/elderly/sos?autoTrigger=true');
     } catch (e) {
       debugPrint('[ShakeSOS] Error navigating: $e');
       ScaffoldMessenger.of(ctx).showSnackBar(
         const SnackBar(
-          content: Text('🚨 SOS Triggered — Contacting caregivers...'),
+          content: Text('🚨 SOS Triggered - Contacting caregivers...'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 4),
         ),
@@ -84,7 +87,7 @@ mixin ShakeSosMixin {
   }
 
   void _onSosCancelled() {
-    debugPrint('[ShakeSOS] ✅ Cancelled by user — all clear');
+    debugPrint('[ShakeSOS] ✅ Cancelled by user - all clear');
   }
 
   void disposeShakeSos() {

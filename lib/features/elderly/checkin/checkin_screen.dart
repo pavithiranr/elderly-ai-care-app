@@ -9,9 +9,9 @@ import '../../../shared/services/user_session_service.dart';
 import '../../../shared/models/daily_checkin_model.dart';
 
 /// Daily health check-in for elderly users.
-/// Captures mood, pain level, daily plan, and pain details — ready for Gemini AI analysis.
+/// Captures mood, pain level, daily plan, and pain details - ready for Gemini AI analysis.
 /// Design rules: ≥22px font, ≥64px buttons, high contrast, MD3.
-/// 
+///
 /// The "Golden 3 Questions":
 /// 1. How are you feeling mentally today? (Emoji mood)
 /// 2. Do you have any physical pain or discomfort? (1-10 scale + location)
@@ -30,16 +30,16 @@ class _CheckinScreenState extends State<CheckinScreen> {
   final _painDescriptionController = TextEditingController();
   final _dailyPlanController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  
+
   bool _submitted = false;
   bool _isLoading = false;
   DailyCheckin? _existingCheckin;
   GeminiSummary? _geminiSummary;
 
   static const List<_MoodOption> _moods = [
-    _MoodOption(emoji: '😊', label: 'Great',     sublabel: 'Feeling wonderful'),
-    _MoodOption(emoji: '🙂', label: 'Good',      sublabel: 'Doing well'),
-    _MoodOption(emoji: '😐', label: 'Okay',      sublabel: 'So-so'),
+    _MoodOption(emoji: '😊', label: 'Great', sublabel: 'Feeling wonderful'),
+    _MoodOption(emoji: '🙂', label: 'Good', sublabel: 'Doing well'),
+    _MoodOption(emoji: '😐', label: 'Okay', sublabel: 'So-so'),
     _MoodOption(emoji: '😟', label: 'Not Great', sublabel: 'A bit off'),
   ];
 
@@ -63,16 +63,19 @@ class _CheckinScreenState extends State<CheckinScreen> {
       final userId = await UserSessionService.instance.getSavedUserId();
       if (userId == null) return;
 
-      final existingCheckin = await CheckinService.instance.getCheckInToday(userId);
-      final geminiSummary = existingCheckin != null 
-          ? await CheckinService.instance.getGeminiSummaryForToday(userId)
-          : null;
+      final existingCheckin = await CheckinService.instance.getCheckInToday(
+        userId,
+      );
+      final geminiSummary =
+          existingCheckin != null
+              ? await CheckinService.instance.getGeminiSummaryForToday(userId)
+              : null;
 
       if (mounted) {
         setState(() {
           _existingCheckin = existingCheckin;
           _geminiSummary = geminiSummary;
-          
+
           // Pre-fill form if updating
           if (existingCheckin != null) {
             _selectedMood = existingCheckin.moodScore - 1;
@@ -138,9 +141,9 @@ class _CheckinScreenState extends State<CheckinScreen> {
     } catch (e) {
       logger.error('Error submitting check-in', e);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving check-in: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving check-in: $e')));
       }
     } finally {
       if (mounted) {
@@ -285,12 +288,9 @@ class _FormView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _PainSelector(
-            value: painLevel,
-            onChanged: onPainChanged,
-          ),
+          _PainSelector(value: painLevel, onChanged: onPainChanged),
           const SizedBox(height: 16),
-          
+
           // Pain location field
           TextFormField(
             controller: painLocationController,
@@ -298,8 +298,13 @@ class _FormView extends StatelessWidget {
             decoration: InputDecoration(
               labelText: 'Where does it hurt?',
               hintText: 'e.g. left knee, lower back',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
             validator: (v) {
               if (painLevel > 0 && (v == null || v.trim().isEmpty)) {
@@ -330,8 +335,13 @@ class _FormView extends StatelessWidget {
                   );
                 },
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
             validator: (v) {
               if (painLevel > 0 && (v == null || v.trim().isEmpty)) {
@@ -358,7 +368,8 @@ class _FormView extends StatelessWidget {
             style: GoogleFonts.inter(fontSize: 18),
             maxLines: 3,
             decoration: InputDecoration(
-              hintText: 'e.g. Going to the garden, visiting grandchildren, etc.',
+              hintText:
+                  'e.g. Going to the garden, visiting grandchildren, etc.',
               suffixIcon: IconButton(
                 icon: const Icon(Icons.mic_rounded),
                 tooltip: 'Voice input (coming soon)',
@@ -371,11 +382,19 @@ class _FormView extends StatelessWidget {
                   );
                 },
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? 'Please share your plans' : null,
+            validator:
+                (v) =>
+                    v == null || v.trim().isEmpty
+                        ? 'Please share your plans'
+                        : null,
           ),
           const SizedBox(height: 40),
 
@@ -398,17 +417,19 @@ class _FormView extends StatelessWidget {
                 ),
                 elevation: 0,
               ),
-              child: isLoading
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(isUpdate ? 'Update Check-in' : 'Submit Check-in'),
+              child:
+                  isLoading
+                      ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                      : Text(isUpdate ? 'Update Check-in' : 'Submit Check-in'),
             ),
           ),
 
@@ -417,10 +438,7 @@ class _FormView extends StatelessWidget {
             Center(
               child: Text(
                 'Please select a mood above to continue.',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  color: AppTheme.textMid,
-                ),
+                style: GoogleFonts.inter(fontSize: 18, color: AppTheme.textMid),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -431,7 +449,7 @@ class _FormView extends StatelessWidget {
   }
 }
 
-// ── Mood Selector — vertical full-width list ──────────────────────────────────
+// ── Mood Selector - vertical full-width list ──────────────────────────────────
 
 class _MoodSelector extends StatelessWidget {
   final List<_MoodOption> moods;
@@ -447,20 +465,21 @@ class _MoodSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: moods.asMap().entries.map((entry) {
-        final i = entry.key;
-        final mood = entry.value;
-        final isSelected = i == selectedIndex;
+      children:
+          moods.asMap().entries.map((entry) {
+            final i = entry.key;
+            final mood = entry.value;
+            final isSelected = i == selectedIndex;
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _MoodTile(
-            mood: mood,
-            isSelected: isSelected,
-            onTap: () => onSelected(i),
-          ),
-        );
-      }).toList(),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _MoodTile(
+                mood: mood,
+                isSelected: isSelected,
+                onTap: () => onSelected(i),
+              ),
+            );
+          }).toList(),
     );
   }
 }
@@ -481,7 +500,7 @@ class _MoodTile extends StatelessWidget {
     final surfaceColor = Theme.of(context).colorScheme.surface;
     final primaryColor = Theme.of(context).primaryColor;
     final dividerColor = Theme.of(context).dividerColor;
-    
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
@@ -492,15 +511,16 @@ class _MoodTile extends StatelessWidget {
           color: isSelected ? primaryColor : dividerColor,
           width: isSelected ? 2 : 1.5,
         ),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: primaryColor.withValues(alpha: 0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ]
-            : [],
+        boxShadow:
+            isSelected
+                ? [
+                  BoxShadow(
+                    color: primaryColor.withValues(alpha: 0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+                : [],
       ),
       child: Material(
         color: Colors.transparent,
@@ -512,10 +532,7 @@ class _MoodTile extends StatelessWidget {
             child: Row(
               children: [
                 // Emoji
-                Text(
-                  mood.emoji,
-                  style: const TextStyle(fontSize: 36),
-                ),
+                Text(mood.emoji, style: const TextStyle(fontSize: 36)),
                 const SizedBox(width: 16),
                 // Labels
                 Expanded(
@@ -527,7 +544,10 @@ class _MoodTile extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
-                          color: isSelected ? Theme.of(context).colorScheme.onPrimary : AppTheme.textDark,
+                          color:
+                              isSelected
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : AppTheme.textDark,
                         ),
                       ),
                       Text(
@@ -535,9 +555,11 @@ class _MoodTile extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 22,
                           fontWeight: FontWeight.w400,
-                          color: isSelected
-                              ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.85)
-                              : AppTheme.textMid,
+                          color:
+                              isSelected
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                      .withValues(alpha: 0.85)
+                                  : AppTheme.textMid,
                         ),
                       ),
                     ],
@@ -546,25 +568,26 @@ class _MoodTile extends StatelessWidget {
                 // Selection indicator
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 180),
-                  child: isSelected
-                      ? Icon(
-                          Icons.check_circle_rounded,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                          size: 30,
-                          key: const ValueKey('checked'),
-                        )
-                      : Container(
-                          key: const ValueKey('unchecked'),
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppTheme.textLight,
-                              width: 2,
+                  child:
+                      isSelected
+                          ? Icon(
+                            Icons.check_circle_rounded,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            size: 30,
+                            key: const ValueKey('checked'),
+                          )
+                          : Container(
+                            key: const ValueKey('unchecked'),
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppTheme.textLight,
+                                width: 2,
+                              ),
                             ),
                           ),
-                        ),
                 ),
               ],
             ),
@@ -601,21 +624,19 @@ class _PainSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final surfaceColor = Theme.of(context).colorScheme.surface;
     final isHighContrast = ThemeProvider.instance.isHighContrast;
-    final borderColor = isHighContrast 
-        ? (Theme.of(context).brightness == Brightness.dark 
-            ? Colors.white 
-            : Colors.black)
-        : Theme.of(context).dividerColor;
-    
+    final borderColor =
+        isHighContrast
+            ? (Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black)
+            : Theme.of(context).dividerColor;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: surfaceColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: borderColor,
-          width: isHighContrast ? 2 : 1.5,
-        ),
+        border: Border.all(color: borderColor, width: isHighContrast ? 2 : 1.5),
       ),
       child: Column(
         children: [
@@ -639,7 +660,10 @@ class _PainSelector extends StatelessWidget {
               // Badge with flexibleconstraint
               Flexible(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: _painColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
@@ -711,10 +735,7 @@ class _SuccessView extends StatelessWidget {
   final GeminiSummary? geminiSummary;
   final bool isUpdate;
 
-  const _SuccessView({
-    required this.geminiSummary,
-    required this.isUpdate,
-  });
+  const _SuccessView({required this.geminiSummary, required this.isUpdate});
 
   @override
   Widget build(BuildContext context) {
@@ -799,7 +820,8 @@ class _GeminiSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = GeminiSummary.colorMap[summary.statusColor] ?? 0xFF66BB6A;
+    final statusColor =
+        GeminiSummary.colorMap[summary.statusColor] ?? 0xFF66BB6A;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -855,30 +877,32 @@ class _GeminiSummaryCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            ...summary.keyInsights.map((insight) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '• ',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      insight,
+            ...summary.keyInsights.map(
+              (insight) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '• ',
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         color: Theme.of(context).textTheme.bodySmall?.color,
                       ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: Text(
+                        insight,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
           if (summary.caregiverAction.isNotEmpty &&
               summary.caregiverAction != 'No action needed') ...[

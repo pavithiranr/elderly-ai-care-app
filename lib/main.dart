@@ -8,7 +8,7 @@ import 'core/utils/router.dart';
 import 'firebase_options.dart';
 import 'shared/services/notification_service.dart';
 
-/// Top-level FCM background handler — runs in its own isolate.
+/// Top-level FCM background handler - runs in its own isolate.
 /// FCM automatically shows the system-tray notification from the payload;
 /// we only need to init Firebase so Admin SDK / Firestore is available if needed.
 @pragma('vm:entry-point')
@@ -83,7 +83,7 @@ class CareSyncApp extends StatelessWidget {
       listenable: ThemeProvider.instance,
       builder: (context, child) {
         debugPrint('🔄 Rebuilding MaterialApp with new theme...');
-        
+
         return MaterialApp.router(
           title: 'CareSync AI',
           debugShowCheckedModeBanner: false,
@@ -94,7 +94,9 @@ class CareSyncApp extends StatelessWidget {
             // Wrap with MediaQuery to apply text scaling system-wide
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(ThemeProvider.instance.textScaling),
+                textScaler: TextScaler.linear(
+                  ThemeProvider.instance.textScaling,
+                ),
               ),
               child: child!,
             );

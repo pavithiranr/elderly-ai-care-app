@@ -8,7 +8,7 @@ import '../../core/services/auth_service.dart';
 import '../../shared/services/user_session_service.dart';
 
 /// Re-login screen for returning elderly users.
-/// Identifies them by IC number — no passwords or codes needed.
+/// Identifies them by IC number - no passwords or codes needed.
 class ElderlyExistingProfileLoginScreen extends StatefulWidget {
   const ElderlyExistingProfileLoginScreen({super.key});
 
@@ -34,7 +34,9 @@ class _ElderlyExistingProfileLoginScreenState
     final icNumber = icRaw.replaceAll('-', '');
 
     if (icNumber.length != 12) {
-      setState(() => _errorMessage = 'Please enter your full 12-digit IC number');
+      setState(
+        () => _errorMessage = 'Please enter your full 12-digit IC number',
+      );
       return;
     }
 
@@ -48,13 +50,16 @@ class _ElderlyExistingProfileLoginScreenState
 
       if (elderlyId == null) {
         throw Exception(
-            'No profile found with that IC number.\nPlease check your details or create a new profile.');
+          'No profile found with that IC number.\nPlease check your details or create a new profile.',
+        );
       }
 
       await UserSessionService.instance.setElderlyProfileId(elderlyId);
       await UserSessionService.instance.saveRole(AppConstants.roleElderly);
-      await UserSessionService.instance
-          .setBool(AppConstants.prefOnboardingDone, true);
+      await UserSessionService.instance.setBool(
+        AppConstants.prefOnboardingDone,
+        true,
+      );
 
       if (!mounted) return;
       context.go(AppConstants.routeElderlyHome);
@@ -126,8 +131,11 @@ class _ElderlyExistingProfileLoginScreenState
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.error_rounded,
-                        color: AppTheme.accentRed, size: 22),
+                    const Icon(
+                      Icons.error_rounded,
+                      color: AppTheme.accentRed,
+                      size: 22,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -185,22 +193,30 @@ class _ElderlyExistingProfileLoginScreenState
                 ),
                 filled: true,
                 fillColor: AppTheme.surfaceWhite,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 18,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: AppTheme.divider, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: AppTheme.divider,
+                    width: 1.5,
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: AppTheme.divider, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: AppTheme.divider,
+                    width: 1.5,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: AppTheme.primaryBlue, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppTheme.primaryBlue,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
@@ -211,23 +227,25 @@ class _ElderlyExistingProfileLoginScreenState
               height: AppTheme.elderlyButtonHeight,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _handleRestore,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 26,
-                        width: 26,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          height: 26,
+                          width: 26,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                        : Text(
+                          'Find My Profile',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      )
-                    : Text(
-                        'Find My Profile',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
               ),
             ),
             const SizedBox(height: 16),
@@ -236,9 +254,10 @@ class _ElderlyExistingProfileLoginScreenState
               width: double.infinity,
               height: AppTheme.elderlyButtonHeight,
               child: OutlinedButton(
-                onPressed: _isLoading
-                    ? null
-                    : () => context.go(AppConstants.routeElderlySetup),
+                onPressed:
+                    _isLoading
+                        ? null
+                        : () => context.go(AppConstants.routeElderlySetup),
                 child: Text(
                   'Create New Profile Instead',
                   style: GoogleFonts.inter(
@@ -260,7 +279,9 @@ class _ElderlyExistingProfileLoginScreenState
 class _IcNumberFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final digits = newValue.text.replaceAll('-', '');
     if (digits.length > 12) return oldValue;
 

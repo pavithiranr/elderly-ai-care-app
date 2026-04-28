@@ -8,8 +8,8 @@ import 'package:flutter/services.dart';
 /// The user can cancel with the large "I AM OKAY" button.
 class ShakeSosOverlay extends StatefulWidget {
   final int countdownSeconds;
-  final VoidCallback onConfirm;   // Called when timer hits zero
-  final VoidCallback onCancel;    // Called when user taps CANCEL
+  final VoidCallback onConfirm; // Called when timer hits zero
+  final VoidCallback onCancel; // Called when user taps CANCEL
 
   const ShakeSosOverlay({
     super.key,
@@ -52,9 +52,10 @@ class _ShakeSosOverlayState extends State<ShakeSosOverlay>
       duration: const Duration(milliseconds: 900),
     )..repeat();
 
-    _ringAnimation = Tween<double>(begin: 0.5, end: 1.4).animate(
-      CurvedAnimation(parent: _ringController, curve: Curves.easeOut),
-    );
+    _ringAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.4,
+    ).animate(CurvedAnimation(parent: _ringController, curve: Curves.easeOut));
 
     // Haptic feedback loop every second
     _startCountdown();
@@ -108,12 +109,9 @@ class _ShakeSosOverlayState extends State<ShakeSosOverlay>
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Shake detected — SOS will be sent in:',
+                    'Shake detected - SOS will be sent in:',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                 ],
               ),
@@ -125,55 +123,58 @@ class _ShakeSosOverlayState extends State<ShakeSosOverlay>
                   // Expanding ring
                   AnimatedBuilder(
                     animation: _ringAnimation,
-                    builder: (_, __) => Container(
-                      width: 200 * _ringAnimation.value,
-                      height: 200 * _ringAnimation.value,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white
-                                .withValues(alpha: 1.0 - _ringAnimation.value * 0.7),
-                          width: 3,
+                    builder:
+                        (_, __) => Container(
+                          width: 200 * _ringAnimation.value,
+                          height: 200 * _ringAnimation.value,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(
+                                alpha: 1.0 - _ringAnimation.value * 0.7,
+                              ),
+                              width: 3,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
                   ),
                   // Main pulsing circle
                   AnimatedBuilder(
                     animation: _pulseAnimation,
-                    builder: (_, __) => Transform.scale(
-                      scale: _pulseAnimation.value,
-                      child: Container(
-                        width: 180,
-                        height: 180,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '$_remaining',
-                              style: const TextStyle(
-                                color: Color(0xFFCC0000),
-                                fontSize: 80,
-                                fontWeight: FontWeight.w900,
-                                height: 1.0,
-                              ),
+                    builder:
+                        (_, __) => Transform.scale(
+                          scale: _pulseAnimation.value,
+                          child: Container(
+                            width: 180,
+                            height: 180,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
                             ),
-                            const Text(
-                              'seconds',
-                              style: TextStyle(
-                                color: Color(0xFFCC0000),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '$_remaining',
+                                  style: const TextStyle(
+                                    color: Color(0xFFCC0000),
+                                    fontSize: 80,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.0,
+                                  ),
+                                ),
+                                const Text(
+                                  'seconds',
+                                  style: TextStyle(
+                                    color: Color(0xFFCC0000),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -190,7 +191,10 @@ class _ShakeSosOverlayState extends State<ShakeSosOverlay>
                   children: [
                     _ActionRow(icon: '📞', text: 'Call emergency contacts'),
                     SizedBox(height: 8),
-                    _ActionRow(icon: '📍', text: 'Send your location to caregivers'),
+                    _ActionRow(
+                      icon: '📍',
+                      text: 'Send your location to caregivers',
+                    ),
                     SizedBox(height: 8),
                     _ActionRow(icon: '🚨', text: 'Activate emergency alert'),
                   ],
@@ -218,7 +222,7 @@ class _ShakeSosOverlayState extends State<ShakeSosOverlay>
                       elevation: 8,
                     ),
                     child: const Text(
-                      '✅  I AM OKAY — CANCEL',
+                      '✅  I AM OKAY - CANCEL',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,

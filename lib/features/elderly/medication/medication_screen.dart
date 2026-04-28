@@ -9,7 +9,7 @@ import '../../../shared/services/notification_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
 
-/// Medication reminder screen — loads from Firestore, supports add/delete.
+/// Medication reminder screen - loads from Firestore, supports add/delete.
 class MedicationScreen extends StatefulWidget {
   const MedicationScreen({super.key});
 
@@ -68,7 +68,10 @@ class _MedicationScreenState extends State<MedicationScreen>
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
     final endOfDay = DateTime(now.year, now.month, now.day + 1);
-    final result = (start: Timestamp.fromDate(startOfDay), end: Timestamp.fromDate(endOfDay));
+    final result = (
+      start: Timestamp.fromDate(startOfDay),
+      end: Timestamp.fromDate(endOfDay),
+    );
     return result;
   }
 
@@ -78,46 +81,49 @@ class _MedicationScreenState extends State<MedicationScreen>
       if (mounted) setState(() => _loading = false);
       return;
     }
-    
+
     try {
       final firestore = FirebaseFirestore.instance;
       final dateRange = _getDateRange();
 
       // Fetch all medications
-      final medsSnap = await firestore
-          .collection('elderly')
-          .doc(id)
-          .collection('medications')
-          .orderBy('createdAt')
-          .get();
+      final medsSnap =
+          await firestore
+              .collection('elderly')
+              .doc(id)
+              .collection('medications')
+              .orderBy('createdAt')
+              .get();
 
-      final meds = medsSnap.docs
-          .map((d) => Medication.fromFirestore(d.id, d.data()))
-          .toList();
+      final meds =
+          medsSnap.docs
+              .map((d) => Medication.fromFirestore(d.id, d.data()))
+              .toList();
 
       // Batch-fetch all logs for today (optimization: no N+1 queries)
       final takenToday = <String, bool>{};
       final takenTimestamps = <String, DateTime>{};
-      
+
       // Initialize all meds as NOT taken
       for (final med in meds) {
         takenToday[med.id] = false;
       }
-      
+
       // Then check if any have logs
       for (final med in meds) {
-        final logSnap = await firestore
-            .collection('elderly')
-            .doc(id)
-            .collection('medications')
-            .doc(med.id)
-            .collection('logs')
-            .where('timestamp', isGreaterThanOrEqualTo: dateRange.start)
-            .where('timestamp', isLessThan: dateRange.end)
-            .orderBy('timestamp', descending: true)
-            .limit(1)
-            .get();
-        
+        final logSnap =
+            await firestore
+                .collection('elderly')
+                .doc(id)
+                .collection('medications')
+                .doc(med.id)
+                .collection('logs')
+                .where('timestamp', isGreaterThanOrEqualTo: dateRange.start)
+                .where('timestamp', isLessThan: dateRange.end)
+                .orderBy('timestamp', descending: true)
+                .limit(1)
+                .get();
+
         if (logSnap.docs.isNotEmpty) {
           final doc = logSnap.docs.first;
           takenToday[med.id] = true;
@@ -161,15 +167,16 @@ class _MedicationScreenState extends State<MedicationScreen>
       } else {
         final firestore = FirebaseFirestore.instance;
         final dateRange = _getDateRange();
-        final logSnap = await firestore
-            .collection('elderly')
-            .doc(id)
-            .collection('medications')
-            .doc(medId)
-            .collection('logs')
-            .where('timestamp', isGreaterThanOrEqualTo: dateRange.start)
-            .where('timestamp', isLessThan: dateRange.end)
-            .get();
+        final logSnap =
+            await firestore
+                .collection('elderly')
+                .doc(id)
+                .collection('medications')
+                .doc(medId)
+                .collection('logs')
+                .where('timestamp', isGreaterThanOrEqualTo: dateRange.start)
+                .where('timestamp', isLessThan: dateRange.end)
+                .get();
         for (final doc in logSnap.docs) {
           await doc.reference.delete();
         }
@@ -185,7 +192,7 @@ class _MedicationScreenState extends State<MedicationScreen>
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save — please try again')),
+          const SnackBar(content: Text('Could not save - please try again')),
         );
       }
     }
@@ -197,21 +204,33 @@ class _MedicationScreenState extends State<MedicationScreen>
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Remove medication?',
-            style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w600)),
-        content: Text('This medication will be removed from your list.',
-            style: GoogleFonts.inter(fontSize: 16)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Remove',
-                  style: TextStyle(color: Color(0xFFEF4444)))),
-        ],
-      ),
+      builder:
+          (ctx) => AlertDialog(
+            title: Text(
+              'Remove medication?',
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Text(
+              'This medication will be removed from your list.',
+              style: GoogleFonts.inter(fontSize: 16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text(
+                  'Remove',
+                  style: TextStyle(color: Color(0xFFEF4444)),
+                ),
+              ),
+            ],
+          ),
     );
 
     if (confirm != true) return;
@@ -219,7 +238,7 @@ class _MedicationScreenState extends State<MedicationScreen>
     try {
       // Cancel scheduled notifications
       await NotificationService.instance.cancelMedicationNotifications(medId);
-      
+
       await PatientService.instance.deleteMedication(id, medId);
       setState(() {
         _meds.removeWhere((m) => m.id == medId);
@@ -228,7 +247,7 @@ class _MedicationScreenState extends State<MedicationScreen>
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not remove — please try again')),
+          const SnackBar(content: Text('Could not remove - please try again')),
         );
       }
     }
@@ -238,10 +257,11 @@ class _MedicationScreenState extends State<MedicationScreen>
     if (_patientId == null) return;
     showDialog(
       context: context,
-      builder: (ctx) => _MedicationHistoryScreen(
-        patientId: _patientId!,
-        medications: _meds,
-      ),
+      builder:
+          (ctx) => _MedicationHistoryScreen(
+            patientId: _patientId!,
+            medications: _meds,
+          ),
     );
   }
 
@@ -258,18 +278,19 @@ class _MedicationScreenState extends State<MedicationScreen>
   void _showAddDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => _AddMedicationDialog(
-        onAdd: (name, dosage, times, frequency, note) async {
-          Navigator.pop(ctx);
-          await _addMed(
-            name: name,
-            dosage: dosage,
-            times: times,
-            frequency: frequency,
-            note: note,
-          );
-        },
-      ),
+      builder:
+          (ctx) => _AddMedicationDialog(
+            onAdd: (name, dosage, times, frequency, note) async {
+              Navigator.pop(ctx);
+              await _addMed(
+                name: name,
+                dosage: dosage,
+                times: times,
+                frequency: frequency,
+                note: note,
+              );
+            },
+          ),
     );
   }
 
@@ -339,57 +360,69 @@ class _MedicationScreenState extends State<MedicationScreen>
               onPressed: _patientId == null ? null : _showAddDialog,
             ),
           ],
-          bottom: total == 0
-              ? null
-              : TabBar(
-                  controller: _tabController,
-                  tabs: const [
-                    Tab(text: 'Remaining'),
-                    Tab(text: 'Completed'),
-                  ],
-                ),
-        ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _meds.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.medication_outlined,
-                            size: 64, color: AppTheme.textLight),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No medications yet',
-                          style: GoogleFonts.inter(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textMid),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap + to add your first medication',
-                          style: GoogleFonts.inter(
-                              fontSize: 16, color: AppTheme.textLight),
-                        ),
-                      ],
-                    ),
-                  )
-                : TabBarView(
+          bottom:
+              total == 0
+                  ? null
+                  : TabBar(
                     controller: _tabController,
+                    tabs: const [
+                      Tab(text: 'Remaining'),
+                      Tab(text: 'Completed'),
+                    ],
+                  ),
+        ),
+        body:
+            _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _meds.isEmpty
+                ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // ─── REMAINING TAB ───────────────────────────────────────
-                      RefreshIndicator(
-                        onRefresh: _load,
-                        child: _remainingMeds.isEmpty
-                            ? SingleChildScrollView(
+                      const Icon(
+                        Icons.medication_outlined,
+                        size: 64,
+                        color: AppTheme.textLight,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No medications yet',
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textMid,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap + to add your first medication',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          color: AppTheme.textLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // ─── REMAINING TAB ───────────────────────────────────────
+                    RefreshIndicator(
+                      onRefresh: _load,
+                      child:
+                          _remainingMeds.isEmpty
+                              ? SingleChildScrollView(
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 child: Center(
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.check_circle_rounded,
-                                          size: 80, color: AppTheme.accentGreen),
+                                      const Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 80,
+                                        color: AppTheme.accentGreen,
+                                      ),
                                       const SizedBox(height: 20),
                                       Text(
                                         'Great job! 🌟',
@@ -411,21 +444,26 @@ class _MedicationScreenState extends State<MedicationScreen>
                                   ),
                                 ),
                               )
-                            : ListView(
+                              : ListView(
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 padding: const EdgeInsets.all(20),
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: AppTheme.primaryLight,
                                       borderRadius: BorderRadius.circular(14),
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.info_outline_rounded,
-                                            color: AppTheme.primaryBlue, size: 20),
+                                        const Icon(
+                                          Icons.info_outline_rounded,
+                                          color: AppTheme.primaryBlue,
+                                          size: 20,
+                                        ),
                                         const SizedBox(width: 10),
                                         Flexible(
                                           child: Text(
@@ -452,14 +490,23 @@ class _MedicationScreenState extends State<MedicationScreen>
                                       direction: DismissDirection.endToStart,
                                       background: Container(
                                         alignment: Alignment.centerRight,
-                                        padding: const EdgeInsets.only(right: 20),
-                                        margin: const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.only(
+                                          right: 20,
+                                        ),
+                                        margin: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFEF4444),
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
-                                        child: const Icon(Icons.delete_rounded,
-                                            color: Colors.white, size: 28),
+                                        child: const Icon(
+                                          Icons.delete_rounded,
+                                          color: Colors.white,
+                                          size: 28,
+                                        ),
                                       ),
                                       confirmDismiss: (_) async {
                                         await _deleteMed(med.id);
@@ -471,8 +518,11 @@ class _MedicationScreenState extends State<MedicationScreen>
                                         frequency: med.frequency,
                                         label: label,
                                         taken: false,
-                                        onChanged: (v) => _toggleMed(med.id, v ?? false),
-                                        onInfoTap: () => _showMedicationInfoSheet(med),
+                                        onChanged:
+                                            (v) =>
+                                                _toggleMed(med.id, v ?? false),
+                                        onInfoTap:
+                                            () => _showMedicationInfoSheet(med),
                                       ),
                                     );
                                   }),
@@ -484,25 +534,31 @@ class _MedicationScreenState extends State<MedicationScreen>
                                     style: TextButton.styleFrom(
                                       foregroundColor: AppTheme.primaryBlue,
                                       textStyle: GoogleFonts.inter(
-                                          fontSize: 16, fontWeight: FontWeight.w600),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                      ),
+                    ),
 
-                      // ─── COMPLETED TAB ───────────────────────────────────────
-                      RefreshIndicator(
-                        onRefresh: _load,
-                        child: _completedMeds.isEmpty
-                            ? SingleChildScrollView(
+                    // ─── COMPLETED TAB ───────────────────────────────────────
+                    RefreshIndicator(
+                      onRefresh: _load,
+                      child:
+                          _completedMeds.isEmpty
+                              ? SingleChildScrollView(
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 child: Center(
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.hourglass_empty_rounded,
-                                          size: 64, color: AppTheme.textLight),
+                                      const Icon(
+                                        Icons.hourglass_empty_rounded,
+                                        size: 64,
+                                        color: AppTheme.textLight,
+                                      ),
                                       const SizedBox(height: 16),
                                       Text(
                                         'No medications completed yet',
@@ -516,7 +572,7 @@ class _MedicationScreenState extends State<MedicationScreen>
                                   ),
                                 ),
                               )
-                            : ListView(
+                              : ListView(
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 padding: const EdgeInsets.all(20),
                                 children: [
@@ -532,14 +588,23 @@ class _MedicationScreenState extends State<MedicationScreen>
                                       direction: DismissDirection.endToStart,
                                       background: Container(
                                         alignment: Alignment.centerRight,
-                                        padding: const EdgeInsets.only(right: 20),
-                                        margin: const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.only(
+                                          right: 20,
+                                        ),
+                                        margin: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFEF4444),
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
-                                        child: const Icon(Icons.delete_rounded,
-                                            color: Colors.white, size: 28),
+                                        child: const Icon(
+                                          Icons.delete_rounded,
+                                          color: Colors.white,
+                                          size: 28,
+                                        ),
                                       ),
                                       confirmDismiss: (_) async {
                                         await _deleteMed(med.id);
@@ -552,17 +617,20 @@ class _MedicationScreenState extends State<MedicationScreen>
                                         label: label,
                                         taken: true,
                                         takenTime: takenTime,
-                                        onChanged: (v) => _toggleMed(med.id, v ?? false),
-                                        onInfoTap: () => _showMedicationInfoSheet(med),
+                                        onChanged:
+                                            (v) =>
+                                                _toggleMed(med.id, v ?? false),
+                                        onInfoTap:
+                                            () => _showMedicationInfoSheet(med),
                                       ),
                                     );
                                   }),
                                 ],
                               ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+      ),
     );
   }
 }
@@ -592,7 +660,8 @@ class _MedicationCard extends StatelessWidget {
   String _formatTakenTime(DateTime dt) {
     final minute = dt.minute.toString().padLeft(2, '0');
     final period = dt.hour >= 12 ? 'PM' : 'AM';
-    final displayHour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final displayHour =
+        dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
     return '${displayHour.toString().padLeft(2, '0')}:$minute $period';
   }
 
@@ -601,18 +670,24 @@ class _MedicationCard extends StatelessWidget {
     final surfaceColor = Theme.of(context).colorScheme.surface;
     final dividerColor = Theme.of(context).dividerColor;
     final timesStr = times.join(', ');
-    final statusText = taken && takenTime != null
-        ? 'Taken at ${_formatTakenTime(takenTime!)}'
-        : timesStr;
-    final subtitle = [if (statusText.isNotEmpty) statusText, if (label.isNotEmpty && !taken) label]
-        .join('  ·  ');
+    final statusText =
+        taken && takenTime != null
+            ? 'Taken at ${_formatTakenTime(takenTime!)}'
+            : timesStr;
+    final subtitle = [
+      if (statusText.isNotEmpty) statusText,
+      if (label.isNotEmpty && !taken) label,
+    ].join('  ·  ');
     final opacity = taken ? 0.6 : 1.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: taken ? surfaceColor.withAlpha((220 * opacity).toInt()) : surfaceColor,
+        color:
+            taken
+                ? surfaceColor.withAlpha((220 * opacity).toInt())
+                : surfaceColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: taken ? AppTheme.accentGreen : dividerColor),
       ),
@@ -690,7 +765,8 @@ class _MedicationCard extends StatelessWidget {
               value: taken,
               activeColor: AppTheme.accentGreen,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4)),
+                borderRadius: BorderRadius.circular(4),
+              ),
               onChanged: onChanged,
             ),
           ),
@@ -702,7 +778,7 @@ class _MedicationCard extends StatelessWidget {
 
 // ── Medication Info Bottom Sheet ──────────────────────────────────────────
 
-/// Medication info bottom sheet — displays med details and purpose (fetched from openFDA)
+/// Medication info bottom sheet - displays med details and purpose (fetched from openFDA)
 class _MedicationInfoSheet extends StatefulWidget {
   final Medication medication;
 
@@ -718,14 +794,21 @@ class _MedicationInfoSheetState extends State<_MedicationInfoSheet> {
   @override
   void initState() {
     super.initState();
-    _drugInfoFuture = PatientService.instance.fetchDrugInfo(widget.medication.name);
+    _drugInfoFuture = PatientService.instance.fetchDrugInfo(
+      widget.medication.name,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Container(
-        padding: EdgeInsets.fromLTRB(20, 24, 20, 24 + MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          24,
+          20,
+          24 + MediaQuery.of(context).viewInsets.bottom,
+        ),
         decoration: const BoxDecoration(
           color: AppTheme.surfaceWhite,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -757,9 +840,10 @@ class _MedicationInfoSheetState extends State<_MedicationInfoSheet> {
             _InfoRow(
               icon: Icons.local_pharmacy_rounded,
               label: 'Dosage',
-              value: widget.medication.dosage.isNotEmpty
-                  ? widget.medication.dosage
-                  : '—',
+              value:
+                  widget.medication.dosage.isNotEmpty
+                      ? widget.medication.dosage
+                      : '-',
             ),
             const SizedBox(height: 16),
             _InfoRow(
@@ -786,9 +870,10 @@ class _MedicationInfoSheetState extends State<_MedicationInfoSheet> {
             FutureBuilder<String>(
               future: _drugInfoFuture,
               builder: (context, snapshot) {
-                String displayText = widget.medication.note.isNotEmpty
-                    ? widget.medication.note
-                    : 'Helps manage your health and well-being';
+                String displayText =
+                    widget.medication.note.isNotEmpty
+                        ? widget.medication.note
+                        : 'Helps manage your health and well-being';
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Container(
@@ -798,7 +883,9 @@ class _MedicationInfoSheetState extends State<_MedicationInfoSheet> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppTheme.primaryBlue,
+                            ),
                             strokeWidth: 2,
                           ),
                           const SizedBox(height: 12),
@@ -817,7 +904,8 @@ class _MedicationInfoSheetState extends State<_MedicationInfoSheet> {
                 }
 
                 if (snapshot.hasError) {
-                  displayText = 'Unable to fetch information. Please follow your doctor\'s prescription.';
+                  displayText =
+                      'Unable to fetch information. Please follow your doctor\'s prescription.';
                 }
 
                 if (snapshot.hasData && snapshot.data!.isNotEmpty) {
@@ -915,7 +1003,8 @@ class _MedicationHistoryScreen extends StatefulWidget {
   });
 
   @override
-  State<_MedicationHistoryScreen> createState() => _MedicationHistoryScreenState();
+  State<_MedicationHistoryScreen> createState() =>
+      _MedicationHistoryScreenState();
 }
 
 class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
@@ -948,7 +1037,7 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
   /// Get all logs for a specific date
   Map<String, bool> _getLogsForDate(DateTime date) {
     final result = <String, bool>{};
-    
+
     for (final med in widget.medications) {
       final logs = _allLogs[med.id] ?? [];
       final takenOnDate = logs.any((log) {
@@ -959,7 +1048,7 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
       });
       result[med.id] = takenOnDate;
     }
-    
+
     return result;
   }
 
@@ -986,26 +1075,27 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
           ),
           centerTitle: true,
         ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ─── CALENDAR SECTION ────────────────────────────────────
-                      _buildMonthHeader(),
-                      const SizedBox(height: 16),
-                      _buildCalendarGrid(),
-                      const SizedBox(height: 24),
+        body:
+            _loading
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ─── CALENDAR SECTION ────────────────────────────────────
+                        _buildMonthHeader(),
+                        const SizedBox(height: 16),
+                        _buildCalendarGrid(),
+                        const SizedBox(height: 24),
 
-                      // ─── SELECTED DATE DETAILS ──────────────────────────────
-                      _buildDateDetails(),
-                    ],
+                        // ─── SELECTED DATE DETAILS ──────────────────────────────
+                        _buildDateDetails(),
+                      ],
+                    ),
                   ),
                 ),
-              ),
       ),
     );
   }
@@ -1020,7 +1110,10 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
             icon: const Icon(Icons.chevron_left_rounded, size: 28),
             onPressed: () {
               setState(() {
-                _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
+                _currentMonth = DateTime(
+                  _currentMonth.year,
+                  _currentMonth.month - 1,
+                );
               });
             },
           ),
@@ -1036,7 +1129,10 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
             icon: const Icon(Icons.chevron_right_rounded, size: 28),
             onPressed: () {
               setState(() {
-                _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+                _currentMonth = DateTime(
+                  _currentMonth.year,
+                  _currentMonth.month + 1,
+                );
               });
             },
           ),
@@ -1047,8 +1143,18 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
 
   String _getMonthYearString(DateTime date) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${months[date.month - 1]} ${date.year}';
   }
@@ -1072,20 +1178,23 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
       children: [
         // Day header (Mon, Tue, etc.)
         Row(
-          children: const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-              .map((day) => Expanded(
-                    child: Center(
-                      child: Text(
-                        day,
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textMid,
+          children:
+              const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                  .map(
+                    (day) => Expanded(
+                      child: Center(
+                        child: Text(
+                          day,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textMid,
+                          ),
                         ),
                       ),
                     ),
-                  ))
-              .toList(),
+                  )
+                  .toList(),
         ),
         const SizedBox(height: 12),
 
@@ -1106,15 +1215,18 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
               return const SizedBox.shrink();
             }
 
-            final isSelected = _selectedDate.year == date.year &&
+            final isSelected =
+                _selectedDate.year == date.year &&
                 _selectedDate.month == date.month &&
                 _selectedDate.day == date.day;
-            final isToday = DateTime.now().year == date.year &&
+            final isToday =
+                DateTime.now().year == date.year &&
                 DateTime.now().month == date.month &&
                 DateTime.now().day == date.day;
 
             final (taken, total) = _getAdherenceForDate(date);
-            final adherencePercent = total > 0 ? (taken / total * 100).toInt() : 0;
+            final adherencePercent =
+                total > 0 ? (taken / total * 100).toInt() : 0;
 
             return GestureDetector(
               onTap: () {
@@ -1122,15 +1234,17 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppTheme.primaryBlue
-                      : isToday
+                  color:
+                      isSelected
+                          ? AppTheme.primaryBlue
+                          : isToday
                           ? AppTheme.primaryLight
                           : AppTheme.backgroundGray,
                   borderRadius: BorderRadius.circular(12),
-                  border: isToday && !isSelected
-                      ? Border.all(color: AppTheme.primaryBlue, width: 2)
-                      : null,
+                  border:
+                      isToday && !isSelected
+                          ? Border.all(color: AppTheme.primaryBlue, width: 2)
+                          : null,
                 ),
                 child: SingleChildScrollView(
                   child: Column(
@@ -1146,10 +1260,14 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
                       ),
                       const SizedBox(height: 2),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 0,
+                        ),
                         decoration: BoxDecoration(
-                          color: _getAdherenceColor(adherencePercent)
-                              .withAlpha(isSelected ? 200 : 150),
+                          color: _getAdherenceColor(
+                            adherencePercent,
+                          ).withAlpha(isSelected ? 200 : 150),
                           borderRadius: BorderRadius.circular(2),
                         ),
                         child: Text(
@@ -1220,16 +1338,18 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
-                  color: wasTaken
-                      ? AppTheme.primaryLight
-                      : AppTheme.backgroundGray,
+                  color:
+                      wasTaken
+                          ? AppTheme.primaryLight
+                          : AppTheme.backgroundGray,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: wasTaken
-                        ? AppTheme.primaryBlue
-                        : AppTheme.divider,
+                    color: wasTaken ? AppTheme.primaryBlue : AppTheme.divider,
                     width: 1.5,
                   ),
                 ),
@@ -1240,9 +1360,10 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: wasTaken
-                            ? AppTheme.accentGreen
-                            : AppTheme.textLight,
+                        color:
+                            wasTaken
+                                ? AppTheme.accentGreen
+                                : AppTheme.textLight,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -1287,9 +1408,10 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: wasTaken
-                            ? AppTheme.accentGreen.withAlpha(200)
-                            : AppTheme.accentRed.withAlpha(200),
+                        color:
+                            wasTaken
+                                ? AppTheme.accentGreen.withAlpha(200)
+                                : AppTheme.accentRed.withAlpha(200),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -1312,8 +1434,18 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
 
   String _formatDateFull(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final dayOfWeek = days[date.weekday - 1];
@@ -1324,7 +1456,14 @@ class _MedicationHistoryScreenState extends State<_MedicationHistoryScreen> {
 // ── Add Medication Dialog (with Time Picker & Accessible Design) ─────────────
 
 class _AddMedicationDialog extends StatefulWidget {
-  final Function(String name, String dosage, List<String> times, String frequency, String note) onAdd;
+  final Function(
+    String name,
+    String dosage,
+    List<String> times,
+    String frequency,
+    String note,
+  )
+  onAdd;
 
   const _AddMedicationDialog({required this.onAdd});
 
@@ -1362,7 +1501,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     try {
       final parts = timeStr.split(':');
       if (parts.length != 2) return timeStr;
-      
+
       final hour = int.parse(parts[0]);
       final minute = parts[1];
       final period = hour >= 12 ? 'PM' : 'AM';
@@ -1447,18 +1586,21 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 controller: _nameCtrl,
                 label: 'Medication Name',
                 hint: 'e.g. Metformin, Aspirin, Lisinopril',
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Required' : null,
+                validator:
+                    (v) => v == null || v.trim().isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
 
               // ── Multiple Times Section ────────────────────────────
               Text(
                 'Times to Take',
-                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
-              
+
               // Quick select chips
               Wrap(
                 spacing: 8,
@@ -1506,17 +1648,18 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _selectedTimes.map((time) {
-                    return Chip(
-                      label: Text(
-                        _formatTimeForDisplay(time),
-                        style: GoogleFonts.inter(fontSize: 12),
-                      ),
-                      onDeleted: () => _removeTime(time),
-                      backgroundColor: AppTheme.primaryLight,
-                      deleteIconColor: AppTheme.primaryBlue,
-                    );
-                  }).toList(),
+                  children:
+                      _selectedTimes.map((time) {
+                        return Chip(
+                          label: Text(
+                            _formatTimeForDisplay(time),
+                            style: GoogleFonts.inter(fontSize: 12),
+                          ),
+                          onDeleted: () => _removeTime(time),
+                          backgroundColor: AppTheme.primaryLight,
+                          deleteIconColor: AppTheme.primaryBlue,
+                        );
+                      }).toList(),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -1526,17 +1669,18 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 controller: _dosageCtrl,
                 keyboardType: TextInputType.number,
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(
-                    RegExp(r'[\d.]'),
-                  ),
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
                 ],
                 decoration: InputDecoration(
                   labelText: 'Dosage',
                   hintText: 'e.g. 500',
-                  border:
-                      OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
                 style: GoogleFonts.inter(fontSize: 16),
               ),
@@ -1546,21 +1690,28 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
               DropdownButtonFormField<String>(
                 initialValue: _selectedUnit,
                 isDense: true,
-                items: ['mg', 'mcg', 'ml', 'tablets'].map((unit) {
-                  return DropdownMenuItem(
-                    value: unit,
-                    child: Text(unit, style: GoogleFonts.inter(fontSize: 14)),
-                  );
-                }).toList(),
+                items:
+                    ['mg', 'mcg', 'ml', 'tablets'].map((unit) {
+                      return DropdownMenuItem(
+                        value: unit,
+                        child: Text(
+                          unit,
+                          style: GoogleFonts.inter(fontSize: 14),
+                        ),
+                      );
+                    }).toList(),
                 onChanged: (unit) {
                   setState(() => _selectedUnit = unit);
                 },
                 decoration: InputDecoration(
                   labelText: 'Unit',
-                  border:
-                      OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -1569,21 +1720,28 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
               DropdownButtonFormField<String>(
                 initialValue: _selectedFrequency,
                 isDense: true,
-                items: ['Daily', 'Every Other Day', 'Weekly'].map((freq) {
-                  return DropdownMenuItem(
-                    value: freq,
-                    child: Text(freq, style: GoogleFonts.inter(fontSize: 14)),
-                  );
-                }).toList(),
+                items:
+                    ['Daily', 'Every Other Day', 'Weekly'].map((freq) {
+                      return DropdownMenuItem(
+                        value: freq,
+                        child: Text(
+                          freq,
+                          style: GoogleFonts.inter(fontSize: 14),
+                        ),
+                      );
+                    }).toList(),
                 onChanged: (freq) {
                   setState(() => _selectedFrequency = freq ?? 'Daily');
                 },
                 decoration: InputDecoration(
                   labelText: 'Frequency',
-                  border:
-                      OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -1594,9 +1752,13 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 decoration: InputDecoration(
                   labelText: 'Note (optional)',
                   hintText: 'e.g. Take with food',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
                 maxLines: 2,
                 style: GoogleFonts.inter(fontSize: 16),
@@ -1623,7 +1785,10 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
             ),
             child: Text(
               'Add Medication',
-              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700),
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -1654,9 +1819,10 @@ class _QuickTimeChip extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: isSelected 
-            ? Colors.white 
-            : Theme.of(context).textTheme.bodyMedium?.color,
+          color:
+              isSelected
+                  ? Colors.white
+                  : Theme.of(context).textTheme.bodyMedium?.color,
         ),
       ),
       selected: isSelected,
@@ -1664,9 +1830,10 @@ class _QuickTimeChip extends StatelessWidget {
       backgroundColor: Colors.transparent,
       selectedColor: Theme.of(context).colorScheme.primary,
       side: BorderSide(
-        color: isSelected 
-          ? Theme.of(context).colorScheme.primary 
-          : Theme.of(context).dividerColor,
+        color:
+            isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).dividerColor,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     );
@@ -1695,8 +1862,10 @@ class _DialogField extends StatelessWidget {
         labelText: label,
         hintText: hint,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
       ),
       style: GoogleFonts.inter(fontSize: 16),
     );

@@ -37,7 +37,9 @@ class InactivityNotificationService {
     // Skip on web - local notifications not supported
     if (kIsWeb || _initialized) return;
 
-    debugPrint('[InactivityNotification] 🔔 Initializing (web platform detected, skipping)');
+    debugPrint(
+      '[InactivityNotification] 🔔 Initializing (web platform detected, skipping)',
+    );
     _initialized = true;
   }
 
@@ -46,12 +48,14 @@ class InactivityNotificationService {
   Future<void> showCheckInNotification() async {
     // Skip on web - local notifications not supported
     if (kIsWeb || _localNotifications == null) {
-      debugPrint('[InactivityNotification] ⚠️ Skipping check-in notification on web');
+      debugPrint(
+        '[InactivityNotification] ⚠️ Skipping check-in notification on web',
+      );
       return;
     }
 
     debugPrint('[InactivityNotification] 🔔 Showing check-in notification');
-    
+
     // TODO: Show notification with proper details
     // This requires flutter_local_notifications types
   }
@@ -69,14 +73,10 @@ class InactivityNotificationService {
     final firestore = FirebaseFirestore.instance;
 
     try {
-      // Write alert document — caregivers' app listens to this collection
-      await firestore
-          .collection('users')
-          .doc(userId)
-          .collection('alerts')
-          .add({
+      // Write alert document - caregivers' app listens to this collection
+      await firestore.collection('users').doc(userId).collection('alerts').add({
         'type': 'inactivity_alert',
-        'status': 'inactivity_alert_triggered',  // Matches your prompt spec
+        'status': 'inactivity_alert_triggered', // Matches your prompt spec
         'triggeredAt': FieldValue.serverTimestamp(),
         'resolvedAt': null,
         'severity': 'high',
@@ -88,7 +88,9 @@ class InactivityNotificationService {
         'lastAlertAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } on FirebaseException catch (e) {
-      debugPrint('[InactivityNotification] ❌ Firestore escalation failed: ${e.code} ${e.message}');
+      debugPrint(
+        '[InactivityNotification] ❌ Firestore escalation failed: ${e.code} ${e.message}',
+      );
     }
   }
 
@@ -96,15 +98,14 @@ class InactivityNotificationService {
     debugPrint('[InactivityNotification] ✅ Alert resolved by user');
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .set({
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
         'status': 'active',
         'lastSeenAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } on FirebaseException catch (e) {
-      debugPrint('[InactivityNotification] ❌ Resolve alert failed: ${e.code} ${e.message}');
+      debugPrint(
+        '[InactivityNotification] ❌ Resolve alert failed: ${e.code} ${e.message}',
+      );
     }
   }
 }

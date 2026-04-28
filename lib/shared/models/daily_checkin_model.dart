@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class DailyCheckin {
   final String id;
   final String userId;
-  final String checkInDate; // "YYYY-MM-DD" — prevents duplicates on same day
+  final String checkInDate; // "YYYY-MM-DD" - prevents duplicates on same day
   final DateTime createdAt;
   final DateTime? updatedAt;
   final bool isUpdated;
@@ -102,10 +102,12 @@ class GeminiSummary {
     return GeminiSummary(
       id: doc.id,
       checkInId: data['checkInId'] as String? ?? '',
-      generatedAt: (data['generatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      generatedAt:
+          (data['generatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       statusColor: data['statusColor'] as String? ?? 'green',
       oneSentenceSummary: data['oneSentenceSummary'] as String? ?? '',
-      caregiverAction: data['caregiver_action'] as String? ?? 'No action needed',
+      caregiverAction:
+          data['caregiver_action'] as String? ?? 'No action needed',
       sentimentScore: (data['sentimentScore'] as num?)?.toDouble() ?? 0.5,
       riskLevel: data['riskLevel'] as String? ?? 'low',
       keyInsights: List<String>.from(data['keyInsights'] as List? ?? []),
@@ -129,9 +131,9 @@ class GeminiSummary {
 
   /// Color for UI display
   static const Map<String, int> colorMap = {
-    'green': 0xFF66BB6A,   // Material Green
-    'yellow': 0xFFFDD835,  // Material Amber
-    'red': 0xFFEF5350,     // Material Red
+    'green': 0xFF66BB6A, // Material Green
+    'yellow': 0xFFFDD835, // Material Amber
+    'red': 0xFFEF5350, // Material Red
   };
 
   int getUiColor() => colorMap[statusColor] ?? 0xFF66BB6A;

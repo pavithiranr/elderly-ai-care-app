@@ -1,5 +1,5 @@
 steps:
-  # Step 0: Retrieve Firebase token from Secret Manager and save to file
+  # Step 0: Retrieve Firebase token from Secret Manager
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'get-firebase-token'
     entrypoint: 'bash'
@@ -7,7 +7,7 @@ steps:
       - '-c'
       - 'gcloud secrets versions access latest --secret=firebase-token > /workspace/firebase-token.txt'
     
-  # Step 0b: Retrieve API keys from Secret Manager
+  # Step 0b: Retrieve API keys
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'get-api-keys'
     entrypoint: 'bash'
@@ -16,17 +16,36 @@ steps:
       - |
         gcloud secrets versions access latest --secret=GOOGLE_API_KEY > /workspace/google-api-key.txt
         gcloud secrets versions access latest --secret=GOOGLE_GENERATIVE_AI_API_KEY > /workspace/google-genai-key.txt
-    
-  # Step 1: Build Docker image with Firebase token
+
+  # Step 0c: Retrieve firebase_options.dart (Crucial for Cloud Build)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'get-firebase-options'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'gcloud secrets versions access latest --secret=firebase-options-dart > lib/firebase_options.dart'
+
+  # Step 1: Build Flutter Web App in the Cloud
+  - name: 'ghcr.io/cirruslabs/flutter:3.24.3'
+    id: 'build-flutter-web'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        flutter config --enable-web
+        flutter build web --release
+    waitFor: ['get-firebase-options']
+
+  # Step 2: Build Docker image for Frontend
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-image'
     entrypoint: 'bash'
     args:
       - '-c'
       - 'TOKEN=$(cat /workspace/firebase-token.txt); docker build --build-arg FIREBASE_TOKEN="$$TOKEN" -t gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA -t gcr.io/$PROJECT_ID/elderly-ai-care-app:latest .'
-    waitFor: ['get-firebase-token']
+    waitFor: ['build-flutter-web', 'get-firebase-token']
 
-  # Step 2: Push image to Container Registry
+  # Step 3: Push Frontend Image
   - name: 'gcr.io/cloud-builders/docker'
     id: 'push-image'
     args:
@@ -34,7 +53,7 @@ steps:
       - 'gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA'
     waitFor: ['build-image']
 
-  # Step 3: Deploy Flutter web frontend to Cloud Run
+  # Step 4: Deploy Frontend to Cloud Run
   - name: 'gcr.io/cloud-builders/run'
     id: 'deploy-frontend'
     args:
@@ -49,7 +68,7 @@ steps:
       - '--allow-unauthenticated'
     waitFor: ['push-image']
 
-  # Step 4: Build backend (Node.js FCM notification server) with API keys
+  # Step 5: Build Backend image
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-backend'
     entrypoint: 'bash'
@@ -67,7 +86,7 @@ steps:
           .
     waitFor: ['get-api-keys']
 
-  # Step 5: Push backend image
+  # Step 6: Push Backend image
   - name: 'gcr.io/cloud-builders/docker'
     id: 'push-backend'
     args:
@@ -75,7 +94,7 @@ steps:
       - 'gcr.io/$PROJECT_ID/caresync-backend:$SHORT_SHA'
     waitFor: ['build-backend']
 
-  # Step 6: Deploy backend to Cloud Run
+  # Step 7: Deploy Backend to Cloud Run
   - name: 'gcr.io/cloud-builders/run'
     id: 'deploy-backend'
     args:

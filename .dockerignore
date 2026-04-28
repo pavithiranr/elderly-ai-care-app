@@ -4,6 +4,7 @@
 .gitlab-ci.yml
 README.md
 build/
+!build/web/
 .dart_tool/
 .packages
 *.iml

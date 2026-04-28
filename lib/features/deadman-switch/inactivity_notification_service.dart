@@ -21,8 +21,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class InactivityNotificationService {
   // ignore: unused_field
   static const _notificationId = 1001;
-  static const _channelId = 'inactivity_alert';
-  static const _channelName = 'Inactivity Alert';
 
   // Note: flutter_local_notifications is mobile/desktop only
   // Access is guarded with kIsWeb checks
@@ -109,12 +107,4 @@ class InactivityNotificationService {
       debugPrint('[InactivityNotification] ❌ Resolve alert failed: ${e.code} ${e.message}');
     }
   }
-}
-
-// ── Notification tap handler (top-level function required by plugin) ──────────
-// Note: On web, this is never called due to kIsWeb guard in initialize()
-void _onNotificationTapped(dynamic response) {
-  // Navigate to app — handled by your NavigationService or GlobalKey<NavigatorState>
-  // response is NotificationResponse on mobile/desktop, null on web
-  debugPrint('[InactivityNotification] User tapped notification');
 }

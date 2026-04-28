@@ -23,7 +23,7 @@ steps:
     entrypoint: 'bash'
     args:
       - '-c'
-      - 'TOKEN=$(cat /workspace/firebase-token.txt); docker build --build-arg FIREBASE_TOKEN="$TOKEN" -t gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA -t gcr.io/$PROJECT_ID/elderly-ai-care-app:latest .'
+      - 'TOKEN=$(cat /workspace/firebase-token.txt); docker build --build-arg FIREBASE_TOKEN="$$TOKEN" -t gcr.io/$PROJECT_ID/elderly-ai-care-app:$SHORT_SHA -t gcr.io/$PROJECT_ID/elderly-ai-care-app:latest .'
     waitFor: ['get-firebase-token']
 
   # Step 2: Push image to Container Registry
@@ -60,8 +60,8 @@ steps:
         GOOGLE_GENAI_KEY=$(cat /workspace/google-genai-key.txt)
         docker build \
           -f Dockerfile.backend \
-          --build-arg GOOGLE_API_KEY="$GOOGLE_API_KEY" \
-          --build-arg GOOGLE_GENERATIVE_AI_API_KEY="$GOOGLE_GENAI_KEY" \
+          --build-arg GOOGLE_API_KEY="$$GOOGLE_API_KEY" \
+          --build-arg GOOGLE_GENERATIVE_AI_API_KEY="$$GOOGLE_GENAI_KEY" \
           -t gcr.io/$PROJECT_ID/caresync-backend:$SHORT_SHA \
           -t gcr.io/$PROJECT_ID/caresync-backend:latest \
           .

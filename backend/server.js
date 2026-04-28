@@ -10,7 +10,7 @@ admin.initializeApp();
 const app = express();
 app.use(express.json());
 app.use(cors({
-  origin: 'https://caresync-ai-631057330468.europe-west1.run.app',
+  origin: 'https://caresync-ai-kv7krtdwfa-ew.a.run.app',
 }));
 
 const PORT = process.env.PORT || 8080;

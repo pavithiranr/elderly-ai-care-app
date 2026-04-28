@@ -12,5 +12,5 @@ ENV GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
 COPY backend/package.json .
 RUN npm install --omit=dev
 COPY backend/server.js .
-EXPOSE 8081
+EXPOSE 8080
 CMD ["node", "server.js"]

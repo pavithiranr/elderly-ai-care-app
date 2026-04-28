@@ -52,6 +52,8 @@ class _CaregiverLoginScreenState extends State<CaregiverLoginScreen> {
       if (!mounted) return;
       context.go(AppConstants.routeCaregiverDashboard);
     } catch (e) {
+      // Clear invalid session on auth error
+      await UserSessionService.instance.clearSession();
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });

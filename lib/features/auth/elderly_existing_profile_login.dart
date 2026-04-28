@@ -59,6 +59,8 @@ class _ElderlyExistingProfileLoginScreenState
       if (!mounted) return;
       context.go(AppConstants.routeElderlyHome);
     } catch (e) {
+      // Clear invalid session on auth error
+      await UserSessionService.instance.clearSession();
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });

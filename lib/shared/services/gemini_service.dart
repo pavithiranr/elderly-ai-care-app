@@ -14,11 +14,8 @@ class GeminiService {
   GeminiService._();
   static final GeminiService instance = GeminiService._();
 
-  /// Backend base URL - set to your actual backend server address
-  /// For local development: 'http://10.29.107.22:8080' (your machine IP)
-  /// For production: Cloud Run endpoint (https://caresync-backend-631057330468.us-central1.run.app)
   static const String _baseUrl =
-      'https://caresync-backend-631057330468.us-central1.run.app';
+      'https://caresync-backend-631057330468.europe-west1.run.app';
 
   /// Generate a concise health summary for a caregiver dashboard.
   ///

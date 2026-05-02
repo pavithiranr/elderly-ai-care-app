@@ -190,25 +190,70 @@ class CheckinService {
     }
   }
 
-  /// Reads the cached AI summary for today's check-in (no Gemini call).
+  /// Reads the cached caregiver AI summary for today (no Gemini call).
   Future<String?> getCachedAiSummary(String userId) async {
     try {
-      final today = DateTime.now();
-      final dateString =
-          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-
+      final dateString = _todayString();
       final snapshot = await _firestore
           .collection('elderly')
           .doc(userId)
           .collection('daily_checkins')
           .doc(dateString)
           .get();
-
       return snapshot.data()?['ai_summary'] as String?;
     } catch (e) {
       debugPrint('Error fetching cached AI summary: $e');
       return null;
     }
+  }
+
+  /// Saves a caregiver AI summary to today's checkin doc (creates doc if needed).
+  Future<void> saveCaregiverAiSummary(String userId, String summary) async {
+    try {
+      await _firestore
+          .collection('elderly')
+          .doc(userId)
+          .collection('daily_checkins')
+          .doc(_todayString())
+          .set({'ai_summary': summary}, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error saving caregiver AI summary: $e');
+    }
+  }
+
+  /// Reads the cached elderly-facing health summary for today.
+  Future<String?> getCachedElderlyHealthSummary(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('elderly')
+          .doc(userId)
+          .collection('daily_checkins')
+          .doc(_todayString())
+          .get();
+      return snapshot.data()?['elderly_health_summary'] as String?;
+    } catch (e) {
+      debugPrint('Error fetching cached elderly health summary: $e');
+      return null;
+    }
+  }
+
+  /// Saves the elderly-facing health summary to today's checkin doc.
+  Future<void> saveElderlyHealthSummary(String userId, String summary) async {
+    try {
+      await _firestore
+          .collection('elderly')
+          .doc(userId)
+          .collection('daily_checkins')
+          .doc(_todayString())
+          .set({'elderly_health_summary': summary}, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error saving elderly health summary: $e');
+    }
+  }
+
+  String _todayString() {
+    final today = DateTime.now();
+    return '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
   }
 
   /// Get Gemini summary for today's check-in

@@ -126,7 +126,7 @@ PERSONAL HEALTH UPDATE (start directly with "You", no greeting):`;
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.5,
-        maxOutputTokens: 500,
+        maxOutputTokens: 800,
         topP: 0.9,
       },
     });
@@ -174,7 +174,7 @@ DAILY HEALTH REPORT (begin with patient status, no greeting):`;
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.65,
-        maxOutputTokens: 500,
+        maxOutputTokens: 800,
         topP: 0.9,
       },
     });

@@ -854,8 +854,11 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
       if (cached != null && cached.isNotEmpty) return cached;
     } catch (_) {}
 
-    // No cached summary yet — show a static fallback (no Gemini call)
+    // No cached summary — generate from Gemini and save to Firestore
     if (!mounted || _lastPatientId != patientId) return '';
+    PatientProfile? patient;
+    PatientHealthData? health;
+    int sosCount = 0;
     try {
       final results = await Future.wait([
         PatientService.instance.getPatientById(patientId),
@@ -863,16 +866,38 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
         PatientService.instance.getTodaySosCount(patientId),
       ]);
       if (!mounted || _lastPatientId != patientId) return '';
-
-      final patient = results[0] as PatientProfile?;
-      final health = results[1] as PatientHealthData?;
-      final sosCount = results[2] as int;
-
-      if (patient == null) return 'No patient found.';
-      return _buildFallback(patient.name, health, sosCount);
+      patient = results[0] as PatientProfile?;
+      health = results[1] as PatientHealthData?;
+      sosCount = results[2] as int;
     } catch (_) {
       if (!mounted) return '';
       return 'Unable to load patient data right now.';
+    }
+
+    if (patient == null) return 'No patient found.';
+
+    final events = <String>[
+      'Patient: ${patient.name}, Age: ${patient.age}',
+      if (health != null) ...[
+        'Mood today: ${health.mood}',
+        'Pain level: ${health.painLevel}/10',
+        'Medications taken: ${health.medicationsTaken} of ${health.medicationsTotal}',
+        if (sosCount > 0) 'SOS alerts today: $sosCount',
+      ] else
+        'No check-in recorded today',
+    ];
+
+    try {
+      final summary = await GeminiService.instance.generateDailySummary(
+        patientName: patient.name,
+        events: events,
+      );
+      if (!mounted || _lastPatientId != patientId) return '';
+      await CheckinService.instance.saveCaregiverAiSummary(patientId, summary);
+      return summary;
+    } catch (_) {
+      if (!mounted) return '';
+      return _buildFallback(patient.name, health, sosCount);
     }
   }
 

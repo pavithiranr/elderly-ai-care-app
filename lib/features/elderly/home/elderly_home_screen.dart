@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/checkin_service.dart';
 import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
@@ -560,10 +561,13 @@ class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
   }
 
   Future<String> _fetchSummary() async {
+    final userId = widget.patientId;
     try {
-      final health = await PatientService.instance.getTodayHealthData(
-        widget.patientId,
-      );
+      // Return cached summary if already generated today
+      final cached = await CheckinService.instance.getCachedElderlyHealthSummary(userId);
+      if (cached != null && cached.isNotEmpty) return cached;
+
+      final health = await PatientService.instance.getTodayHealthData(userId);
       if (health == null) {
         return "You haven't checked in yet today. Tap 'Check In' above to log how you're feeling!";
       }
@@ -575,7 +579,10 @@ class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
         if (health.sosAlerts > 0) 'SOS alerts today: ${health.sosAlerts}',
       ];
 
-      return await GeminiService.instance.generateHealthSummary(events);
+      final summary = await GeminiService.instance.generateHealthSummary(events);
+      // Cache so we don't call Gemini again today
+      await CheckinService.instance.saveElderlyHealthSummary(userId, summary);
+      return summary;
     } catch (_) {
       return "Great job keeping up with your health today! Remember to take your medications and stay hydrated.";
     }

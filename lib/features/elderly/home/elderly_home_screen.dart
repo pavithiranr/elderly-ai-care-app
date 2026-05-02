@@ -609,7 +609,7 @@ class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
         if (summary.isEmpty) return const SizedBox.shrink();
 
         return Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color:
                 isDarkMode
@@ -628,15 +628,17 @@ class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
                   Icon(
                     Icons.auto_awesome_rounded,
                     color: primaryColor,
-                    size: 20,
+                    size: 24,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Your Health Today',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: primaryColor,
+                  Expanded(
+                    child: Text(
+                      'Your Health Today',
+                      style: GoogleFonts.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: primaryColor,
+                      ),
                     ),
                   ),
                 ],
@@ -647,7 +649,7 @@ class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
                 style: GoogleFonts.inter(
                   fontSize: AppTheme.elderlyBodyFontSize,
                   color: Theme.of(context).colorScheme.onSurface,
-                  height: 1.55,
+                  height: 1.6,
                 ),
               ),
             ],

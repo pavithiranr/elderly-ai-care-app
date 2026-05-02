@@ -9,6 +9,7 @@ import '../../../core/theme/theme_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../shared/services/caregiver_service.dart';
 import '../../../shared/services/firebase_alerts_service.dart';
+import '../../../shared/services/checkin_service.dart';
 import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/patient_service.dart';
 import '../../../shared/services/user_session_service.dart';
@@ -845,11 +846,16 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
 
   Future<String> _fetchSummary() async {
     final patientId = widget.patientId;
-    PatientProfile? patient;
-    PatientHealthData? health;
-    int sosCount = 0;
 
-    // Step 1: fetch data - separated so fallback can use it
+    // Read cached summary written by CheckinService after elderly submits
+    try {
+      final cached = await CheckinService.instance.getCachedAiSummary(patientId);
+      if (!mounted || _lastPatientId != patientId) return '';
+      if (cached != null && cached.isNotEmpty) return cached;
+    } catch (_) {}
+
+    // No cached summary yet — show a static fallback (no Gemini call)
+    if (!mounted || _lastPatientId != patientId) return '';
     try {
       final results = await Future.wait([
         PatientService.instance.getPatientById(patientId),
@@ -858,38 +864,15 @@ class _AiSummaryLoaderState extends State<_AiSummaryLoader> {
       ]);
       if (!mounted || _lastPatientId != patientId) return '';
 
-      patient = results[0] as PatientProfile?;
-      health = results[1] as PatientHealthData?;
-      sosCount = results[2] as int;
+      final patient = results[0] as PatientProfile?;
+      final health = results[1] as PatientHealthData?;
+      final sosCount = results[2] as int;
+
+      if (patient == null) return 'No patient found.';
+      return _buildFallback(patient.name, health, sosCount);
     } catch (_) {
       if (!mounted) return '';
       return 'Unable to load patient data right now.';
-    }
-
-    if (patient == null) return 'No patient found.';
-
-    final events = <String>[
-      'Patient: ${patient.name}, Age: ${patient.age}',
-      if (health != null) ...[
-        'Mood today: ${health.mood}',
-        'Pain level: ${health.painLevel}/10',
-        'Medications taken: ${health.medicationsTaken} of ${health.medicationsTotal}',
-        if (sosCount > 0) 'SOS alerts today: $sosCount',
-      ] else
-        'No check-in recorded today',
-    ];
-
-    // Step 2: call Gemini - fall back to data-based summary on any failure
-    try {
-      final summary = await GeminiService.instance.generateDailySummary(
-        patientName: patient.name,
-        events: events,
-      );
-      if (!mounted || _lastPatientId != patientId) return '';
-      return summary;
-    } catch (_) {
-      if (!mounted) return '';
-      return _buildFallback(patient.name, health, sosCount);
     }
   }
 

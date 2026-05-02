@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/daily_checkin_model.dart';
+import 'gemini_service.dart';
 
 /// Service to manage daily health check-ins with Firestore and Gemini integration
 class CheckinService {
@@ -92,9 +93,8 @@ class CheckinService {
           .doc(dateString)
           .set(checkin.toFirestore());
 
-      // Trigger Gemini Cloud Function here (optional client-side call)
-      // In production, use Cloud Functions to call Gemini
       debugPrint('Check-in submitted for $userId on $dateString');
+      _generateAndCacheAiSummary(userId, checkin, dateString);
 
       return checkin;
     } catch (e) {
@@ -143,10 +143,71 @@ class CheckinService {
           .update(updatedCheckin.toFirestore());
 
       debugPrint('Check-in updated for $userId on $dateString');
+      _generateAndCacheAiSummary(userId, updatedCheckin, dateString);
       return updatedCheckin;
     } catch (e) {
       debugPrint('Error updating check-in: $e');
       rethrow;
+    }
+  }
+
+  /// Calls Gemini and saves the summary as `ai_summary` on the checkin doc.
+  /// Fire-and-forget — never awaited by callers.
+  Future<void> _generateAndCacheAiSummary(
+    String userId,
+    DailyCheckin checkin,
+    String dateString,
+  ) async {
+    try {
+      final doc = await _firestore.collection('elderly').doc(userId).get();
+      final patientName = (doc.data()?['name'] as String?) ?? 'Patient';
+
+      final events = [
+        'Mood: ${checkin.moodText} (score ${checkin.moodScore}/4)',
+        'Pain: ${checkin.painScore}/10 at ${checkin.painLocation}',
+        if (checkin.painDescription.isNotEmpty)
+          'Pain description: ${checkin.painDescription}',
+        'Daily plan: ${checkin.dailyPlan}',
+        if (checkin.additionalNotes?.isNotEmpty == true)
+          'Notes: ${checkin.additionalNotes}',
+      ];
+
+      final summary = await GeminiService.instance.generateDailySummary(
+        patientName: patientName,
+        events: events,
+      );
+
+      await _firestore
+          .collection('elderly')
+          .doc(userId)
+          .collection('daily_checkins')
+          .doc(dateString)
+          .update({'ai_summary': summary});
+
+      debugPrint('AI summary cached for $userId on $dateString');
+    } catch (e) {
+      debugPrint('Error generating/caching AI summary: $e');
+    }
+  }
+
+  /// Reads the cached AI summary for today's check-in (no Gemini call).
+  Future<String?> getCachedAiSummary(String userId) async {
+    try {
+      final today = DateTime.now();
+      final dateString =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      final snapshot = await _firestore
+          .collection('elderly')
+          .doc(userId)
+          .collection('daily_checkins')
+          .doc(dateString)
+          .get();
+
+      return snapshot.data()?['ai_summary'] as String?;
+    } catch (e) {
+      debugPrint('Error fetching cached AI summary: $e');
+      return null;
     }
   }
 

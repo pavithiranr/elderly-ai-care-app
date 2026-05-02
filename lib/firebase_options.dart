@@ -44,7 +44,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAE3hE0pcYq3iLKbI4xaquQxyHzyOcMsY4',
+    apiKey: 'AIzaSyDUcBVuoHkqFf5f9YU5tXNiUgEntmmjaXU',
     appId: '1:631057330468:web:62aa3e016e18b0833a83b1',
     messagingSenderId: '631057330468',
     projectId: 'caresync-vertex',
@@ -54,7 +54,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB4th4Iwep0zVcyi26MBZ3TJRoerjFk--4',
+    apiKey: 'AIzaSyAASQDBqeevmBKM6AlJLASy0Rhczu6DEfI',
     appId: '1:631057330468:android:a58e5165bc844ee73a83b1',
     messagingSenderId: '631057330468',
     projectId: 'caresync-vertex',
@@ -62,7 +62,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBOiy0si9AkM-QH6KuTa3jxH7n7UD1Slhg',
+    apiKey: 'AIzaSyCRZsKDqzpXrgtdQrOMvOb77Q2vTONgFcg',
     appId: '1:631057330468:ios:b332b6e6823f79473a83b1',
     messagingSenderId: '631057330468',
     projectId: 'caresync-vertex',

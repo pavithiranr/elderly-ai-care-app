@@ -103,7 +103,7 @@
 | **Authentication** | Firebase Auth | Secure user login & session management |
 | **AI Core** | Google Gemini 2.0 Flash | Health analysis, summaries, chat companion, deep analysis |
 | **AI Workflows** | Firebase Genkit | Agentic AI pipelines for health analysis (planned) |
-| **Deployment** | Google Cloud Run | Backend service deployment (planned for AI pipelines) |
+| **Deployment** | Google Cloud Run | [Live Backend](https://caresync-ai-631057330468.europe-west1.run.app/) - Backend service deployment |
 | **Push Notifications** | Firebase Cloud Messaging | SOS alerts, emergency notifications |
 | **Local Notifications** | flutter_local_notifications | Local reminder alerts |
 | **Charts & Analytics** | fl_chart | Weekly health trend visualization |
@@ -163,31 +163,32 @@ GEMINI_API_KEY=your_actual_gemini_api_key_here
 3. Select your Google project or create a new one
 4. Copy the API key and paste it in `.env`
 
-### Step 4: Firebase Setup
+### Step 4: Generate Firebase Configuration (REQUIRED)
 
-#### Option A: Use Existing Firebase Configuration (Recommended for Testing)
-The app includes pre-configured Firebase credentials. Skip to Step 5.
-
-#### Option B: Setup Your Own Firebase Project
+⚠️ **Important:** The `lib/firebase_options.dart` file is NOT included in git for security reasons (contains API keys). You MUST generate it locally:
 
 ```bash
-# Install Firebase CLI
+# Install Firebase CLI (if not already installed)
 npm install -g firebase-tools
 
 # Login to Firebase
 firebase login
 
-# Configure Flutter for your Firebase project
-flutterfire configure
+# Generate firebase_options.dart for the caresync-vertex project
+flutterfire configure --project=caresync-vertex
 ```
 
-This will:
-- Create Firebase project in your Google Cloud Console
-- Generate `google-services.json` (Android) → `android/app/`
-- Generate `GoogleService-Info.plist` (iOS) → `ios/Runner/`
-- Create `.firebaserc` configuration
+This command will:
+- ✅ Connect to the Firebase project `caresync-vertex`
+- ✅ Detect your platform (Android, iOS, Web, Windows)
+- ✅ Generate `lib/firebase_options.dart` with valid API keys
+- ✅ This file is `.gitignore`'d and stays local on your machine
 
-### Step 5: Add google-services.json (if using your own Firebase)
+**Troubleshooting:**
+- If you get "Project not found", you may need to create your own Firebase project via [Firebase Console](https://console.firebase.google.com)
+- The file will be generated in `lib/firebase_options.dart` automatically
+
+### Step 5: Install Platform-Specific Firebase Files (Optional)
 
 ```bash
 # For Android, copy google-services.json to:
@@ -537,6 +538,12 @@ This project leverages multiple AI tools to accelerate development and deliver i
 - [ ] **Medication Photo Recognition** - AI identifies pills by image
 - [ ] **Family Video Calls** - Direct messaging and video between elderly and caregivers
 - [ ] **Therapist Integration** - Mental health support through licensed professionals
+
+---
+
+## 👨‍💻 Created By
+
+Created by [@pavithiranr](https://github.com/pavithiranr) [@macpranesh](https://github.com/macpranesh) [@ghyrry](https://github.com/ghyrry)
 
 ---
 

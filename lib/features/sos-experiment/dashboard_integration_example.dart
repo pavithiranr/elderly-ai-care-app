@@ -1,10 +1,10 @@
-// lib/screens/dashboard_screen.dart  (EXAMPLE — adapt to your existing file)
+// lib/screens/dashboard_screen.dart  (EXAMPLE - adapt to your existing file)
 //
 // Minimal changes needed to your existing DashboardScreen:
 //   1. Add `with ShakeSosMixin` to the State class
 //   2. Call initShakeSos(context) in initState
 //   3. Call disposeShakeSos() in dispose
-//   (No UI changes required — the overlay handles itself)
+//   (No UI changes required - the overlay handles itself)
 
 import 'package:flutter/material.dart';
 // import '../mixins/shake_sos_mixin.dart';
@@ -20,7 +20,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen>
-    // with ShakeSosMixin {   // ← uncomment this line
+// with ShakeSosMixin {   // ← uncomment this line
 {
   @override
   void initState() {
@@ -36,7 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Your existing dashboard build method — NO CHANGES NEEDED HERE
+    // Your existing dashboard build method - NO CHANGES NEEDED HERE
     return Scaffold(
       appBar: AppBar(title: const Text('Care Dashboard')),
       body: const Center(

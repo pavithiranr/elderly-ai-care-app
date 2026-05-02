@@ -3,7 +3,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/logging_service.dart';
 
-/// Session service — integrates Firebase Auth with local SharedPreferences storage.
+/// Session service - integrates Firebase Auth with local SharedPreferences storage.
 /// Handles caregiver auth (email/password) and elderly setup (no password).
 class UserSessionService {
   UserSessionService._();
@@ -90,9 +90,7 @@ class UserSessionService {
 
   /// Link elderly to caregiver using the elderly's IC number.
   /// Called by caregiver after the elderly shares their IC.
-  Future<void> linkElderlyByIC({
-    required String icNumber,
-  }) async {
+  Future<void> linkElderlyByIC({required String icNumber}) async {
     try {
       final caregiverUid = _authService.getCurrentUserUid();
       if (caregiverUid == null) {
@@ -135,7 +133,7 @@ class UserSessionService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
     } catch (e) {
-      // Log error but don't throw — clearing should succeed even if auth fails
+      // Log error but don't throw - clearing should succeed even if auth fails
       logger.error('Error clearing session', e);
     }
   }

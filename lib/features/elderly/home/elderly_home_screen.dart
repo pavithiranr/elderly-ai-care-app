@@ -42,7 +42,7 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
     initShakeSos(context);
 
     // Start inactivity monitor IMMEDIATELY on app start
-    _initializeMonitor();  // Fire and forget, but tracks initialization
+    _initializeMonitor(); // Fire and forget, but tracks initialization
 
     // Check every minute if the hour changed (for active hours boundary: 8 AM or 10 PM)
     // Only rebuild on hour change to avoid excessive rebuilds
@@ -94,53 +94,60 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.settings_rounded),
-              title: Text(
-                'Settings',
-                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                context.push(AppConstants.routeElderlySettings);
-              },
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: AppTheme.accentRed),
-              title: Text(
-                'Sign Out',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.accentRed,
+      builder:
+          (context) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              onTap: () async {
-                Navigator.pop(context);
-                await UserSessionService.instance.clearSession();
-                if (context.mounted) {
-                  context.go(AppConstants.routeOnboarding);
-                }
-              },
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: const Icon(Icons.settings_rounded),
+                  title: Text(
+                    'Settings',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push(AppConstants.routeElderlySettings);
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.logout_rounded,
+                    color: AppTheme.accentRed,
+                  ),
+                  title: Text(
+                    'Sign Out',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.accentRed,
+                    ),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await UserSessionService.instance.clearSession();
+                    if (context.mounted) {
+                      context.go(AppConstants.routeOnboarding);
+                    }
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -169,94 +176,97 @@ class _ElderlyHomeScreenState extends State<ElderlyHomeScreen>
           onRefresh: _handleRefresh,
           child: SafeArea(
             child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              // ── Header ────────────────────────────────────────────────
-              FutureBuilder<PatientProfile?>(
-                future: UserSessionService.instance.getSavedUserId().then(
-                      (userId) => userId != null
-                          ? PatientService.instance.getPatientById(userId)
-                          : null,
-                    ),
-                builder: (context, snapshot) {
-                  final patientName = snapshot.data?.name ?? 'Friend';
-                  return _Header(
-                    greeting: _greeting,
-                    date: _today,
-                    name: patientName,
-                    onProfileTap: () => _showProfileMenu(context),
-                  );
-                },
-              ),
-              const SizedBox(height: 28),
-
-              // ── Check-in banner ───────────────────────────────────────
-              _CheckinBanner(
-                onTap: () => context.push(AppConstants.routeElderlyCheckin),
-              ),
-              const SizedBox(height: 28),
-
-              // ── SOS button (prominent, immediately accessible) ────────
-              _SosButton(
-                onTap: () => context.push(AppConstants.routeSos),
-              ),
-              const SizedBox(height: 28),
-
-              // ── AI Summary ────────────────────────────────────────────
-              FutureBuilder<String?>(
-                future: UserSessionService.instance.getSavedUserId(),
-                builder: (context, idSnap) {
-                  final userId = idSnap.data;
-                  if (userId == null) return const SizedBox.shrink();
-                  return _ElderlyAiSummary(patientId: userId);
-                },
-              ),
-              const SizedBox(height: 28),
-
-              // ── Section label ─────────────────────────────────────────
-              Text(
-                'What do you need?',
-                style: GoogleFonts.inter(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // ── Quick Action grid ─────────────────────────────────────
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-                childAspectRatio: 0.95,
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _QuickAction(
-                    icon: Icons.check_circle_outline_rounded,
-                    label: 'Check In',
-                    color: Theme.of(context).colorScheme.primary,
-                    bg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                  // ── Header ────────────────────────────────────────────────
+                  FutureBuilder<PatientProfile?>(
+                    future: UserSessionService.instance.getSavedUserId().then(
+                      (userId) =>
+                          userId != null
+                              ? PatientService.instance.getPatientById(userId)
+                              : null,
+                    ),
+                    builder: (context, snapshot) {
+                      final patientName = snapshot.data?.name ?? 'Friend';
+                      return _Header(
+                        greeting: _greeting,
+                        date: _today,
+                        name: patientName,
+                        onProfileTap: () => _showProfileMenu(context),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 32),
+
+                  // ── Check-in banner ───────────────────────────────────────
+                  _CheckinBanner(
                     onTap: () => context.push(AppConstants.routeElderlyCheckin),
                   ),
-                  _QuickAction(
-                    icon: Icons.medication_rounded,
-                    label: 'Medications',
-                    color: const Color(0xFFEA580C),
-                    bg: const Color(0xFFEA580C).withValues(alpha: 0.15),
-                    onTap: () => context.push(AppConstants.routeMedication),
+                  const SizedBox(height: 32),
+
+                  // ── SOS button (prominent, immediately accessible) ────────
+                  _SosButton(onTap: () => context.push(AppConstants.routeSos)),
+                  const SizedBox(height: 32),
+
+                  // ── AI Summary ────────────────────────────────────────────
+                  FutureBuilder<String?>(
+                    future: UserSessionService.instance.getSavedUserId(),
+                    builder: (context, idSnap) {
+                      final userId = idSnap.data;
+                      if (userId == null) return const SizedBox.shrink();
+                      return _ElderlyAiSummary(patientId: userId);
+                    },
                   ),
+                  const SizedBox(height: 32),
+
+                  // ── Section label ─────────────────────────────────────────
+                  Text(
+                    'What do you need?',
+                    style: GoogleFonts.inter(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── Quick Action grid ─────────────────────────────────────
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 18,
+                    mainAxisSpacing: 18,
+                    childAspectRatio: 0.95,
+                    children: [
+                      _QuickAction(
+                        icon: Icons.check_circle_outline_rounded,
+                        label: 'Check In',
+                        color: Theme.of(context).colorScheme.primary,
+                        bg: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.15),
+                        onTap:
+                            () =>
+                                context.push(AppConstants.routeElderlyCheckin),
+                      ),
+                      _QuickAction(
+                        icon: Icons.medication_rounded,
+                        label: 'Medications',
+                        color: const Color(0xFFEA580C),
+                        bg: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                        onTap: () => context.push(AppConstants.routeMedication),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         ),
-      ),
-    ),
       ),
     );
   }
@@ -280,11 +290,12 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final textMid = Theme.of(context).textTheme.bodyMedium?.color 
-      ?? (isDarkMode ? Colors.grey[400] : Colors.grey[600]);
+    final textMid =
+        Theme.of(context).textTheme.bodyMedium?.color ??
+        (isDarkMode ? Colors.grey[400] : Colors.grey[600]);
     final textDark = Theme.of(context).colorScheme.onSurface;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -329,15 +340,17 @@ class _Header extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: isDarkMode ? primaryColor.withValues(alpha: 0.2) : primaryColor.withValues(alpha: 0.1),
+              color:
+                  isDarkMode
+                      ? primaryColor.withValues(alpha: 0.2)
+                      : primaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
-              border: isDarkMode ? Border.all(color: primaryColor, width: 1.5) : null,
+              border:
+                  isDarkMode
+                      ? Border.all(color: primaryColor, width: 1.5)
+                      : null,
             ),
-            child: Icon(
-              Icons.person_rounded,
-              color: primaryColor,
-              size: 32,
-            ),
+            child: Icon(Icons.person_rounded, color: primaryColor, size: 32),
           ),
         ),
       ],
@@ -356,10 +369,15 @@ class _CheckinBanner extends StatelessWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
     // Use a darker, desaturated accent for dark mode
-    final gradientStart = isDarkMode ? primaryColor.withValues(alpha: 0.8) : primaryColor;
-    final gradientEnd = isDarkMode ? primaryColor.withValues(alpha: 0.6) : primaryColor.withAlpha(220);
-    final textColor = isDarkMode ? Colors.white : Theme.of(context).colorScheme.onPrimary;
-    
+    final gradientStart =
+        isDarkMode ? primaryColor.withValues(alpha: 0.8) : primaryColor;
+    final gradientEnd =
+        isDarkMode
+            ? primaryColor.withValues(alpha: 0.6)
+            : primaryColor.withAlpha(220);
+    final textColor =
+        isDarkMode ? Colors.white : Theme.of(context).colorScheme.onPrimary;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -375,7 +393,7 @@ class _CheckinBanner extends StatelessWidget {
             borderRadius: const BorderRadius.all(Radius.circular(20)),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.all(24),
             child: Row(
               children: [
                 Icon(
@@ -443,11 +461,14 @@ class _QuickAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final dividerColor = Theme.of(context).dividerColor;
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Theme.of(context).colorScheme.onSurface;
+    final textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ??
+        Theme.of(context).colorScheme.onSurface;
     final surfaceColor = Theme.of(context).colorScheme.surface;
     // Adapt background color for dark mode for better contrast
-    final adaptedBg = isDarkMode ? bg.withValues(alpha: 0.15) : bg.withValues(alpha: 0.1);
-    
+    final adaptedBg =
+        isDarkMode ? bg.withValues(alpha: 0.15) : bg.withValues(alpha: 0.1);
+
     return Material(
       color: surfaceColor,
       borderRadius: BorderRadius.circular(20),
@@ -459,23 +480,32 @@ class _QuickAction extends StatelessWidget {
             color: surfaceColor,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isDarkMode ? dividerColor.withValues(alpha: 0.6) : dividerColor,
+              color:
+                  isDarkMode
+                      ? dividerColor.withValues(alpha: 0.6)
+                      : dividerColor,
               width: 1.5,
             ),
           ),
           child: Container(
             constraints: const BoxConstraints(minHeight: 120),
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: adaptedBg,
                     borderRadius: BorderRadius.circular(14),
-                    border: isDarkMode ? Border.all(color: color.withValues(alpha: 0.4), width: 1) : null,
+                    border:
+                        isDarkMode
+                            ? Border.all(
+                              color: color.withValues(alpha: 0.4),
+                              width: 1,
+                            )
+                            : null,
                   ),
                   child: Icon(
                     icon,
@@ -483,7 +513,7 @@ class _QuickAction extends StatelessWidget {
                     size: AppTheme.elderlyIconSize,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 // Wrap label in FittedBox to allow text scaling without overflow
                 // Use mainAxisSize.min to allow the Column to shrink-wrap
                 FittedBox(
@@ -531,7 +561,9 @@ class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
 
   Future<String> _fetchSummary() async {
     try {
-      final health = await PatientService.instance.getTodayHealthData(widget.patientId);
+      final health = await PatientService.instance.getTodayHealthData(
+        widget.patientId,
+      );
       if (health == null) {
         return "You haven't checked in yet today. Tap 'Check In' above to log how you're feeling!";
       }
@@ -561,9 +593,10 @@ class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
           return Container(
             height: 100,
             decoration: BoxDecoration(
-              color: isDarkMode
-                  ? primaryColor.withValues(alpha: 0.15)
-                  : primaryColor.withValues(alpha: 0.08),
+              color:
+                  isDarkMode
+                      ? primaryColor.withValues(alpha: 0.15)
+                      : primaryColor.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Center(
@@ -578,9 +611,10 @@ class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: isDarkMode
-                ? primaryColor.withValues(alpha: 0.15)
-                : primaryColor.withValues(alpha: 0.08),
+            color:
+                isDarkMode
+                    ? primaryColor.withValues(alpha: 0.15)
+                    : primaryColor.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: primaryColor.withValues(alpha: isDarkMode ? 0.3 : 0.2),
@@ -591,7 +625,11 @@ class _ElderlyAiSummaryState extends State<_ElderlyAiSummary> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.auto_awesome_rounded, color: primaryColor, size: 20),
+                  Icon(
+                    Icons.auto_awesome_rounded,
+                    color: primaryColor,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Your Health Today',
@@ -631,7 +669,7 @@ class _SosButton extends StatelessWidget {
     final errorColor = Theme.of(context).colorScheme.error;
     return SizedBox(
       width: double.infinity,
-      height: AppTheme.elderlyButtonHeight + 10, // 74px — extra prominent
+      height: AppTheme.elderlyButtonHeight + 10, // 74px - extra prominent
       child: ElevatedButton.icon(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
@@ -648,7 +686,7 @@ class _SosButton extends StatelessWidget {
           ),
         ),
         icon: const Icon(Icons.emergency_rounded, size: 32),
-        label: const Text('SOS — Emergency'),
+        label: const Text('SOS - Emergency'),
       ),
     );
   }

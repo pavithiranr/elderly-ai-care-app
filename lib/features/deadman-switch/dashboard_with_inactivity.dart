@@ -16,8 +16,8 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen>
-    // ① Add both mixins ─────────────────────────────────────────────────────
-    // with ShakeSosMixin, InactivitySosMixin {
+// ① Add both mixins ─────────────────────────────────────────────────────
+// with ShakeSosMixin, InactivitySosMixin {
 {
   @override
   void initState() {
@@ -91,7 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 }
 
-// Placeholder for the demo — remove in real app
+// Placeholder for the demo - remove in real app
 class SafetyStatusIndicatorDemo extends StatelessWidget {
   const SafetyStatusIndicatorDemo({super.key});
 

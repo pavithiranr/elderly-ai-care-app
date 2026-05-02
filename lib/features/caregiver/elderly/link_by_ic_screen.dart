@@ -28,7 +28,9 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
     final icNumber = _icController.text.replaceAll('-', '');
 
     if (icNumber.length != 12) {
-      setState(() => _errorMessage = 'Please enter the full 12-digit IC number');
+      setState(
+        () => _errorMessage = 'Please enter the full 12-digit IC number',
+      );
       return;
     }
 
@@ -61,52 +63,64 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surfaceWhite,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppTheme.accentGreen.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.check_circle_rounded,
-                  color: AppTheme.accentGreen, size: 36),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppTheme.surfaceWhite,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Linked Successfully!',
-              style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppTheme.accentGreen,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Linked Successfully!',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'You can now monitor this elderly\'s health.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: AppTheme.textMid,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.pop();
+                    },
+                    child: Text(
+                      'Continue',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'You can now monitor this elderly\'s health.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textMid),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.pop();
-                },
-                child: Text('Continue',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -122,9 +136,10 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
         title: Text(
           'Link Elderly Profile',
           style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textDark),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textDark,
+          ),
         ),
         backgroundColor: AppTheme.surfaceWhite,
         elevation: 0,
@@ -137,15 +152,19 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
             Text(
               'Enter Elderly\'s IC Number',
               style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark),
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textDark,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Ask the elderly person for their MyKad\n(IC) number to connect their profile.',
               style: GoogleFonts.inter(
-                  fontSize: 14, color: AppTheme.textMid, height: 1.5),
+                fontSize: 14,
+                color: AppTheme.textMid,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 32),
 
@@ -159,13 +178,20 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_rounded,
-                        color: AppTheme.accentRed, size: 20),
+                    const Icon(
+                      Icons.error_rounded,
+                      color: AppTheme.accentRed,
+                      size: 20,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(_errorMessage!,
-                          style: GoogleFonts.inter(
-                              fontSize: 14, color: AppTheme.accentRed)),
+                      child: Text(
+                        _errorMessage!,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: AppTheme.accentRed,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -176,9 +202,10 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
             Text(
               'IC Number',
               style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textMid),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textMid,
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -194,35 +221,51 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
                 _IcNumberFormatter(),
               ],
               style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
-                  letterSpacing: 2),
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
+                letterSpacing: 2,
+              ),
               decoration: InputDecoration(
                 hintText: '901231-14-5678',
                 hintStyle: GoogleFonts.inter(
-                    fontSize: 18,
-                    color: AppTheme.textLight,
-                    fontWeight: FontWeight.normal,
-                    letterSpacing: 0),
-                prefixIcon: const Icon(Icons.badge_rounded,
-                    color: AppTheme.primaryBlue, size: 22),
+                  fontSize: 18,
+                  color: AppTheme.textLight,
+                  fontWeight: FontWeight.normal,
+                  letterSpacing: 0,
+                ),
+                prefixIcon: const Icon(
+                  Icons.badge_rounded,
+                  color: AppTheme.primaryBlue,
+                  size: 22,
+                ),
                 filled: true,
                 fillColor: AppTheme.surfaceWhite,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 18,
+                ),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: AppTheme.divider, width: 1.5)),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: AppTheme.divider,
+                    width: 1.5,
+                  ),
+                ),
                 enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: AppTheme.divider, width: 1.5)),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: AppTheme.divider,
+                    width: 1.5,
+                  ),
+                ),
                 focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                        color: AppTheme.primaryBlue, width: 2)),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: AppTheme.primaryBlue,
+                    width: 2,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -236,14 +279,19 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_rounded,
-                      color: AppTheme.primaryBlue, size: 20),
+                  const Icon(
+                    Icons.info_rounded,
+                    color: AppTheme.primaryBlue,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'The IC number is permanent — no codes or expiry dates.',
+                      'The IC number is permanent - no codes or expiry dates.',
                       style: GoogleFonts.inter(
-                          fontSize: 13, color: AppTheme.primaryBlue),
+                        fontSize: 13,
+                        color: AppTheme.primaryBlue,
+                      ),
                     ),
                   ),
                 ],
@@ -256,18 +304,25 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
               height: 52,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _handleLinkElderly,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white)),
-                      )
-                    : Text('Link Profile',
-                        style: GoogleFonts.inter(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                        : Text(
+                          'Link Profile',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
               ),
             ),
           ],
@@ -281,7 +336,9 @@ class _LinkByIcScreenState extends State<LinkByIcScreen> {
 class _IcNumberFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final digits = newValue.text.replaceAll('-', '');
     if (digits.length > 12) return oldValue;
 

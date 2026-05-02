@@ -8,3 +8,5 @@ build/
 .vscode/
 *.log
 node_modules/
+!web_build/
+!web_build/**

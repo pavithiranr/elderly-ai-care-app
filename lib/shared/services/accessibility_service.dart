@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Accessibility Service — Manages theme preferences with reactive updates
+/// Accessibility Service - Manages theme preferences with reactive updates
 class AccessibilityService extends ChangeNotifier {
   static final AccessibilityService _instance = AccessibilityService._();
   late SharedPreferences _prefs;

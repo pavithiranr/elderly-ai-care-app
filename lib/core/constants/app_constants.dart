@@ -1,5 +1,5 @@
 class AppConstants {
-  // Route names — used by go_router
+  // Route names - used by go_router
   static const String routeOnboarding = '/';
   static const String routeRoleSelect = '/role-select';
   static const String routeCaregiverLogin = '/caregiver/login';

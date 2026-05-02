@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_theme.dart';
 
-/// ThemeProvider — Manages app theme based on accessibility settings
+/// ThemeProvider - Manages app theme based on accessibility settings
 /// Extends ChangeNotifier to rebuild the entire app when theme changes
 class ThemeProvider extends ChangeNotifier {
   static final ThemeProvider _instance = ThemeProvider._();

@@ -1,34 +1,35 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:go_router/go_router.dart';
+import 'core/constants/app_constants.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/utils/router.dart';
 import 'firebase_options.dart';
 import 'shared/services/notification_service.dart';
 
-/// Must be a top-level function — called by FCM when the app is in the
-/// background or terminated. Runs in an isolate, so only minimal work here.
+/// Top-level FCM background handler - runs in its own isolate.
+/// FCM automatically shows the system-tray notification from the payload;
+/// we only need to init Firebase so Admin SDK / Firestore is available if needed.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // The notification is shown automatically by FCM when the app is terminated.
-  // When the app is in the background we just let the system tray handle it.
-  debugPrint('FCM background message: ${message.messageId}');
+  debugPrint('FCM background message received: ${message.messageId}');
+}
+
+/// Navigate to the caregiver alerts screen when a notification is tapped.
+void _handleNotificationTap(RemoteMessage message) {
+  final context = appNavigatorKey.currentContext;
+  if (context == null) return;
+  // All alerts (SOS, inactivity, etc.) send the caregiver to the alerts screen
+  context.push(AppConstants.routeCaregiverAlerts);
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Register background message handler BEFORE Firebase.initializeApp
+  // Must be registered BEFORE Firebase.initializeApp
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // Load environment variables from .env file (optional)
-  try {
-    await dotenv.load(fileName: '.env');
-  } catch (e) {
-    debugPrint('Note: .env file not found, continuing without it');
-  }
 
   // Initialize Firebase
   try {
@@ -57,6 +58,17 @@ void main() async {
     debugPrint('❌ NotificationService initialization error: $e');
   }
 
+  // App was fully terminated and user tapped the notification to open it
+  final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _handleNotificationTap(initialMessage),
+    );
+  }
+
+  // App was in background and user tapped the notification
+  FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+
   runApp(const CareSyncApp());
 }
 
@@ -71,7 +83,7 @@ class CareSyncApp extends StatelessWidget {
       listenable: ThemeProvider.instance,
       builder: (context, child) {
         debugPrint('🔄 Rebuilding MaterialApp with new theme...');
-        
+
         return MaterialApp.router(
           title: 'CareSync AI',
           debugShowCheckedModeBanner: false,
@@ -82,7 +94,9 @@ class CareSyncApp extends StatelessWidget {
             // Wrap with MediaQuery to apply text scaling system-wide
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(ThemeProvider.instance.textScaling),
+                textScaler: TextScaler.linear(
+                  ThemeProvider.instance.textScaling,
+                ),
               ),
               child: child!,
             );

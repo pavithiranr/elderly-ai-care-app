@@ -21,8 +21,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class InactivityNotificationService {
   // ignore: unused_field
   static const _notificationId = 1001;
-  static const _channelId = 'inactivity_alert';
-  static const _channelName = 'Inactivity Alert';
 
   // Note: flutter_local_notifications is mobile/desktop only
   // Access is guarded with kIsWeb checks
@@ -39,7 +37,9 @@ class InactivityNotificationService {
     // Skip on web - local notifications not supported
     if (kIsWeb || _initialized) return;
 
-    debugPrint('[InactivityNotification] 🔔 Initializing (web platform detected, skipping)');
+    debugPrint(
+      '[InactivityNotification] 🔔 Initializing (web platform detected, skipping)',
+    );
     _initialized = true;
   }
 
@@ -48,12 +48,14 @@ class InactivityNotificationService {
   Future<void> showCheckInNotification() async {
     // Skip on web - local notifications not supported
     if (kIsWeb || _localNotifications == null) {
-      debugPrint('[InactivityNotification] ⚠️ Skipping check-in notification on web');
+      debugPrint(
+        '[InactivityNotification] ⚠️ Skipping check-in notification on web',
+      );
       return;
     }
 
     debugPrint('[InactivityNotification] 🔔 Showing check-in notification');
-    
+
     // TODO: Show notification with proper details
     // This requires flutter_local_notifications types
   }
@@ -70,43 +72,40 @@ class InactivityNotificationService {
 
     final firestore = FirebaseFirestore.instance;
 
-    // Write alert document — caregivers' app listens to this collection
-    await firestore
-        .collection('users')
-        .doc(userId)
-        .collection('alerts')
-        .add({
-      'type': 'inactivity_alert',
-      'status': 'inactivity_alert_triggered',  // Matches your prompt spec
-      'triggeredAt': FieldValue.serverTimestamp(),
-      'resolvedAt': null,
-      'severity': 'high',
-    });
+    try {
+      // Write alert document - caregivers' app listens to this collection
+      await firestore.collection('users').doc(userId).collection('alerts').add({
+        'type': 'inactivity_alert',
+        'status': 'inactivity_alert_triggered', // Matches your prompt spec
+        'triggeredAt': FieldValue.serverTimestamp(),
+        'resolvedAt': null,
+        'severity': 'high',
+      });
 
-    // Also update the user's top-level status for quick caregiver dashboard reads
-    await firestore.collection('users').doc(userId).update({
-      'status': 'inactivity_alert_triggered',
-      'lastAlertAt': FieldValue.serverTimestamp(),
-    });
+      // Use merge to avoid not-found errors when the user doc is missing.
+      await firestore.collection('users').doc(userId).set({
+        'status': 'inactivity_alert_triggered',
+        'lastAlertAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      debugPrint(
+        '[InactivityNotification] ❌ Firestore escalation failed: ${e.code} ${e.message}',
+      );
+    }
   }
 
   Future<void> resolveAlert() async {
     debugPrint('[InactivityNotification] ✅ Alert resolved by user');
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .update({
-      'status': 'active',
-      'lastSeenAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        'status': 'active',
+        'lastSeenAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      debugPrint(
+        '[InactivityNotification] ❌ Resolve alert failed: ${e.code} ${e.message}',
+      );
+    }
   }
-}
-
-// ── Notification tap handler (top-level function required by plugin) ──────────
-// Note: On web, this is never called due to kIsWeb guard in initialize()
-void _onNotificationTapped(dynamic response) {
-  // Navigate to app — handled by your NavigationService or GlobalKey<NavigatorState>
-  // response is NotificationResponse on mobile/desktop, null on web
-  debugPrint('[InactivityNotification] User tapped notification');
 }

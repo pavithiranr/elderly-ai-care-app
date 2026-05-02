@@ -4,6 +4,7 @@
 .gitlab-ci.yml
 README.md
 build/
+!build/web/
 .dart_tool/
 .packages
 *.iml
@@ -16,3 +17,6 @@ node_modules/
 Thumbs.db
 *.log
 .cache/
+
+
+.env
